@@ -32,36 +32,10 @@ subs from the evaluation package, it may not always work.")
 (defvar sepia-prefix-key "\M-."
   "* Prefix for functions in ``sepia-keymap''.")
 
-(defvar sepia-initializer
-"
-BEGIN { push @INC, \"$ENV{HOME}/src/perl\" };
-use Emacs::Lisp;
-use Devel::Xref;
-use Module::Info;
-use Data::Dumper;
+(defvar sepia-root "~/src/perl/sepia/"
+  "* Location of Sepia support files.")
 
-sub _module_info($)
-{
-    my ($m, $func) = @_;
-    my $info;
-    if (-f $m) {
-	$info = Module::Info->new_from_file($m);
-    } else {
-	(my $file = $m) =~ s|::|/|g;
-	$file .= '.pm';
-	if (exists $INC{$file}) {
-	    $info = Module::Info->new_from_loaded($m);
-	} else {
-	    $info = Module::Info->new_from_module($m);
-	}
-    }
-    if ($info) {
-        return $info->$func;
-    }
-}
 
-1;
-")
 
 (defvar sepia-keymap
   (let ((km (make-sparse-keymap)))
@@ -93,8 +67,11 @@ might want to bind your keys, which works best when bound to
     (define-key map "\C-c\C-l" 'sepia-eval-buffer)
     (define-key map "\C-c\C-d" 'sepia-w3m-view-pod)))
 
-(defun perl-name (sym)
-  (substitute ?_ ?- (symbol-name sym)))
+(defun perl-name (sym &optional mod)
+  (cond
+    ((symbolp sym) (substitute ?_ ?- (symbol-name sym)))
+    (mod (format "%s::%s" mod sym))
+    (t sym)))
 
 ;;;###autoload
 (defun sepia-init ()
@@ -123,66 +100,73 @@ intended to shadow similar functionality in elisp-mode:
     (setq perl-interpreter nil))
   (epl-init)
     ;; Load perl defs:
+
+  (perl-eval (format "BEGIN { push @INC, \"%s\" };
+use Emacs::Lisp;
+use Data::Dumper;
+require Sepia;
+require Xref;" sepia-root))
   (perl-eval sepia-initializer 'void-context)
 
   ;; Create glue wrappers for Module::Info funcs.
-  (dolist (x '((name . "Find module name.  Does not require loading.")
-	       (version . "Find module version.  Does not require loading.")
-	       (inc-dir .
+  (dolist (x '((name "Find module name.  Does not require loading.")
+	       (version "Find module version.  Does not require loading.")
+	       (inc-dir
 "Find directory in which this module was found.  Does not require loading.")
-	       (file .
+	       (file
 "Absolute path of file defining this module.  Does not require loading.")
-	       (is-core .
+	       (is-core
 "Guess whether or not a module is part of the core distribution.
 Does not require loading.")
-	       (modules-used .
+	       (modules-used
 "List modules used by this module.  Requires loading.")
-	       (packages-inside .
+	       (packages-inside
 "List sub-packages in this module.  Requires loading.")
-	       (superclasses .
+	       (superclasses
 "List module's superclasses.  Requires loading.")))
-    (define-modinfo-function (car x) (cdr x)))
+    (apply #'define-modinfo-function x))
 
-  ;; Create low-level wrappers for Devel::Xref
-  (dolist (x '((rebuild . "Build Xref database for current Perl process.")
-	       (redefined . "Rebuild Xref information for a given sub.")
-               (completions . "Find completions in the symbol table.")
-               (location . "Find an identifier's location.")
+  ;; Create low-level wrappers for Sepia
+  (dolist (x '((completions "Find completions in the symbol table.")
+               (location "Find an identifier's location.")
+	       (mod-subs "Find all subs defined in a package.")
+	       (apropos "Find subnames matching RE.")
+               ))
+    (apply #'define-xref-function "Sepia" x))
 
-	       (defs . "Find all definitions of a function.")
-	       (callers . "Find all callers of a function.")
-	       (callees . "Find all functions called by a function.")
+  (dolist (x '((rebuild "Build Xref database for current Perl process.")
+	       (redefined "Rebuild Xref information for a given sub.")
 
-	       (apropos . "Find subnames matching RE.")
-	       (var-apropos . "Find varnames matching RE.")
-	       (mod-apropos . "Find modules matching RE.")
-	       (file-apropos . "Find files matching RE.")
+	       (callers "Find all callers of a function.")
+	       (callees "Find all functions called by a function.")
 
-	       (var-defs . "Find all definitions of a variable.")
-	       (var-assigns . "Find all assignments to a variable.")
-	       (var-uses . "Find all uses of a variable.")
+	       (var-apropos "Find varnames matching RE.")
+	       (mod-apropos "Find modules matching RE.")
+	       (file-apropos "Find files matching RE.")
 
-	       (mod-redefined . "Rebuild Xref information for a given package.")
-	       (mod-subs . "Find all subs defined in a package.")
-	       (mod-files . "Find the file defining a package.")
-	       (mod-decls . "Generate declarations for subs in a package.")
-	       (guess-module-file . "Guess file corresponding to module.")
-	       (file-modules . "List the modules defined in a file.")))
-    (define-xref-function (car x) (cdr x)))
+	       (var-defs "Find all definitions of a variable.")
+	       (var-assigns "Find all assignments to a variable.")
+	       (var-uses "Find all uses of a variable.")
+
+	       (mod-redefined "Rebuild Xref information for a given package.")
+	       (mod-files "Find the file defining a package.")
+	       (mod-decls "Generate declarations for subs in a package.")
+	       (guess-module-file "Guess file corresponding to module.")
+	       (file-modules "List the modules defined in a file.")))
+    (apply #'define-xref-function "Sepia::Xref" x))
   (add-hook 'cperl-mode-hook 'sepia-install-eldoc)
   (add-hook 'cperl-mode-hook 'sepia-doc-update)
   (add-hook 'sepia-repl-hook 'sepia-repl-init-syntax)
   (add-hook 'sepia-repl-hook 'sepia-install-eldoc)
   (if (boundp 'cperl-mode-map)
       (sepia-install-keys cperl-mode-map))
-  (sepia-rebuild)
   (sepia-interact))
 
-(defun define-xref-function (name doc)
-  "Define a lisp mirror for a function from Devel::Xref."
+(defun define-xref-function (package name doc)
+  "Define a lisp mirror for a low-level Sepia function."
   (let ((lisp-name (intern (format "xref-%s" name)))
-	(pl-name (format "Devel::Xref::%s" (perl-name name))))
-    (when (fboundp lisp-name) (fmakunbound lisp-name))
+	(pl-name (format "%s::%s" package (perl-name name))))
+    (fmakunbound lisp-name)
     (eval `(defun ,lisp-name (&rest args)
 	     ,doc
 	     (apply #'perl-call ,pl-name 'list-context args)))))
@@ -199,11 +183,9 @@ module in question be loaded.")))
     (eval `(defun ,name (mod)
 	     ,full-doc
 	     (interactive (list (sepia-interactive-arg 'module)))
-	     (let ((res (perl-call "_module_info" 'scalar-context
-				   mod ,pl-func)))
-	       (if (interactive-p)
-		   (message "%s" res)
-		   res))))))
+             (sepia-maybe-echo
+              (perl-call "Sepia::module_info" 'scalar-context
+                         mod ,pl-func))))))
 
 (defun sepia-thing-at-point (what)
   "Like ``thing-at-point'', but hacked to avoid REPL prompt."
@@ -280,9 +262,12 @@ symbol at point."
 			  (message "line for %s was %d, now %d" name line
 				   (line-number-at-pos))
 			  (setq line (line-number-at-pos))
-			  (concat "\n    "
-				  (buffer-substring (my-bol-from (point))
-						    (my-eol-from (point)))))
+                          (let ((tmpstr
+                                 (buffer-substring (my-bol-from (point))
+                                                   (my-eol-from (point)))))
+                            (if (> (length tmpstr) 60)
+                                (concat "\n    " tmpstr)
+                                tmpstr)))
 			"...")))
 	  (insert (format "%s:%d:%s\n" (abbreviate-file-name file) line str)))))
     (grep-mode)
@@ -320,7 +305,7 @@ buffer.
 			))
      (let ((ret
 	    ,(if test
-		 `(let ((tmp  (,gen ident module file line)))
+		 `(let ((tmp (,gen ident module file line)))
 		    (or (mapcan #',test tmp) tmp))
 		 `(,gen ident module file line))))
        ;; Always clear out the last found ring, because it's confusing
@@ -334,13 +319,17 @@ buffer.
 (defun sepia-location (name)
   (interactive (list (or (thing-at-point 'symbol)
                          (completing-read "Function: " 'xref-completions))))
-  (let ((fl  (xref-location name)))
-    (when fl
-      (destructuring-bind (file line shortname) fl
-        (if (string-match "^(eval " file)
-            (error "Can't find definition of %s in %s." name file)
-            (sepia-set-found (list fl))
-            (sepia-next))))))
+  (let* ((fl (or (car (xref-location name))
+                 (car (apply #'xref-location (xref-apropos name))))))
+    (when (and fl (string-match "^(eval " (car fl)))
+      (message "Can't find definition of %s in %s." name (car fl))
+      (setq fl nil))
+    (if (interactive-p)
+        (if fl (progn
+                 (sepia-set-found (list fl))
+                 (sepia-next))
+            (message "No definition for %s." name))
+        fl)))
 
 ;;;###autoload
 (defun sepia-dwim (&optional display-p)
@@ -351,13 +340,13 @@ buffer.
 * Prompt otherwise
 "
     (interactive "P")
-    (multiple-value-bind (obj mod type) (sepia-ident-at-point)
+    (multiple-value-bind (obj mod type raw) (sepia-ident-at-point)
       (if type
 	  (progn
 	    (sepia-set-found nil type)
 	    (let ((ret (ecase type
-			 (function (xref-defs obj mod))
-			 (variable (xref-var-uses obj mod))
+			 (function (list (sepia-location raw)))
+			 (variable (xref-var-uses raw))
 			 (module `((,(car (xref-mod-files mod)) 1 nil nil))))))
 	      (if display-p
 		  (sepia-show-locations ret)
@@ -367,20 +356,18 @@ buffer.
 
 (define-sepia-query sepia-defs
     "Find all definitions of sub."
-  xref-defs)
-
-(define-sepia-query sepia-uses
-    "Find all uses of sub (i.e. positions within its callers)."
-  xref-callers
-  (lambda (x) (setf (third x) ident) (list x)))
+  xref-apropos
+  xref-location)
 
 (define-sepia-query sepia-callers
     "Find callers of FUNC."
-  xref-callers)
+  xref-callers
+  xref-location)
 
 (define-sepia-query sepia-callees
     "Find a sub's callees."
-  xref-callees)
+  xref-callees
+  xref-location)
 
 (define-sepia-query sepia-var-defs
     "Find a var's definitions."
@@ -410,8 +397,8 @@ buffer.
 
 (define-sepia-query sepia-apropos
     "Find/list subroutines matching regexp."
-  xref-apropos
-  xref-defs
+  (lambda (name &rest blah) (xref-apropos name 1))
+  xref-location
   'function)
 
 (define-sepia-query sepia-var-apropos
@@ -447,12 +434,7 @@ rebuilds the database unless a prefix argument is given."
 		   list))
   (setq sepia-found list
 	sepia-found-head list)
-  (setq sepia-found-refiner (sepia-refiner type))
-  ;; (when (length list)
-;;     (message "sepia: found %d %s%s." (length list)
-;; 	       (or type "item")
-;; 	       (if (= (length list) 1) "" "s")))
-  )
+  (setq sepia-found-refiner (sepia-refiner type)))
 
 (defun sepia-refiner (type)
   (case type
@@ -576,7 +558,7 @@ The function is intended to be bound to \\M-TAB, like
   (let ((tap (or (thing-at-point 'symbol)
                  (and (eq last-command 'sepia-complete-symbol) ""))))
     (if tap
-        (let ((completions (xref-completions tap)))
+        (let ((completions (xref-completions tap (sepia-buffer-package))))
           (case (length completions)
             (0 (message "No completions for %s." tap))
             (1 (delete-thing-at-point 'symbol)
@@ -667,7 +649,7 @@ prefix arg, replace the region with the result."
 
 (defun sepia-guess-package (sub &optional file)
   "Guess which package SUB is defined in."
-  (let ((defs (xref-defs sub)))
+  (let ((defs (xref-apropos sub)))
     (or (and (= (length defs) 1)
 	     (or (not file) (equal (caar defs) file))
 	     (fourth (car defs)))
@@ -761,12 +743,12 @@ the only function that requires EPL (the rest can use Pmacs)."
   (epl-eval (epl-init) nil 'scalar-context
   (concat
  "{ package " (or sepia-eval-package "main") ";"
- (if sepia-eval-file (concat "$Devel::Xref::file = \"" sepia-eval-file "\";")
+ (if sepia-eval-file (concat "$Sepia::Xref::file = \"" sepia-eval-file "\";")
      "")
- (if sepia-eval-line (format "$Devel::Xref::line = %d;" sepia-eval-line)
+ (if sepia-eval-line (format "$Sepia::Xref::line = %d;" sepia-eval-line)
      "")
  (if discard
-     (concat string "; 'ok' }\n")
+     (concat string "; '' }\n")
      (concat
       "require Data::Dumper;"
 ;;       "local $Data::Dumper::Indent=0;"
@@ -806,10 +788,13 @@ the only function that requires EPL (the rest can use Pmacs)."
              (message "[%s]" res)
              nil))))
 
+(defun sepia-eval-for-repl (string)
+  (sepia-eval string (string-match ";\\s *$" string)))
+
 (unless (assoc "perl" repl-supported-modes)
   (push '("perl"
           :map cperl-mode-map
-          :eval sepia-eval
+          :eval sepia-eval-for-repl
           :complete sepia-complete-symbol
           :header sepia-repl-header
           :cd sepia-set-cwd
@@ -865,7 +850,7 @@ the only function that requires EPL (the rest can use Pmacs)."
   (save-excursion
     (goto-char (point-min))
     (or (and (re-search-forward "^\\s *package\\s +\\([^ ;]+\\)" nil t)
-	     (match-string 1))
+	     (match-string-no-properties 1))
 	"main")))
 
 (defun sepia-doc-update ()
