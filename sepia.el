@@ -15,6 +15,14 @@
 (require 'epl)
 (require 'generic-repl)
 (require 'cperl-mode)
+(eval-when (load)
+  (condition-case err
+      (require 'sepia-w3m)
+    (error (message "Not loading sepia-w3m"))))
+(eval-when (load)
+  (condition-case err
+      (require 'sepia-tree)
+    (error (message "Not loading sepia-tree"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Xrefs -- use Perl to find definitions and uses.
@@ -64,7 +72,7 @@ might want to bind your keys, which works best when bound to
     (define-key map sepia-prefix-key sepia-keymap)
     (define-key map "\M-," 'sepia-next)
     (define-key map "\C-\M-x" 'sepia-eval-defun)
-    (define-key map "\C-c\C-l" 'sepia-eval-buffer)
+    (define-key map "\C-c\C-l" 'sepia-load-file)
     (define-key map "\C-c\C-d" 'sepia-w3m-view-pod)))
 
 (defun perl-name (sym &optional mod)
@@ -89,7 +97,7 @@ which may conflict with keys in your setup, but which are
 intended to shadow similar functionality in elisp-mode:
 
 `\\C-c\\C-d'        ``sepia-w3m-view-pod''
-`\\C-c\\C-l'        ``sepia-eval-buffer''
+`\\C-c\\C-l'        ``sepia-load-file''
 `\\C-\\M-x'         ``sepia-eval-defun''
 `\\M-,'             ``sepia-next'' (shadows ``tags-loop-continue'')
 "
@@ -413,14 +421,27 @@ buffer.
   (xref-rebuild))
 
 ;;;###autoload
-(defun sepia-load-file (file rebuild-p)
+(defun sepia-load-file (file &optional rebuild-p collect-warnings)
   "Reload a file, possibly rebuilding the Xref database.  When
 called interactively, reloads the current buffer's file, and
 rebuilds the database unless a prefix argument is given."
-  (interactive (list (buffer-file-name) (not prefix-arg)))
-  (perl-load-file file)
-  (if rebuild-p
-      (xref-rebuild)))
+  (interactive (progn (save-buffer)
+                      (list (buffer-file-name)
+                            (not prefix-arg)
+                            (format "*%s errors*" (buffer-file-name)))))
+  (perl-eval
+   (if collect-warnings
+       (format "{ local $SIG{__WARN__} = Sepia::emacs_warner('%s'); do '%s' }"
+               collect-warnings file)
+       (format "do '%s';" file)))
+  (when collect-warnings
+    (with-current-buffer (get-buffer-create collect-warnings)
+      (sepia-display-errors (point-min) (point-max))
+      (if (> (buffer-size) 0)
+          (pop-to-buffer (current-buffer))
+          (kill-buffer (current-buffer)))))
+  (when rebuild-p
+    (xref-rebuild)))
 
 (defvar sepia-found)
 (defvar sepia-found-head)
@@ -694,26 +715,17 @@ rebuild its Xrefs."
 	(buffer-substring (point)
 			  (progn (end-of-defun) (point)))))))
 
-(defun sepia-eval-no-run (string)
+(defun sepia-eval-no-run (string &optional discard collect-warnings)
   (condition-case err
       (sepia-eval
        (concat "BEGIN { use B; B::minus_c(); $^C=1; } { "
                string
-               "} BEGIN { die \"ok\\n\" }"))
+               "} BEGIN { die \"ok\\n\" }")
+       discard collect-warnings)
     (perl-error (if (string-match "^ok\n" (cadr err))
-                    t
+                    nil
                     (cadr err)))
     (error err)))
-
-;;;###autoload
-(defun sepia-eval-buffer (&optional no-update)
-  "Re-evaluate the current file; unless prefix argument is given,
-also rebuild the xref database."
-  (interactive)
-  (let ((sepia-eval-file (buffer-file-name)))
-    (sepia-eval-no-run (buffer-string))
-    (unless no-update
-      (xref-rebuild))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
@@ -738,7 +750,7 @@ also rebuild the xref database."
 (defun sepia-get-eval-package ()
   sepia-eval-package)
 
-(defun sepia-eval (string &optional discard)
+(defun sepia-eval (string &optional discard collect-warnings)
   "Evaluate STRING as Perl code, returning the pretty-printed
 value of the last expression.  If SOURCE-FILE is given, use this
 as the file containing the code to be evaluated.  XXX: this is
@@ -756,8 +768,8 @@ the only function that requires EPL (the rest can use Pmacs)."
       "require Data::Dumper;"
 ;;       "local $Data::Dumper::Indent=0;"
       "local $Data::Dumper::Deparse=1;"
-      "local $_ = Data::Dumper::Dumper([do { " string "}]);"
-      "s/^.*?=\\s*\\[//; s/\\];$//;$_}")))))
+      "my $result = Data::Dumper::Dumper([do { " string "}]);"
+      "$result =~ s/^.*?=\\s*\\[//; $result =~ s/\\];$//;$result}")))))
 
 ;;;###autoload
 (defun sepia-interact ()
@@ -913,42 +925,39 @@ the only function that requires EPL (the rest can use Pmacs)."
 ;; Error jump:
 
 (defun sepia-extract-next-warning (pos &optional end)
-  (when (and (re-search-forward "^\\(.+\\) at \\(.+\\) line \\([0-9]+\\)\\.$"
-				end t)
-	     (not (string= "(eval " (substring (match-string 2) 0 6))))
-    (list (match-string 2)
-	  (read-from-string (match-string 3))
-	  (msg (match-string 1)))))
+  (catch 'foo
+    (while (re-search-forward "^\\(.+\\) at \\(.+\\) line \\([0-9]+\\)\\.$"
+                              end t)
+      (unless (string= "(eval " (substring (match-string 2) 0 6))
+        (throw 'foo (list (match-string 2)
+                          (parse-integer (match-string 3))
+                          (match-string 1)))))))
 
 (defun sepia-goto-error-at (pos)
   "Visit the source of the error on line at POS (point if called
 interactively)."
-  (interactive "d")
-  (ifa (sepia-extract-warning (my-bol-from pos) (my-eol-from pos))
+  (interactive (list (point)))
+  (ifa (sepia-extract-next-warning (my-bol-from pos) (my-eol-from pos))
        (destructuring-bind (file line msg) it
 	 (find-file file)
 	 (goto-line line)
 	 (message "%s" msg))
        (error "No error to find.")))
 
-(defun sepia-perl-display-errors (beg end)
+(defun sepia-display-errors (beg end)
   (interactive "r")
   (goto-char beg)
-  (loop with msgs = (make-hash-table :test #'equal)
-     for w = (sepia-extract-warning (my-bol-from (point)) end)
-     while w
-     do (destructuring-bind (file line msg) w
-	  (puthash file msgs (cons line msg)))
-     finally
-       (with-current-buffer (get-buffer-create "*perl-warnings*")
-	 (let ((inhibit-read-only t))
-	   (erase-buffer))
-	 (dolist (k (sort (hash-table-keys msgs) #'string<))
-	   (let ((v (gethash k msgs)))
-	     (insert (format "%s:%d:\n%s\n"
-			     (abbreviate-file-name k) (car v) (cdr v)))))
-	 (goto-char (point-min))
-	 (grep-mode))))
+  (let ((msgs nil))
+    (loop for w = (sepia-extract-next-warning (my-bol-from (point)) end)
+       while w
+       do (destructuring-bind (file line msg) w
+            (push (format "%s:%d:%s\n" (abbreviate-file-name file) line msg)
+                  msgs)))
+    (erase-buffer)
+    (goto-char (point-min))
+    (mapcar #'insert msgs)
+    (goto-char (point-min))
+    (grep-mode)))
 
 (provide 'sepia)
 ;;; sepia.el ends here
