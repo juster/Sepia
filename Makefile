@@ -1,4 +1,4 @@
-# This Makefile is for the Devel::Xref extension to perl.
+# This Makefile is for the Sepia extension to perl.
 #
 # It was generated automatically by MakeMaker version
 # 6.17 (Revision: 1.133) from the contents of
@@ -10,10 +10,11 @@
 #
 #   MakeMaker Parameters:
 
+#     ABSTRACT => q[Simple Emacs-Perl InterAction: ugly, yet effective.]
 #     AUTHOR => q[Sean O'Rourke <seano@cpan.org>]
-#     NAME => q[Devel::Xref]
+#     NAME => q[Sepia]
 #     PREREQ_PM => { Emacs::EPL=>q[0], Module::Info=>q[0], Data::Dumper=>q[0] }
-#     VERSION_FROM => q[Xref.pm]
+#     VERSION_FROM => q[Sepia.pm]
 
 # --- MakeMaker post_initialize section:
 
@@ -50,13 +51,13 @@ VENDORLIBEXP =
 # --- MakeMaker constants section:
 AR_STATIC_ARGS = cr
 DIRFILESEP = /
-NAME = Devel::Xref
-NAME_SYM = Devel_Xref
-VERSION = 0.01
+NAME = Sepia
+NAME_SYM = Sepia
+VERSION = 0.56
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_01
+VERSION_SYM = 0_56
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.01
+XS_VERSION = 0.56
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -134,11 +135,11 @@ MM_REVISION = 1.133
 # BASEEXT = Basename part of FULLEXT. May be just equal FULLEXT. (eg Oracle)
 # PARENT_NAME = NAME without BASEEXT and no trailing :: (eg Foo::Bar)
 # DLBASE  = Basename part of dynamic library. May be just equal BASEEXT.
-FULLEXT = Devel/Xref
-BASEEXT = Xref
-PARENT_NAME = Devel
+FULLEXT = Sepia
+BASEEXT = Sepia
+PARENT_NAME = 
 DLBASE = $(BASEEXT)
-VERSION_FROM = Xref.pm
+VERSION_FROM = Sepia.pm
 OBJECT = 
 LDFROM = $(OBJECT)
 LINKTYPE = dynamic
@@ -155,8 +156,8 @@ MAN3PODS = Xref.pm
 CONFIGDEP = $(PERL_ARCHLIB)$(DIRFILESEP)Config.pm $(PERL_INC)$(DIRFILESEP)config.h
 
 # Where to build things
-INST_LIBDIR      = $(INST_LIB)/Devel
-INST_ARCHLIBDIR  = $(INST_ARCHLIB)/Devel
+INST_LIBDIR      = $(INST_LIB)
+INST_ARCHLIBDIR  = $(INST_ARCHLIB)
 
 INST_AUTODIR     = $(INST_LIB)/auto/$(FULLEXT)
 INST_ARCHAUTODIR = $(INST_ARCHLIB)/auto/$(FULLEXT)
@@ -171,10 +172,19 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = Xref.pm
+TO_INST_PM = Sepia.pm \
+	Xref.pm \
+	modindex.pl \
+	supers.pl
 
 PM_TO_BLIB = Xref.pm \
-	$(INST_LIB)/Devel/Xref.pm
+	$(INST_LIB)/Xref.pm \
+	supers.pl \
+	$(INST_LIB)/supers.pl \
+	Sepia.pm \
+	$(INST_LIB)/Sepia.pm \
+	modindex.pl \
+	$(INST_LIB)/modindex.pl
 
 
 # --- MakeMaker platform_constants section:
@@ -236,8 +246,8 @@ CI = ci -u
 RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
-DISTNAME = Devel-Xref
-DISTVNAME = Devel-Xref-0.01
+DISTNAME = Sepia
+DISTVNAME = Sepia-0.56
 
 
 # --- MakeMaker macro section:
@@ -381,7 +391,7 @@ manifypods : pure_all  \
 	Xref.pm \
 	Xref.pm
 	$(NOECHO) $(POD2MAN) --section=3 --perm_rw=$(PERM_RW)\
-	  Xref.pm $(INST_MAN3DIR)/Devel::Xref.$(MAN3EXT) 
+	  Xref.pm $(INST_MAN3DIR)/Xref.$(MAN3EXT) 
 
 
 
@@ -422,16 +432,16 @@ realclean_subdirs :
 realclean purge ::  clean realclean_subdirs
 	$(RM_RF) $(INST_AUTODIR) $(INST_ARCHAUTODIR)
 	$(RM_RF) $(DISTVNAME)
-	$(RM_F)  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) $(INST_LIB)/Devel/Xref.pm
+	$(RM_F)  $(INST_LIB)/modindex.pl $(INST_LIB)/supers.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE) $(INST_LIB)/Sepia.pm $(INST_LIB)/Xref.pm
 
 
 # --- MakeMaker metafile section:
 metafile :
 	$(NOECHO) $(ECHO) '# http://module-build.sourceforge.net/META-spec.html' > META.yml
 	$(NOECHO) $(ECHO) '#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#' >> META.yml
-	$(NOECHO) $(ECHO) 'name:         Devel-Xref' >> META.yml
-	$(NOECHO) $(ECHO) 'version:      0.01' >> META.yml
-	$(NOECHO) $(ECHO) 'version_from: Xref.pm' >> META.yml
+	$(NOECHO) $(ECHO) 'name:         Sepia' >> META.yml
+	$(NOECHO) $(ECHO) 'version:      0.56' >> META.yml
+	$(NOECHO) $(ECHO) 'version_from: Sepia.pm' >> META.yml
 	$(NOECHO) $(ECHO) 'installdirs:  site' >> META.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META.yml
 	$(NOECHO) $(ECHO) '    Data::Dumper:                  0' >> META.yml
@@ -701,9 +711,9 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,01,0,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,56,0,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '    <ABSTRACT></ABSTRACT>' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple Emacs-Perl InterAction: ugly, yet effective.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Sean O'\''Rourke &lt;seano@cpan.org&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -720,7 +730,10 @@ ppd:
 
 pm_to_blib: $(TO_INST_PM)
 	$(NOECHO) $(PERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')'\
-	  Xref.pm $(INST_LIB)/Devel/Xref.pm 
+	  Xref.pm $(INST_LIB)/Xref.pm \
+	  supers.pl $(INST_LIB)/supers.pl \
+	  Sepia.pm $(INST_LIB)/Sepia.pm \
+	  modindex.pl $(INST_LIB)/modindex.pl 
 	$(NOECHO) $(TOUCH) $@
 
 # --- MakeMaker selfdocument section:

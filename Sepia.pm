@@ -85,7 +85,7 @@ sub location
                         }
                     }
                     my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
-                    [Cwd::abs_path($file), $line, $shortname]
+                    [Cwd::abs_path($file), $line, $shortname || $name]
                 } else {
                     [];
                 }
@@ -180,7 +180,7 @@ Emacs-called function to get module information.
 
 =cut
 
-sub module_info($)
+sub module_info($$)
 {
     my ($m, $func) = @_;
     my $info;

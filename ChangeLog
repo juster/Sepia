@@ -1,6 +1,11 @@
-2004-04-13  Sean O'Rourke  <seano@cs.ucsd.edu>
+2004-09-10  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
-	* sepia.el
+	* test.pl: some real tests.
+	* Sepia.pm, Xref.pm: Separate simple symbol-table searching from
+	  Xref, making the former more reliable.
+	* Xref.pm: More reliable detection of (class) method calls.
+	* sepia.el: results are not displayed for expressions ending in
+	  ';' (c.f. Octave).
 
 2004-04-12  Sean O'Rourke  <seano@cs.ucsd.edu>
 

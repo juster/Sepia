@@ -2,14 +2,14 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 WriteMakefile(
-    'NAME'		=> 'Devel::Xref',
-    'VERSION_FROM'	=> 'Xref.pm', # finds $VERSION
+    'NAME'		=> 'Sepia',
+    'VERSION_FROM'	=> 'Sepia.pm', # finds $VERSION
     'PREREQ_PM'		=> { 'Emacs::EPL' => 0,
 			     'Data::Dumper' => 0,
 			     'Module::Info' => 0 },
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
      (AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",
-      ABSTRACT => 'Simple Emacs-Perl InterAction: ugly, yet effective.')
+      ABSTRACT => 'Simple Emacs-Perl InterAction')
      : ())
 );
 

@@ -31,17 +31,21 @@ than to create something new.
 
 In Emacs, type
 
-   M-x load-library <ret> sepia <ret>
-   M-x sepia-init <ret>
+   M-x load-library RET sepia RET
+   M-x sepia-init RET
 
-This will give you an Xref database for the EPL process, and start the
-REPL.  Note that you should do this before opening a Perl file, since
-Sepia needs to install some hooks on `cperl-mode-hook'.
+to start the interpreter.  For other features that require additional
+emacs packages, you will have to manually load sepia-w3m and sepia-tree.
 
 Probably the most useful part of the package is the cross-reference
-facility.  In a Perl buffer with Sepia enabled, type
+facility.  Since it can take several seconds to create, and become
+outdated when the program changes, it must be built explicitly by
 
-   C-h f sepia-init <ret>
+   M-x sepia-rebuild RET
+
+In a Perl buffer with Sepia enabled, type
+
+   C-h f sepia-init RET
 
 to get a list of functions using it.  In general, the functions will
 look up zero or more source locations, then allow you to cycle
@@ -55,16 +59,15 @@ hits, from which you can then navigate.
    Perl side.
 .- (Hard) Use module, file, and line number to filter results on the
    Emacs side.
-.- (Medium) Clean up Perl side.
-.- (Hard) Merge with B::Xref.
+.- (Easy) Clean up Perl side a bit more.
 .- (Medium) Better documentation for Elisp side.
+.- (Medium) Get the variable def/use analysis working again.
 
 * BUGS
 
 .- Emacs may display a "not enough arguments for format string" error.
-   This is probably caused by some code passing a string containing a
-   "%" as the first argument to `format', either in but I haven't
-   tracked it down yet.
+   This is probably caused by some code passing using (message STR)
+   instead of (message "%s" STR), but I haven't tracked it down yet.
 .- Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
 .- The cursor may miss by several lines when jumping to a definition.

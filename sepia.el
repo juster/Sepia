@@ -105,8 +105,7 @@ intended to shadow similar functionality in elisp-mode:
 use Emacs::Lisp;
 use Data::Dumper;
 require Sepia;
-require Xref;" sepia-root))
-  (perl-eval sepia-initializer 'void-context)
+require Xref;" sepia-root) 'void-context)
 
   ;; Create glue wrappers for Module::Info funcs.
   (dolist (x '((name "Find module name.  Does not require loading.")
@@ -316,15 +315,16 @@ buffer.
 	   (sepia-set-found ret ',(or prompt 'function))
 	   (sepia-next)))))
 
-(defun sepia-location (name)
+(defun sepia-location (name &optional jump-to)
   (interactive (list (or (thing-at-point 'symbol)
-                         (completing-read "Function: " 'xref-completions))))
+                         (completing-read "Function: " 'xref-completions))
+                     t))
   (let* ((fl (or (car (xref-location name))
                  (car (apply #'xref-location (xref-apropos name))))))
     (when (and fl (string-match "^(eval " (car fl)))
       (message "Can't find definition of %s in %s." name (car fl))
       (setq fl nil))
-    (if (interactive-p)
+    (if jump-to
         (if fl (progn
                  (sepia-set-found (list fl))
                  (sepia-next))
@@ -563,10 +563,13 @@ The function is intended to be bound to \\M-TAB, like
             (0 (message "No completions for %s." tap))
             (1 (delete-thing-at-point 'symbol)
                (insert (car completions)))
-            (t (delete-thing-at-point 'symbol)
-               (insert (try-completion "" completions))
-               (with-output-to-temp-buffer "*Completions*"
-                 (display-completion-list completions)))))
+            (t (let ((old (thing-at-point 'symbol))
+                     (new (try-completion "" completions)))
+                 (if (string= new old)
+                     (with-output-to-temp-buffer "*Completions*"
+                       (display-completion-list completions))
+                     (delete-thing-at-point 'symbol)
+                     (insert new))))))
         (message "sepia: empty -- hit tab again to complete."))))
 
 (defun sepia-indent-or-complete ()

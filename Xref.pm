@@ -601,7 +601,7 @@ List callees of C<$func>.
 
 sub callees {
     my $f = shift;
-    if ($f =~ /^(.*::)([^:]+)$/) {
+    if ($f =~ /^(.*)::([^:]+)$/) {
         unshift @_, $1;
         $f = $2;
     }
