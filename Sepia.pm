@@ -1,5 +1,5 @@
 package Sepia;
-our $VERSION = '0.56';
+our $VERSION = '0.57';
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -52,7 +52,7 @@ sub completions
                     : $pfx eq '%' ? 'HASH'
                     : undef);
         map {
-            s/^::/$pfx/;$_
+            s/^(?::*main)?::/$pfx/;$_
         } grep {
             !$type || defined(*{$_}{$type})
         } _completions('::', @nameparts);
@@ -122,7 +122,7 @@ sub apropos
         my_walksymtable {
             push @ret, "$stash$_" if /$findre/;
         } '::';
-        map { s/^:://;$_ } @ret;
+        map { s/^(?::*main)?:://;$_ } @ret;
     }
 }
 
@@ -198,6 +198,35 @@ sub module_info($$)
     if ($info) {
         return $info->$func;
     }
+}
+
+=item C<mod_file($mod)>
+
+=cut
+
+sub mod_file
+{
+    my $m = shift;
+    $m =~ s/::/\//g;
+    while ($m && !exists $INC{"$m.pm"}) {
+        $m =~ s#(?:^|/)[^/]+$##;
+    }
+    $m ? $INC{"$m.pm"} : undef;
+}
+
+{ package EL; use Emacs::Lisp; }
+
+sub emacs_warner
+{
+    my $buf = shift;
+    $buf = EL::get_buffer_create($buf);
+    return sub {
+        my $msg = "@_";         # can't be inside EL::save_current_buffer
+        EL::save_current_buffer {
+            EL::set_buffer($buf);
+            EL::insert($msg);
+        };
+    };
 }
 
 1;
