@@ -1,0 +1,138 @@
+2004-04-13  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* sepia.el
+
+2004-04-12  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* sepia.el (sepia-doc-scan-buffer): Make regular expressions a
+	bit better.
+	(sepia-ident-at-point): handle upper-case function and variable
+	names for completion (a bit hacky...).
+	(sepia-install-keys): fix keymap installation.
+
+2004-04-11  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* Xref.pm (guess_module_file): do like Module::Info and trust
+	%INC more than our Xref info.  But don't be _too_ smart about
+	this -- we were picking up lots of bogus exports.
+	(pp_method_named): add support for constant-named methods (cribbed
+	from B::Concise).
+
+2004-04-10  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* Xref.pm: update $VERSION to track Sepia release.
+
+	* sepia.el (sepia-indent-or-complete): only complete on the
+	second TAB.
+
+2004-04-09  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* sepia.el (sepia-refiner): tweak refining function a bit more.
+	I'm still not entirely happy with this, but it's getting better.
+	Time and experimentation are required.
+
+	* sepia-tree.el (sepia-calle[er]-tree): New file.  Use
+	caller/callee information to generate tree-view using David
+	Ponce's wonderful tree-widget.
+
+	* Xref.pm (_apropos_re): Add that Emacs-style multipart-word
+	completion, so e.g. D:v_d -> Devel::Xref::var_defs.  It's groovy,
+	man.
+	(%firstline): gone.  Just getting a line within the sub is good
+	enough -- we can fix it on the Emacs side of the fence later.
+
+2004-04-08  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* sepia-w3m.el (sepia-w3m-perldoc-this): work for functions as
+	well as modules, and try to go to correct position in manpage.
+
+	* sepia.el (sepia-eval-buffer): use 'BEGIN{ die }' to do Xrefs
+	for scripts without loading them.
+
+	* Xref.pm: Localize a bunch of things instead of stomping on
+	package lexicals.  This makes the module better handle repeated
+	use, for which it wasn't designed.
+	
+	* Xref.pm (mod_subs): Rename package_subs for consistency.
+	(mod_decls): New function to generate decls for evaluation.
+
+	* sepia.el: misc bug-fixes, and better support for redefining
+	functions with sepia-eval-defun, especially preserving files and
+	line numbers.
+	(sepia-eval): remove newlines to make line-numbers make more
+	sense to user.
+	(sepia-interactive-arg): delay reading completions to speed up
+	\M-. functions.
+	(sepia-refiner): search both forward and backward, to adjust for
+	e.g. adding comments.  Still not so good, but better.
+
+2004-04-06  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* sepia-w3m.el: moved w3m-perldoc support here.
+
+	* README: added description, removed disclaimer
+
+	* sepia.el (sepia-symbol-info, sepia-doc-update): POD scanning
+	and cperl hackage for eldoc support.
+
+2004-04-05  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* Xref.pm (redefined,forget): make them take a single sub at a
+	time, and pay attention to packages.
+	(_apropos): use package info to narrow choices.
+
+	* sepia.el (sepia-eval-defun,sepia-eval-buffer): new functions.
+
+	* test.pl: satisfy the cpants Fascists.
+	
+	* Xref.pm (use_type): try to be smarter about when something's
+	being assigned to, vs. merely used as a reference.
+
+	* sepia.el (sepia-repl-header): keep up with generic-repl by
+	doing header line, working dir.
+	(sepia-complete-symbol): stupid bug with modules.
+	(sepia-install-keys): new function.
+	(sepia-var-assigns): assignments are more useful than defs.
+	(sepia-init): start REPL by default.
+
+	* generic-repl.el (repl-cd,repl-set-header): "new" function from
+	Slime to track working dir, update header line.
+
+2004-04-04  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* Sepia.jpg: don't ask -- just look.
+	
+	* sepia.el (sepia-ident-at-point): fixed bug with sigils.
+	(sepia-complete-symbol): fixed bug with undefined function
+	sepia-end-of-word.  
+	Always use Data::Dumper.
+
+	* any-repl.el: new file implementing REPL, basically stolen from
+	Slime.
+
+	* pscope.el: renamed to sepia.el to go with name change.
+
+2004-04-03  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* pscope.el (pscope-set-found): remove locations with no
+	file in package "main", which were causing errors before.
+	(pscope-dwim): new function.  New functions
+	pscope-complete-symbol and pscope-indent-or-complete for
+	symbol completion.  Not well-tested, but they seem to work.
+	The most annoying thing is that since the Xref db isn't
+	automatically updated, it won't always know as much as you
+	expect.
+	(pscope-load-file): new function.
+
+	* Xref.pm: update export lists to reflect new functions.
+
+2004-04-02  Sean O'Rourke  <seano@cs.ucsd.edu>
+
+	* Xref.pm: minor cleanup.
+
+	* pscope.el: pass module, file, line to Perl side (where it's
+	ignored for now); fix line number refinement to be a
+	little less over-eager; fix pscope-callees to go to sub
+	definitions instead of call sites.
+	
+	* README: added TODO section.

@@ -1,0 +1,85 @@
+* DESCRIPTION (-*- allout -*- mode)
+
+Sepia is a set of features to make Emacs a better tool for Perl
+development, including:
+
+    * an interactive prompt (REPL) for evaluating code;
+    * cross-referencing to find and navigate between function and
+      variable definitions and uses;
+    * variable- and function-name completion based on this Xref
+      database.
+    * eldoc support to echo function arguments in the minibuffer
+    * functions to simplify POD browsing with Emacs-w3m
+
+I find Emacs as a software development environment preferable to many
+modern IDEs, particularly when using a richly-supported language like
+Lisp or Emacs Lisp.  Sepia is my attempt to give Perl a similar degree
+of support "in the Emacs way," which represents 40 years' collective
+experience of the software development community.  I have therefore
+tried throughout to use or mimic existing Emacs functionality, rather
+than to create something new.
+
+* INSTALLATION
+
+1) run "perl Makefile.PL; make; make install"
+2) optionally, install the Emacs-w3m and tree-widget packages:
+       http://emacs-w3m.namazu.org/
+       http://emhacks.sf.net/
+3) put the elisp files somewhere Emacs will find them.
+
+* RUNNING
+
+In Emacs, type
+
+   M-x load-library <ret> sepia <ret>
+   M-x sepia-init <ret>
+
+This will give you an Xref database for the EPL process, and start the
+REPL.  Note that you should do this before opening a Perl file, since
+Sepia needs to install some hooks on `cperl-mode-hook'.
+
+Probably the most useful part of the package is the cross-reference
+facility.  In a Perl buffer with Sepia enabled, type
+
+   C-h f sepia-init <ret>
+
+to get a list of functions using it.  In general, the functions will
+look up zero or more source locations, then allow you to cycle
+through them with "M-x sepia-next".  With a prefix argument, the
+functions will instead display a grep-mode buffer listing all the
+hits, from which you can then navigate.
+
+* TODO
+
+.- (Easy) Use module, file, and line number to refine queries on the
+   Perl side.
+.- (Hard) Use module, file, and line number to filter results on the
+   Emacs side.
+.- (Medium) Clean up Perl side.
+.- (Hard) Merge with B::Xref.
+.- (Medium) Better documentation for Elisp side.
+
+* BUGS
+
+.- Emacs may display a "not enough arguments for format string" error.
+   This is probably caused by some code passing a string containing a
+   "%" as the first argument to `format', either in but I haven't
+   tracked it down yet.
+.- Function definition lines may occasionally all go completely wrong.
+   Rebuilding the Xref database fixes this.
+.- The cursor may miss by several lines when jumping to a definition.
+   This is hard to fix -- Perl doesn't give exact line numbers for sub
+   defs, so we have to do some minor regex-searching.
+.- `sepia-var-assigns' doesn't work yet -- don't use it.
+.- named method calls are (mostly?) detected, but nothing smart is
+   done about packages, so e.g. "new Foo" will result in listings for
+   every instance of "new" in your program.
+
+* CREDITS
+
+Sepia would never have been possible without Software Libre, as many
+key components have been stolen and adapted from other packages:
+
+    * generic-repl is taken from Slime;
+    * Devel::Xref is taken from B::Xref;
+    * sepia-w3m is taken from w3m-perldoc;
