@@ -75,7 +75,7 @@
 ;;;###autoload
 (defun sepia-w3m-perldoc-this (obj &optional mod type)
   "View perldoc for module at point."
-  (interactive (multiple-value-list (sepia-ident-at-point)))
+  (interactive (butlast (sepia-ident-at-point) 1))
   (let ((mod (if (eq type 'module)
 		 mod
 		 (or mod (fourth (car
