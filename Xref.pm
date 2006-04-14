@@ -1,7 +1,7 @@
 ######################################################################
 package Sepia::Xref;
 
-our $VERSION = '0.56';
+our $VERSION = '0.58';
 
 =head1 NAME
 
@@ -40,7 +40,7 @@ use B qw(peekop class comppadlist main_start svref_2object walksymtable
 	 cstring);
 # use Sepia '_apropos_re';
 require Sepia;
-*_apropos_re = *Sepia::_apropos_re;
+BEGIN { *_apropos_re = *Sepia::_apropos_re; }
 
 =head2 Variables
 
@@ -324,7 +324,7 @@ sub pp_pushmark {
     my ($class, $meth);
     if (($class = $op->next)->name eq 'const') {
         my $sv = $class->sv;
-        my ($classname, $methname);
+        my $classname;
         # constant could be in the pad (under useithreads)
         if (class($sv) ne "SPECIAL" && $sv->FLAGS & SVf_POK) {
             $classname = $sv->PV;
@@ -469,16 +469,26 @@ sub B::GV::xref {
     }
 }
 
+## Exclude all pragmatic modules (lowercase first letter) and the
+## following problematic things, which tend to cause more harm than
+## good when they get xref'd:
+my %exclude;
+BEGIN {
+    undef $exclude{"$_\::"}
+        for qw(B O AutoLoader DynaLoader XSLoader Config DB VMS
+               FileHandle Exporter Carp PerlIO::Layer);
+}
+
+sub xref_exclude {
+    my $x = shift;
+    $x =~ /^[a-z]/ || exists $exclude{$x};
+}
+
 sub xref_definitions {
     my ($pack, %exclude);
     $subname = "(definitions)";
-    foreach $pack (qw(B O AutoLoader DynaLoader XSLoader Config DB VMS
-		      strict vars FileHandle Exporter Carp PerlIO::Layer
-		      attributes utf8 warnings)) {
-        $exclude{$pack."::"} = 1;
-    }
     no strict qw(vars refs);
-    walksymtable(\%{"main::"}, "xref", sub { !defined($exclude{$_[0]}) });
+    walksymtable(\%{"main::"}, "xref", sub { !xref_exclude($_[0]) });
 }
 
 =head2 Functions
@@ -564,17 +574,43 @@ sub redefined {
 ######################################################################
 # Apropos and definition-finding:
 
-sub _ret_list {
-    my ($l, $mod, $sub) = @_;
+sub _ret_list
+{
+    my ($h, $sub, $mod) = @_;
+    if ($sub =~ /^(.*)::([^:]+)$/) {
+        $sub = $2;
+        $mod = $1;
+    }
+    $h = $h->{$sub};
     my @r;
     if ($mod) {
-        @r = keys %{$l->{$mod}};
+        @r = keys %{$h->{$mod}};
     } else {
+#        @r = map { @$_ } values %$h;
         my %h;
-        @h{keys %$_} = 1 for values %$l;
+        @h{keys %$_} = 1 for values %$h;
         @r = keys %h;
     }
     @r = sort @r;
+    return wantarray ? @r : \@r;
+}
+
+sub _var_ret_list
+{
+    my ($h, $v, $mod, $assign) = @_;
+    if ($v =~ /^(.*)::([^:]+)$/) {
+        $mod = $1;
+        $v = $2;
+    }
+    $h = $h->{$v};
+    my @r;
+    if ($mod) {
+        @r = exists $h->{$mod} ? @{$h->{$mod}} : ();
+    } else {
+       @r = map { @$_ } values %$h;
+    }
+    @r = grep $_->{assign}, @r if $assign;
+    @r = map { [@{$_}{qw(file line sub package)}] } @r;
     return wantarray ? @r : \@r;
 }
 
@@ -585,12 +621,7 @@ List callers of C<$func>.
 =cut
 
 sub callers {
-    my $f = shift;
-    if ($f =~ /^(.*)::([^:]+)$/) {
-        unshift @_, $1;
-        $f = $2;
-    }
-    return _ret_list $call{$f}, @_;
+    _ret_list \%call, @_;
 }
 
 =item C<callees($func)>
@@ -600,12 +631,7 @@ List callees of C<$func>.
 =cut
 
 sub callees {
-    my $f = shift;
-    if ($f =~ /^(.*)::([^:]+)$/) {
-        unshift @_, $1;
-        $f = $2;
-    }
-    _ret_list $callby{$f}, @_;
+    _ret_list \%callby, @_;
 }
 
 =item C<var_defs($var)>
@@ -615,9 +641,7 @@ Find locations where C<$var> is defined.
 =cut
 
 sub var_defs {
-    my $v = shift;
-    $v =~ s/.*:://;
-    return _ret_list $var_def{$v}, @_;
+    return _var_ret_list \%var_def, @_;
 }
 
 =item C<var_uses($var)>
@@ -627,9 +651,7 @@ Find locations where C<$var> is used.
 =cut
 
 sub var_uses {
-    my $v = shift;
-    $v =~ s/.*:://;
-    return _ret_list $var_use{$v}, @_;
+    return _var_ret_list \%var_use, @_;
 }
 
 =item C<var_assigns($var)>
@@ -640,40 +662,28 @@ Find locations where C<$var> is assigned to.
 
 sub var_assigns {
     my ($v, $pack) = @_;
-    if ($v =~ /^(.*)::(.+)$/) {
-	$v = $2;
-	$pack = $1;
-    }
-    return _ret_list [ grep $_->{assign},
-		       $pack ? @{$var_use{$v}{$pack}}
-		       : map @$_, values %{$var_use{$v}} ], $pack;
-}
-
-=item C<mod_files($mod)>
-
-Find file for module C<$mod>.
-
-=cut
-
-sub mod_files {
-#     my $m = shift;
-#     return sort keys %{$module_files{$m}}
-# 	if exists $module_files{$m};
-#     return undef;
+    return _var_ret_list \%var_use, $v, $pack, 1;
 }
 
 =item C<file_modules($file)>
 
 List the modules defined in file C<$file>.
+ 
+=cut
+ 
+sub file_modules {
+    my $file = shift;
+    eval "use Module::Include;" and do {
+        my $mod = Module::Include->new_from_file(abs_path($file));
+        return $mod && $mod->packages_inside;
+    };
+}
+
+=item C<var_apropos($expr)>
+
+Find variables matching C<$expr>.
 
 =cut
-
-sub file_modules {
-#     my $f = shift;
-#     return sort keys %{$file_modules{$f}}
-# 	if exists $file_modules{$f};
-#     return undef;
-}
 
 sub _apropos {
     my ($h, $re, $mod) = @_;
@@ -691,19 +701,13 @@ sub _apropos {
 	for (@r) {
 	    my $sn = $_;
 	    for (keys %{$h->{$_}}) {
-		$r{"$_\::$sn"} = 1 if /$mod/;
+		$r{$_ eq 'main' ? $sn : "$_\::$sn"} = 1 if /$mod/;
 	    }
 	}
 	@r = sort keys %r;
     }
     return wantarray ? @r : \@r;
 }
-
-=item C<var_apropos($expr)>
-
-Find variables matching C<$expr>.
-
-=cut
 
 sub var_apropos {
     _apropos \%var_use, @_;
@@ -724,14 +728,37 @@ well.
 
 =head1 BUGS
 
-See L<B::Xref>.  Also, we currently ignore module names when looking
-up a sub by name.  Finally, there is some evil in the way we guess
-file and line numbers, both of which should be done more cleanly and
-effectively.
+=over 4
+
+=item See L<B::Xref>.
+
+=item module names are ignored when looking up a sub.
+
+=item file and line number guessing is evil
+
+Both should be done more cleanly and effectively.  This is a hack
+because I don't quite understand what perl saves.  We should be able
+to do as well as its warning messages.
+
+=item Some packages are not xref'd.
+
+Some "internal" packages are deliberately not cross-referenced, either
+because they are hairy and cause us problems, or because they are so
+commonly included as to be uninteresting.  The current list includes
+all pragmatic modules, plus: B, O, AutoLoader, DynaLoader, XSLoader,
+Config, DB, VMS, FileHandle, Exporter, Carp, PerlIO::Layer.
+
+=item Tree-view is not fully functional
+
+Ideally, clicking the function names in tree view would take you to
+that function.  This doesn't work.  Also, more keys (like "q" to quit)
+should be implemented.
+
+=back
 
 =head1 SEE ALSO
 
-L<B::Xref>, from which C<Sepia::Xref> is heavily derivative.
+C<B::Xref>, of which C<Sepia::Xref> is a bastard child.
 
 =head1 AUTHOR
 

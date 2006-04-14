@@ -1,2 +1,3 @@
+files=$(perl -e 'chomp(@x=<>);print join ",",@x' MANIFEST)
 cd ..
-tar czvf sepia-$1.tgz sepia/{ChangeLog,Makefile.PL,README,Sepia.jpg,{Sepia,Xref}.pm,test.pl,{sepia,generic-repl,sepia-w3m,sepia-tree}.el}
+eval "tar czvf sepia-$1.tgz sepia/{$files}"

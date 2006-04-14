@@ -1,3 +1,12 @@
+2005-07-12  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia-w3m.el: fix function name so it's found.
+	* Xref.pm, Sepia.pm: cleanup and numerous bugfixes.
+	* Buffer.pm: new, but not ready for prime-time
+	* sepia.el: delete-thing-at-point removed; misc bugfixes.
+	* test.pl: disabled a bunch of location stuff.
+	* VERSION 0.58
+
 2004-09-10  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* test.pl: some real tests.

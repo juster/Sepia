@@ -33,11 +33,10 @@
 ;;    http://emacs-w3m.namazu.org/
 
 ;;; Code:
-(require 'sepia)
 (require 'w3m-perldoc)
 
 ;;;###autoload
-(defun w3m-about-buffer-perldoc (url &optional no-decode no-cache &rest args)
+(defun w3m-about-perldoc-buffer (url &optional no-decode no-cache &rest args)
   (when (string-match "\\`about://perldoc-buffer/" url)
     (let ((buf (get-buffer (w3m-url-decode-string
 			    (substring url (match-end 0)))))
@@ -81,7 +80,7 @@
 		 (or mod (fourth (car
 			      (if (eq type 'variable)
 				  (xref-var-defs obj)
-				  (xref-defs obj mod))))))))
+				  (xref-location obj mod))))))))
     (when mod
       (w3m-perldoc mod)
       (when (and obj (not (eq type 'module))

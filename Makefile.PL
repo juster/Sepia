@@ -4,8 +4,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'		=> 'Sepia',
     'VERSION_FROM'	=> 'Sepia.pm', # finds $VERSION
-    'PREREQ_PM'		=> { 'Emacs::EPL' => 0,
-			     'Data::Dumper' => 0,
+    'PREREQ_PM'		=> { 'Data::Dumper' => 0,
 			     'Module::Info' => 0 },
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
      (AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",

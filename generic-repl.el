@@ -211,6 +211,8 @@ It may optionally supply any of:
   "Face for the result of an evaluation in the REPL."
   :group 'repl)
 
+(defvar repl-read-only nil)
+
 (defun repl-insert-prompt (result &optional time)
   "Goto to point max, insert RESULT and the prompt.  Set
 repl-output-end to start of the inserted text repl-input-start to
@@ -223,7 +225,7 @@ end end."
     (let ((prompt-start (point)))
       (repl-propertize-region
           '(face font-lock-keyword-face 
-                 read-only t
+                 read-only ,repl-read-only
                  intangible t
                  repl-prompt t
                  ;; emacs stuff
@@ -536,7 +538,7 @@ the current working directory instead."
 
 (defun repl-cd (dir &optional name)
   "Change buffer and (optionally) process working directory to DIR."
-  (interactive "d")
+  (interactive "D")
   (with-current-buffer
       (if name (get-buffer (format "*%s-interaction*" name)) (current-buffer))
     (setq default-directory dir)

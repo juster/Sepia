@@ -10,13 +10,14 @@
 
 ;;; Code:
 
-(require 'sepia)
 (require 'tree-widget)
 
 (defun sepia-tree-button-cb (widget &rest blah)
   (let* ((pw (widget-get widget :parent))
-	 (location (xref-location (widget-get widget :sepia-name))))
+         (wid-name (widget-get widget :sepia-name))
+	 (location (and wid-name (xref-location wid-name))))
     (cond
+      ((not location) (error "Can't find %s." wid-name))
       (current-prefix-arg
        (find-file-other-window (car location))
        (sepia-set-found (list location) 'function)
