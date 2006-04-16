@@ -13,6 +13,7 @@
 
 (require 'cperl-mode)
 (require 'comint)
+(require 'cl)
 (eval-when (load eval) (ignore-errors (require 'sepia-w3m)))
 (eval-when (load eval) (ignore-errors (require 'sepia-tree)))
 (eval-when (load eval) (ignore-errors (require 'sepia-ido)))
@@ -21,17 +22,19 @@
 (defvar perl-output nil)
 
 (defun perl-collect-output (string)
-  (setq perl-output string)
+  (setq perl-output (concat perl-output string))
   "")
 
-(defun perl-eval-raw (str &optional context)
-  (let ((perl-output nil)
+(defun perl-eval-raw (str)
+  (let ((perl-output "")
         (comint-preoutput-filter-functions '(perl-collect-output)))
-    (comint-send-string perl-process (concat str "\n"))
-    (accept-process-output perl-process 0 500)
-    (when (and (> (length perl-output) 3)
-               (string= (substring perl-output 0 3) "=> "))
-      (substring perl-output 3 (- (length perl-output) 1)))))
+    (comint-send-string perl-process
+                        (concat "eval <<REPLEND\n" str "\nREPLEND\n"))
+    (while (not (and perl-output
+                     (string-match "REPLEND\n> $" perl-output)))
+      (accept-process-output perl-process))
+    (and (string-match "\nREPLEND\n\\(.*\\)\nREPLEND\n" perl-output)
+         (match-string 1 perl-output))))
 
 (defun perl-eval (str &optional context)
   (let ((res
@@ -99,7 +102,8 @@ might want to bind your keys, which works best when bound to
     (define-key map "\M-," 'sepia-next)
     (define-key map "\C-\M-x" 'sepia-eval-defun)
     (define-key map "\C-c\C-l" 'sepia-load-file)
-    (define-key map "\C-c\C-d" 'sepia-w3m-view-pod)))
+    (define-key map "\C-c\C-d" 'sepia-w3m-view-pod)
+    (define-key map (kbd "TAB") 'sepia-indent-or-complete)))
 
 (defun perl-name (sym &optional mod)
   (setq sym (substitute ?_ ?-
@@ -410,6 +414,7 @@ buffer.
 "
     (interactive "P")
     (multiple-value-bind (obj mod type raw) (sepia-ident-at-point)
+      (message "%S" (list obj mod type raw))
       (if type
 	  (progn
 	    (sepia-set-found nil type)
@@ -635,13 +640,9 @@ component of the module name."
 ;;     (delete-region beg end)))
 
 (defun sepia-complete-symbol ()
-  "Try to complete the word at point:
-    * as a global variable, if it has a sigil (sorry, no lexical
-      var completion).
-    * as a module, if its last namepart begins with an uppercase
-      letter.
-    * as a function, otherwise.
-The function currently ignores module qualifiers, which may be
+  "Try to complete the word at point, either as a global variable if it
+has a sigil (sorry, no lexicals), a module, or a function.  The
+function currently ignores module qualifiers, which may be
 annoying in larger programs.
 
 The function is intended to be bound to \\M-TAB, like
@@ -854,8 +855,7 @@ the only function that requires EPL (the rest can use Pmacs)."
       "local $Data::Dumper::Deparse=1;"
       (if sepia-eval-line (format "\n#line %d\n" sepia-eval-line) "")
       "my $result = Data::Dumper::Dumper([do { " string "}]);"
-      "$result =~ s/^.*?=\\s*\\[//; $result =~ s/\\];$//;$result}")))
-   'scalar-context))
+      "$result =~ s/^.*?=\\s*\\[//; $result =~ s/\\];$//;$result}")))))
 
 ;;;###autoload
 (defun sepia-interact ()
@@ -1014,7 +1014,7 @@ interactively)."
        (if (member type '(?% ?$ ?@ ?*))
            pname
            (concat "\\*" pname))))
-    ((stringp thing) (format "%S" thing))
+    ((stringp thing) (format "\"%s\"" thing))
     ((integerp thing) (format "%d" thing))
     ((numberp thing) (format "%g" thing))
     ((and (consp thing) (not (consp (cdr thing))))
