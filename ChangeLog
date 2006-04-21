@@ -1,3 +1,9 @@
+2006-04-14  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* generic-repl.el: replaced by comint.
+	* all: removed EPL dependency.
+	* VERSION 0.59
+
 2005-07-12  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* sepia-w3m.el: fix function name so it's found.

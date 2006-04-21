@@ -6,8 +6,7 @@ development, including:
     * an interactive prompt (REPL) for evaluating code;
     * cross-referencing to find and navigate between function and
       variable definitions and uses;
-    * variable- and function-name completion based on this Xref
-      database.
+    * variable- and function-name completion.
     * eldoc support to echo function arguments in the minibuffer
     * functions to simplify POD browsing with Emacs-w3m
 
@@ -43,15 +42,15 @@ outdated when the program changes, it must be built explicitly by
 
    M-x sepia-rebuild RET
 
-In a Perl buffer with Sepia enabled, type
+Type
 
    C-h f sepia-init RET
 
-to get a list of functions using it.  In general, the functions will
-look up zero or more source locations, then allow you to cycle
-through them with "M-x sepia-next".  With a prefix argument, the
-functions will instead display a grep-mode buffer listing all the
-hits, from which you can then navigate.
+to get a list of Sepia functions.  The xref functions will look up
+zero or more source locations, then allow you to cycle through them
+with "M-x sepia-next".  With a prefix argument, the functions will
+instead display a grep-mode buffer listing all the hits, from which
+you can then navigate.
 
 * TODO
 
@@ -65,9 +64,6 @@ hits, from which you can then navigate.
 
 * BUGS
 
-.- Emacs may display a "not enough arguments for format string" error.
-   This is probably caused by some code passing using (message STR)
-   instead of (message "%s" STR), but I haven't tracked it down yet.
 .- Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
 .- The cursor may miss by several lines when jumping to a definition.
@@ -83,6 +79,5 @@ hits, from which you can then navigate.
 Sepia would never have been possible without Software Libre, as many
 key components have been stolen and adapted from other packages:
 
-    * generic-repl is taken from Slime;
-    * Devel::Xref is taken from B::Xref;
-    * sepia-w3m is taken from w3m-perldoc;
+    * Sepia::Xref is taken from B::Xref.
+    * sepia-w3m is taken from w3m-perldoc.

@@ -1,5 +1,5 @@
 package Sepia;
-our $VERSION = '0.59';
+our $VERSION = '0.60';
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -10,59 +10,78 @@ use Scalar::Util 'looks_like_number';
 use Module::Info;
 use B;
 
-sub _apropos_re($)
-{
-    # Do that crazy multi-word identifier completion thing:
-    my $re = shift;
-    if ($re !~ /[^\w\d_^:]/) {
-	$re =~ s/(?<=[A-Za-z\d])(([^A-Za-z\d])\2*)/[A-Za-z\\d]*$1+/g;
-    }
-    qr/$re/;
-}
+=item C<@compls = completions($string [, $type])>
 
-=item C<@compls = completions($string [, $package])>
-
-Find a list of completions for C<$string>; if C<$string> has no
-package prefixes, C<$package> may specify a package in which to look.
+Find a list of completions for C<$string> with glob type $type.
 Completion operates on word subparts separated by [:_], so
 e.g. "S:m_w" completes to "Sepia::my_walksymtable".
 
 =cut
 
+
+sub _apropos_re($)
+{
+    # Do that crazy multi-word identifier completion thing:
+    my $re = shift;
+    if (wantarray) {
+        map {
+            s/(?:^|(?<=[A-Za-z\d]))(([^A-Za-z\d])\2*)/[A-Za-z\\d]*$2+/g;
+            qr/^$_/
+        } split /:+/, $re, -1;
+    } else {
+        if ($re !~ /[^\w\d_^:]/) {
+            $re =~ s/(?<=[A-Za-z\d])(([^A-Za-z\d])\2*)/[A-Za-z\\d]*$2+/g;
+        }
+        qr/$re/;
+    }
+}
+
+sub _completions1
+{
+    no strict;
+    my $stash = shift;
+    if (@_ == 1) {
+        map {
+            "$stash$_"
+        } grep /$_[0]/, keys %$stash;
+    } else {
+        my $re = shift;
+        map {
+            _completions1("$stash$_", @_);
+        } grep /$re.*::$/, keys %$stash;
+    };
+}
+
+sub _completions
+{
+    _completions1 '::', _apropos_re($_[0]);
+}
+
+my %sigil;
+BEGIN {
+    %sigil = qw(ARRAY @ SCALAR $ HASH %);
+}
+
 sub completions
 {
     no strict;
-    my ($str, $pack) = @_;
-    if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
-        my @nameparts = split /:+/, $name, 1000;
-        if (@nameparts == 1 && $pack) {
-            @nameparts = (split(/:+/, $pack), $name);
-        }
-        local *_completions = sub {
-            no strict;
-            my ($stash, $part, @rest) = @_;
-            $part = join '[^_]*_', split /_/, $part, 1000;
-            $part = _apropos_re($part);
-            if (@rest) {
-                map {
-                    _completions("$stash$_", @rest)
-                } grep /^$part.*\::$/, keys %$stash;
-            } else {
-                map { "$stash$_" } grep /^$part/, keys %$stash;
-            }
-        };
-
-        my $type = ($pfx eq '$' ? 'SCALAR'
-                    : $pfx eq '@' ? 'ARRAY'
-                    : $pfx eq '&' ? 'CODE'
-                    : $pfx eq '%' ? 'HASH'
-                    : undef);
-        map {
-            s/^(?::*main)?::/$pfx/;$_
-        } grep {
-            !$type || defined(*{$_}{$type})
-        } _completions('::', @nameparts);
-    }
+    my ($str, $type, $infunc) = @_;
+    map { s/^:://; $_ } ($type ? do {
+        (grep { defined *{$_}{$type} } _completions $str),
+            (defined $infunc && defined *{$infunc}{CODE}) ? do {
+                my ($apre) = _apropos_re($str);
+                my $st = $sigil{$type};
+                grep {
+                    (my $tmp = $_) =~ s/^\Q$st//;
+                    $tmp =~ /$apre/;
+                } lexicals($infunc);
+            } : ();
+    } : do {
+        grep {
+            defined *{$_}{CODE} || defined *{$_}{IO}
+                || (/::$/ && defined *{$_}{HASH});
+        } _completions $str;
+    })
 }
 
 =item C<@locs = location(@names)>
@@ -75,7 +94,7 @@ name in C<@names>.
 sub location
 {
     no strict;
-    map {
+    my @x= map {
         my $str = $_;
         if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
             if ($pfx) {
@@ -100,15 +119,15 @@ sub location
                     my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
                     [Cwd::abs_path($file), $line, $shortname || $name]
                 } else {
-#                     print STDERR "Bad CV for $name: $cv";
+                    print STDERR "Bad CV for $name: $cv";
                     [];
                 }
             }
         } else {
-#             print STDERR "Name `$str' doesn't match.";
             []
         }
-    } @_
+    } @_;
+    return @x;
 }
 
 =item C<@matches = apropos($name [, $is_regex])>
@@ -161,7 +180,6 @@ sub apropos
     } else {
         my @ret;
         my $findre = $re ? qr/$it/ : qr/^\Q$it\E$/;
-#         print STDERR "Searching for $findre...";
         my_walksymtable {
             push @ret, "$stash$_" if /$findre/;
         } '::';
@@ -265,41 +283,6 @@ sub lexicals
     } grep B::class($_) ne 'SPECIAL', $names->ARRAY;
 }
 
-######################################################################
-## XXX: this is the only part that depends on Emacs:
-
-# { package EL;
-#   use Emacs::Lisp;
-#   ## XXX: "submit a patch" to use (message ...) correctly -- message's
-#   ## first argument is actually a format, not a plain string.
-#   sub Emacs::Minibuffer::WRITE {
-#       my ($stream, $output, $length, $offset) = @_;
-#       Emacs::Lisp::message ('%s', substr ($output, $offset, $length));
-#       return ($length);
-#   }
-# }
-
-=item C<$func = emacs_warner($bufname)>
-
-Create a function that will insert its arguments into Emacs buffer
-C<$bufname>.  Useful as a C<$SIG{__WARN__}> handler.
-
-=cut
-
-sub emacs_warner
-{
-    shift; warn "@_";
-#     my $buf = shift;
-#     $buf = EL::get_buffer_create($buf);
-#     return sub {
-#         my $msg = "@_";         # can't be inside EL::save_current_buffer
-#         EL::save_current_buffer {
-#             EL::set_buffer($buf);
-#             EL::insert($msg);
-#         };
-#     };
-}
-
 =item C<$lisp = tolisp($perl)>
 
 Convert a Perl scalar to some ELisp equivalent.
@@ -308,7 +291,7 @@ Convert a Perl scalar to some ELisp equivalent.
 
 sub tolisp($)
 {
-    my $thing = shift;
+    my $thing = @_ == 1 ? shift : \@_;
     my $t = ref $thing;
     if (!$t) {
         if (looks_like_number $thing) {
@@ -337,7 +320,12 @@ sub printer
 {
     no strict;
     local *res = shift;
-    print "=> @res\n";
+    my $marker = shift;
+    if ($marker) {
+        print "\n$marker\n@res\n$marker\n";
+    } else {
+        print "=> @res\n";
+    }
 }
 
 =item C<repl(\*FH)>
@@ -354,12 +342,18 @@ sub repl
     print $ps1;
     repl: while (my $in = <$fh>) {
             $buf .= $in;
+            my $marker;
             if ($buf =~ /^eval\s+<<(REPL\S*)\s*$/) {
+                $marker = $1;
                 $buf = '';
                 local $/ = "\n$1\n";
-                $buf = <$fh>;
+                chomp($buf = <$fh>);
             }
             local $SIG{INT} = sub { $buf = ""; next repl };
+            my @warn;
+            local $SIG{__WARN__} = sub {
+                push @warn, shift;
+            };
             my @res;
             {
                 no strict;
@@ -377,11 +371,13 @@ sub repl
                 } else {
                     warn $@;
                     $buf = '';
+                    Sepia::printer \@res, $marker if $marker;
                 }
             } else {
-                Sepia::printer \@res unless $buf =~ /;$/;
+                Sepia::printer \@res, $marker unless $buf =~ /;$/;
                 $buf = '';
             }
+            print "@warn\n" if @warn;
             print $ps1;
         }
 }

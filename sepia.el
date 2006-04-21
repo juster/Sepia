@@ -44,7 +44,7 @@
              (concat "tolisp([" str "])"))
             (scalar-context
              (concat "tolisp(scalar(" str "))"))
-            (t (concat str ";1;\n"))))))
+            (t (concat str ";1"))))))
     (when res
       (car (read-from-string res)))))
 
@@ -207,11 +207,18 @@ Does not require loading.")
     (apply #'define-xref-function "Sepia::Xref" x)))
   (add-hook 'cperl-mode-hook 'sepia-install-eldoc)
   (add-hook 'cperl-mode-hook 'sepia-doc-update)
+  (add-hook 'cperl-mode-hook 'sepia-cperl-mode-hook)
   (when (boundp 'cperl-mode-map)
     (sepia-install-keys cperl-mode-map))
   (when (boundp 'perl-mode-map)
     (sepia-install-keys perl-mode-map))
   (sepia-interact))
+
+(defun sepia-cperl-mode-hook ()
+  (set (make-local-variable 'beginning-of-defun-function)
+       'sepia-beginning-of-defun)
+  (set (make-local-variable 'end-of-defun-function)
+       'sepia-end-of-defun))
 
 (defun define-xref-function (package name doc)
   "Define a lisp mirror for a low-level Sepia function."
@@ -243,22 +250,48 @@ module in question be loaded.")))
   (let ((th (thing-at-point what)))
     (and th (not (string-match "[ >]$" th)) th)))
 
-(defun sepia-beginning-of-defun (where)
-  (interactive "d")
-  (beginning-of-defun)
-  (let* ((end (point))
-         (beg (progn (previous-line 3) (point))))
-    (goto-char end)
-    (re-search-backward "^\\s *sub\\s +\\(.+\\_>\\)" beg t)))
+(defvar sepia-sub-re "^\\s *sub\\s +\\(.+\\_>\\)")
 
-(defun sepia-defun-around-point (where)
+(defun sepia-beginning-of-defun (&optional where)
   (interactive "d")
+  (let ((here (point)))
+    (beginning-of-line)
+    (if (and (not (= here (point)))
+             (looking-at sepia-sub-re))
+      (point)
+      (beginning-of-defun)
+      (let* ((end (point))
+             (beg (progn (previous-line 3) (point))))
+        (goto-char end)
+        (re-search-backward sepia-sub-re beg t)))))
+
+(defun sepia-end-of-defun (&optional where)
+  (interactive "d")
+  (let ((here (point)))
+    (beginning-of-defun)
+    (let ((beg (point))
+          (end-of-defun-function nil)
+          (beginning-of-defun-function nil))
+      (when (looking-at sepia-sub-re)
+        (forward-line 1))
+      (end-of-defun))
+    (when (and (>= here (point))
+               (re-search-forward sepia-sub-re nil t))
+      (sepia-end-of-defun))
+    (point)))
+
+(defun sepia-defun-around-point (&optional where)
+  (interactive "d")
+  (unless where
+    (setq where (point)))
   (save-excursion
     (and (sepia-beginning-of-defun where)
          (match-string-no-properties 1))))
 
-(defun sepia-lexicals-at-point (where)
+(defun sepia-lexicals-at-point (&optional where)
   (interactive "d")
+  (unless where
+    (setq where (point)))
   (let ((subname (sepia-defun-around-point where))
         (mod (sepia-buffer-package)))
     (xref-lexicals (perl-name subname mod))))
@@ -413,12 +446,13 @@ buffer.
 * Prompt otherwise
 "
     (interactive "P")
-    (multiple-value-bind (obj mod type raw) (sepia-ident-at-point)
-      (message "%S" (list obj mod type raw))
+    (multiple-value-bind (type obj) (sepia-ident-at-point)
+      (setq type (if type (string type) ""))
+      (message "%s %S" type obj)
       (if type
 	  (progn
-	    (sepia-set-found nil type)
-	    (let ((ret (ecase type
+;;	    (sepia-set-found nil 'variable)
+	    (let ((ret (if type
 			 (function (list (sepia-location raw)))
 			 (variable (xref-var-uses raw))
 			 (module `((,(car (xref-mod-files mod)) 1 nil nil))))))
@@ -493,15 +527,18 @@ called interactively), also rebuild the xref database."
   (interactive (progn (save-buffer)
                       (list (buffer-file-name)
                             prefix-arg
-                            (format "*%s errors*" (buffer-file-name)))))
+               ;;              (format "*%s errors*" (buffer-file-name))
+                            nil
+                            )))
   (message
    "sepia: %s returned %s"
    (abbreviate-file-name file)
    (perl-eval
-    (if collect-warnings
-        (format "{ local $SIG{__WARN__} = Sepia::emacs_warner('%s'); do '%s' }"
-                collect-warnings file)
-        (format "do '%s';" file))))
+;;     (if collect-warnings
+;;         (format "{ local $SIG{__WARN__} = Sepia::emacs_warner('%s'); do '%s' }"
+;;                 collect-warnings file)
+        (format "do '%s' ? 1 : $@" file)
+    'scalar-context))
   (when collect-warnings
     (with-current-buffer (get-buffer-create collect-warnings)
       (sepia-display-errors (point-min) (point-max))
@@ -588,56 +625,40 @@ called interactively), also rebuild the xref database."
 ;; Completion
 
 (defun sepia-ident-at-point ()
-  "Find the perl identifier at point, returning
-\(values OBJECT MODULE TYPE RAW), where TYPE is either 'variable,
-'function, or 'module.  If TYPE is 'module, OBJ is the last
-component of the module name."
-  (let ((cperl-under-as-char nil)
-	(case-fold-search nil)
-	var-p module-p modpart objpart)
-    (save-excursion
-      (condition-case c
-          (destructuring-bind (sbeg . send) (bounds-of-thing-at-point 'symbol)
-            (goto-char send)
-            (destructuring-bind (wbeg . wend)
-                (or (bounds-of-thing-at-point 'word) (cons (point) (point)))
-              (if (member (char-before send) '(?> ?\ ))
-                  (signal 'wrong-number-of-arguments 'sorta))
-              (setq var-p
-                    (or (and (member (char-before wbeg) '(?@ ?$ ?%))
-                             (char-before wbeg))
-                        (and (member (char-before sbeg) '(?@ ?$ ?%))
-                             (char-before sbeg))))
-              (setq module-p
-                    (save-excursion
-                      (goto-char send)
-                      (backward-word)
-                      (looking-at "[A-Z]")))
-              (setq modpart
-                    (if (= sbeg wbeg)
-                        nil
-                        (buffer-substring sbeg
-                                          (if (= (char-before (1- wbeg)) ?\:)
-                                              (- wbeg 2)
-                                              (1- wbeg)))))
-              (setq objpart (buffer-substring wbeg wend))
-              (values (if module-p
-                          (list objpart modpart (if var-p 'variable 'function))
-                          objpart)
-                      (if module-p
-                          (buffer-substring sbeg send)
-                          modpart)
-                      (cond
-                        (module-p 'module)
-                        (var-p 'variable)
-                        (t 'function))
-                      (concat (if var-p (char-to-string var-p) "")
-                              (buffer-substring sbeg send)))))
-        (wrong-number-of-arguments (values nil nil nil))))))
+  (save-excursion
+    (when (looking-at "[%$@*&]")
+      (forward-char 1))
+    (let* ((beg (progn
+                 (when (re-search-backward "[^A-Za-z_0-9:]" nil 'mu)
+                   (forward-char 1))
+                 (point)))
+          (sigil (if (= beg (point-min))
+                     nil
+                     (char-before (point))))
+          (end (progn
+                 (when (re-search-forward "[^A-Za-z_0-9:]" nil 'mu)
+                   (forward-char -1))
+                 (point))))
+      (list (when (member sigil '(?$ ?@ ?% ?* ?&)) sigil)
+            (buffer-substring-no-properties beg end)))))
 
-;; (defun delete-ident-at-point ()
-;;   (destructuring-bind (beg . end) (bounds-of-thing-at-point sym)
-;;     (delete-region beg end)))
+(defun sepia-function-at-point ()
+  (condition-case nil
+      (save-excursion
+        (let ((pt (point))
+              bof)
+          (sepia-beginning-of-defun)
+          (setq bof (point))
+          (goto-char pt)
+          (sepia-end-of-defun)
+          (when (and (>= pt bof) (< pt (point)))
+            (goto-char bof)
+            (looking-at "\\s *sub\\s +")
+            (forward-char (length (match-string 0)))
+            (concat (or (sepia-buffer-package) "")
+                    "::"
+                    (cadr (sepia-ident-at-point))))))
+    (error nil)))
 
 (defun sepia-complete-symbol ()
   "Try to complete the word at point, either as a global variable if it
@@ -648,29 +669,35 @@ annoying in larger programs.
 The function is intended to be bound to \\M-TAB, like
 ``lisp-complete-symbol''."
   (interactive)
-  (multiple-value-bind (name mod type raw-name) (sepia-ident-at-point)
-    (let ((tap (or raw-name
-                   (and (eq last-command 'sepia-complete-symbol) ""))))
-      (when tap
-          (let ((completions (xref-completions tap (sepia-buffer-package))))
-            (case (length completions)
-              (0 (message "No completions for %s." tap) nil)
-              (1 ;; (delete-ident-at-point)
-               (delete-region (- (point) (length tap)) (point))
-               (insert (car completions))
-               t)
-              (t (let ((old tap)
-                       (new (try-completion "" completions)))
-                   (if (string= new old)
-                       (with-output-to-temp-buffer "*Completions*"
-                         (display-completion-list completions))
-;;                        (delete-region ...)
-;;                        (delete-ident-at-point)
-                       (delete-region (- (point) (length tap)) (point))
-                       (insert new)))
-                 t)))
-;;           (message "sepia: empty -- hit tab again to complete.")
-          ))))
+  (multiple-value-bind (type name) (sepia-ident-at-point)
+    (let ((len  (+ (if type 1 0) (length name)))
+          (completions (xref-completions
+                        (if (string-match ":" name)
+                            name
+                            (concat (sepia-buffer-package) "::" name))
+                        (case type
+                          (?$ "SCALAR")
+                          (?@ "ARRAY")
+                          (?% "HASH")
+                          (?& "CODE")
+                          (?* "IO")
+                          (t ""))
+                        (sepia-function-at-point))))
+      (case (length completions)
+        (0 (message "No completions for %s." name) nil)
+        (1 ;; (delete-ident-at-point)
+         (delete-region (- (point) len) (point))
+         (insert (if type (string type) "") (car completions))
+         t)
+        (t (let ((old name)
+                 (new (try-completion "" completions)))
+             (if (string= new old)
+                 (with-output-to-temp-buffer "*Completions*"
+                   (display-completion-list completions))
+                 (delete-region (- (point) len) (point))
+                 (insert (if type (string type) "") new)))
+           t)))
+    ))
 
 (defun sepia-indent-or-complete ()
 "Indent the current line and, if indentation doesn't move point,
@@ -875,6 +902,7 @@ the only function that requires EPL (the rest can use Pmacs)."
 
 (defun sepia-doc-scan-buffer ()
   (save-excursion
+    (ignore-errors
     (goto-char (point-min))
     (loop while (re-search-forward
 		 "^=\\(item\\|head2\\)\\s +\\([%$&@A-Za-z_].*\\)" nil t)
@@ -902,7 +930,7 @@ the only function that requires EPL (the rest can use Pmacs)."
 	      ;; e.g. "$x -- this is x" (note: this has to come second)
 	      ((string-match "^[%$@]\\([^( ]+\\)" s2)
 	       (list 'variable (match-string-no-properties 1 s2) longdoc))))
-       collect it)))
+       collect it))))
 
 (defun sepia-buffer-package ()
   (save-excursion

@@ -10,10 +10,10 @@
 #
 #   MakeMaker Parameters:
 
-#     ABSTRACT => q[Simple Emacs-Perl InterAction: ugly, yet effective.]
+#     ABSTRACT => q[Simple Emacs-Perl InterAction]
 #     AUTHOR => q[Sean O'Rourke <seano@cpan.org>]
 #     NAME => q[Sepia]
-#     PREREQ_PM => { Emacs::EPL=>q[0], Module::Info=>q[0], Data::Dumper=>q[0] }
+#     PREREQ_PM => { Module::Info=>q[0], Data::Dumper=>q[0] }
 #     VERSION_FROM => q[Sepia.pm]
 
 # --- MakeMaker post_initialize section:
@@ -21,31 +21,31 @@
 
 # --- MakeMaker const_config section:
 
-# These definitions are from config.sh (via /usr/local/lib/perl5/5.8.3/darwin-thread-multi/Config.pm)
+# These definitions are from config.sh (via /System/Library/Perl/5.8.6/darwin-thread-multi-2level/Config.pm)
 
 # They may have been overridden via Makefile.PL or on the command line
 AR = ar
 CC = cc
-CCCDLFLAGS = -flat_namespace -bundle -fPIC
+CCCDLFLAGS =  
 CCDLFLAGS =  
 DLEXT = bundle
-DLSRC = dl_dyld.xs
-LD = cc
-LDDLFLAGS =  -flat_namespace -bundle -undefined suppress -L/usr/local/lib -L/opt/local/lib -L/sw/lib
-LDFLAGS = -flat_namespace -L/usr/local/lib -L/opt/local/lib -L/sw/lib
+DLSRC = dl_dlopen.xs
+LD = env MACOSX_DEPLOYMENT_TARGET=10.3 cc
+LDDLFLAGS = -bundle -undefined dynamic_lookup -L/usr/local/lib
+LDFLAGS = -L/usr/local/lib
 LIBC = /usr/lib/libc.dylib
 LIB_EXT = .a
 OBJ_EXT = .o
 OSNAME = darwin
-OSVERS = 6.8
+OSVERS = 8.0
 RANLIB = /usr/bin/ar ts
-SITELIBEXP = /usr/local/lib/perl5/site_perl/5.8.3
-SITEARCHEXP = /usr/local/lib/perl5/site_perl/5.8.3/darwin-thread-multi
+SITELIBEXP = /Library/Perl/5.8.6
+SITEARCHEXP = /Library/Perl/5.8.6/darwin-thread-multi-2level
 SO = dylib
 EXE_EXT = 
 FULL_AR = /usr/bin/ar
-VENDORARCHEXP = 
-VENDORLIBEXP = 
+VENDORARCHEXP = /Network/Library/Perl/5.8.6/darwin-thread-multi-2level
+VENDORLIBEXP = /Network/Library/Perl/5.8.6
 
 
 # --- MakeMaker constants section:
@@ -53,11 +53,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Sepia
 NAME_SYM = Sepia
-VERSION = 0.56
+VERSION = 0.59
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_56
+VERSION_SYM = 0_59
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.56
+XS_VERSION = 0.59
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -67,55 +67,55 @@ INST_LIB = blib/lib
 INST_MAN1DIR = blib/man1
 INST_MAN3DIR = blib/man3
 MAN1EXT = 1
-MAN3EXT = 3
+MAN3EXT = 3pm
 INSTALLDIRS = site
 DESTDIR = 
 PREFIX = 
-PERLPREFIX = /usr/local
+PERLPREFIX = /
 SITEPREFIX = /usr/local
-VENDORPREFIX = 
-INSTALLPRIVLIB = $(PERLPREFIX)/lib/perl5/5.8.3
+VENDORPREFIX = /usr/local
+INSTALLPRIVLIB = $(PERLPREFIX)/System/Library/Perl/5.8.6
 DESTINSTALLPRIVLIB = $(DESTDIR)$(INSTALLPRIVLIB)
-INSTALLSITELIB = $(SITEPREFIX)/lib/perl5/site_perl/5.8.3
+INSTALLSITELIB = /Library/Perl/5.8.6
 DESTINSTALLSITELIB = $(DESTDIR)$(INSTALLSITELIB)
-INSTALLVENDORLIB = 
+INSTALLVENDORLIB = /Network/Library/Perl/5.8.6
 DESTINSTALLVENDORLIB = $(DESTDIR)$(INSTALLVENDORLIB)
-INSTALLARCHLIB = $(PERLPREFIX)/lib/perl5/5.8.3/darwin-thread-multi
+INSTALLARCHLIB = $(PERLPREFIX)/System/Library/Perl/5.8.6/darwin-thread-multi-2level
 DESTINSTALLARCHLIB = $(DESTDIR)$(INSTALLARCHLIB)
-INSTALLSITEARCH = $(SITEPREFIX)/lib/perl5/site_perl/5.8.3/darwin-thread-multi
+INSTALLSITEARCH = /Library/Perl/5.8.6/darwin-thread-multi-2level
 DESTINSTALLSITEARCH = $(DESTDIR)$(INSTALLSITEARCH)
-INSTALLVENDORARCH = 
+INSTALLVENDORARCH = /Network/Library/Perl/5.8.6/darwin-thread-multi-2level
 DESTINSTALLVENDORARCH = $(DESTDIR)$(INSTALLVENDORARCH)
-INSTALLBIN = $(PERLPREFIX)/bin
+INSTALLBIN = $(PERLPREFIX)/usr/bin
 DESTINSTALLBIN = $(DESTDIR)$(INSTALLBIN)
 INSTALLSITEBIN = $(SITEPREFIX)/bin
 DESTINSTALLSITEBIN = $(DESTDIR)$(INSTALLSITEBIN)
-INSTALLVENDORBIN = 
+INSTALLVENDORBIN = $(VENDORPREFIX)/bin
 DESTINSTALLVENDORBIN = $(DESTDIR)$(INSTALLVENDORBIN)
-INSTALLSCRIPT = $(PERLPREFIX)/bin
+INSTALLSCRIPT = $(PERLPREFIX)/usr/bin
 DESTINSTALLSCRIPT = $(DESTDIR)$(INSTALLSCRIPT)
-INSTALLMAN1DIR = $(PERLPREFIX)/share/man/man1
+INSTALLMAN1DIR = $(PERLPREFIX)/usr/share/man/man1
 DESTINSTALLMAN1DIR = $(DESTDIR)$(INSTALLMAN1DIR)
-INSTALLSITEMAN1DIR = $(SITEPREFIX)/share/man/man1
+INSTALLSITEMAN1DIR = $(SITEPREFIX)/man/man1
 DESTINSTALLSITEMAN1DIR = $(DESTDIR)$(INSTALLSITEMAN1DIR)
-INSTALLVENDORMAN1DIR = 
+INSTALLVENDORMAN1DIR = $(VENDORPREFIX)/man/man1
 DESTINSTALLVENDORMAN1DIR = $(DESTDIR)$(INSTALLVENDORMAN1DIR)
-INSTALLMAN3DIR = $(PERLPREFIX)/share/man/man3
+INSTALLMAN3DIR = $(PERLPREFIX)/usr/share/man/man3
 DESTINSTALLMAN3DIR = $(DESTDIR)$(INSTALLMAN3DIR)
-INSTALLSITEMAN3DIR = $(SITEPREFIX)/share/man/man3
+INSTALLSITEMAN3DIR = $(SITEPREFIX)/man/man3
 DESTINSTALLSITEMAN3DIR = $(DESTDIR)$(INSTALLSITEMAN3DIR)
-INSTALLVENDORMAN3DIR = 
+INSTALLVENDORMAN3DIR = $(VENDORPREFIX)/man/man3
 DESTINSTALLVENDORMAN3DIR = $(DESTDIR)$(INSTALLVENDORMAN3DIR)
-PERL_LIB = /usr/local/lib/perl5/5.8.3
-PERL_ARCHLIB = /usr/local/lib/perl5/5.8.3/darwin-thread-multi
+PERL_LIB = /System/Library/Perl/5.8.6
+PERL_ARCHLIB = /System/Library/Perl/5.8.6/darwin-thread-multi-2level
 LIBPERL_A = libperl.a
 FIRST_MAKEFILE = Makefile
 MAKEFILE_OLD = $(FIRST_MAKEFILE).old
 MAKE_APERL_FILE = $(FIRST_MAKEFILE).aperl
 PERLMAINCC = $(CC)
-PERL_INC = /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE
-PERL = /usr/local/bin/perl
-FULLPERL = /usr/local/bin/perl
+PERL_INC = /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE
+PERL = /usr/bin/perl
+FULLPERL = /usr/bin/perl
 ABSPERL = $(PERL)
 PERLRUN = $(PERL)
 FULLPERLRUN = $(FULLPERL)
@@ -127,7 +127,7 @@ PERL_CORE = 0
 PERM_RW = 644
 PERM_RWX = 755
 
-MAKEMAKER   = /usr/local/lib/perl5/5.8.3/ExtUtils/MakeMaker.pm
+MAKEMAKER   = /System/Library/Perl/5.8.6/ExtUtils/MakeMaker.pm
 MM_VERSION  = 6.17
 MM_REVISION = 1.133
 
@@ -174,6 +174,7 @@ PERL_ARCHIVE_AFTER =
 
 TO_INST_PM = Sepia.pm \
 	Xref.pm \
+	foo.pl \
 	modindex.pl \
 	supers.pl
 
@@ -183,6 +184,8 @@ PM_TO_BLIB = Xref.pm \
 	$(INST_LIB)/supers.pl \
 	Sepia.pm \
 	$(INST_LIB)/Sepia.pm \
+	foo.pl \
+	$(INST_LIB)/foo.pl \
 	modindex.pl \
 	$(INST_LIB)/modindex.pl
 
@@ -247,7 +250,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Sepia
-DISTVNAME = Sepia-0.56
+DISTVNAME = Sepia-0.59
 
 
 # --- MakeMaker macro section:
@@ -315,21 +318,21 @@ config :: $(INST_ARCHAUTODIR)$(DIRFILESEP).exists
 config :: $(INST_AUTODIR)$(DIRFILESEP).exists
 	$(NOECHO) $(NOOP)
 
-$(INST_AUTODIR)/.exists :: /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h
+$(INST_AUTODIR)/.exists :: /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h
 	$(NOECHO) $(MKPATH) $(INST_AUTODIR)
-	$(NOECHO) $(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h $(INST_AUTODIR)/.exists
+	$(NOECHO) $(EQUALIZE_TIMESTAMP) /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h $(INST_AUTODIR)/.exists
 
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_AUTODIR)
 
-$(INST_LIBDIR)/.exists :: /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h
+$(INST_LIBDIR)/.exists :: /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h
 	$(NOECHO) $(MKPATH) $(INST_LIBDIR)
-	$(NOECHO) $(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h $(INST_LIBDIR)/.exists
+	$(NOECHO) $(EQUALIZE_TIMESTAMP) /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h $(INST_LIBDIR)/.exists
 
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_LIBDIR)
 
-$(INST_ARCHAUTODIR)/.exists :: /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h
+$(INST_ARCHAUTODIR)/.exists :: /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h
 	$(NOECHO) $(MKPATH) $(INST_ARCHAUTODIR)
-	$(NOECHO) $(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h $(INST_ARCHAUTODIR)/.exists
+	$(NOECHO) $(EQUALIZE_TIMESTAMP) /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h $(INST_ARCHAUTODIR)/.exists
 
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_ARCHAUTODIR)
 
@@ -337,9 +340,9 @@ config :: $(INST_MAN3DIR)$(DIRFILESEP).exists
 	$(NOECHO) $(NOOP)
 
 
-$(INST_MAN3DIR)/.exists :: /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h
+$(INST_MAN3DIR)/.exists :: /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h
 	$(NOECHO) $(MKPATH) $(INST_MAN3DIR)
-	$(NOECHO) $(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.8.3/darwin-thread-multi/CORE/perl.h $(INST_MAN3DIR)/.exists
+	$(NOECHO) $(EQUALIZE_TIMESTAMP) /System/Library/Perl/5.8.6/darwin-thread-multi-2level/CORE/perl.h $(INST_MAN3DIR)/.exists
 
 	-$(NOECHO) $(CHMOD) $(PERM_RWX) $(INST_MAN3DIR)
 
@@ -432,7 +435,7 @@ realclean_subdirs :
 realclean purge ::  clean realclean_subdirs
 	$(RM_RF) $(INST_AUTODIR) $(INST_ARCHAUTODIR)
 	$(RM_RF) $(DISTVNAME)
-	$(RM_F)  $(INST_LIB)/modindex.pl $(INST_LIB)/supers.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE) $(INST_LIB)/Sepia.pm $(INST_LIB)/Xref.pm
+	$(RM_F)  $(INST_LIB)/modindex.pl $(INST_LIB)/foo.pl $(INST_LIB)/supers.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE) $(INST_LIB)/Sepia.pm $(INST_LIB)/Xref.pm
 
 
 # --- MakeMaker metafile section:
@@ -440,12 +443,11 @@ metafile :
 	$(NOECHO) $(ECHO) '# http://module-build.sourceforge.net/META-spec.html' > META.yml
 	$(NOECHO) $(ECHO) '#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#' >> META.yml
 	$(NOECHO) $(ECHO) 'name:         Sepia' >> META.yml
-	$(NOECHO) $(ECHO) 'version:      0.56' >> META.yml
+	$(NOECHO) $(ECHO) 'version:      0.59' >> META.yml
 	$(NOECHO) $(ECHO) 'version_from: Sepia.pm' >> META.yml
 	$(NOECHO) $(ECHO) 'installdirs:  site' >> META.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META.yml
 	$(NOECHO) $(ECHO) '    Data::Dumper:                  0' >> META.yml
-	$(NOECHO) $(ECHO) '    Emacs::EPL:                    0' >> META.yml
 	$(NOECHO) $(ECHO) '    Module::Info:                  0' >> META.yml
 	$(NOECHO) $(ECHO) '' >> META.yml
 	$(NOECHO) $(ECHO) 'distribution_type: module' >> META.yml
@@ -671,7 +673,7 @@ $(FIRST_MAKEFILE) : Makefile.PL $(CONFIGDEP)
 
 # --- MakeMaker makeaperl section ---
 MAP_TARGET    = perl
-FULLPERL      = /usr/local/bin/perl
+FULLPERL      = /usr/bin/perl
 
 $(MAP_TARGET) :: static $(MAKE_APERL_FILE)
 	$(MAKE) -f $(MAKE_APERL_FILE) $@
@@ -711,16 +713,15 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,56,0,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,59,0,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple Emacs-Perl InterAction: ugly, yet effective.</ABSTRACT>' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple Emacs-Perl InterAction</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Sean O'\''Rourke &lt;seano@cpan.org&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Emacs-EPL" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Module-Info" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <OS NAME="$(OSNAME)" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-thread-multi" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-thread-multi-2level" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    </IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '</SOFTPKG>' >> $(DISTNAME).ppd
@@ -733,6 +734,7 @@ pm_to_blib: $(TO_INST_PM)
 	  Xref.pm $(INST_LIB)/Xref.pm \
 	  supers.pl $(INST_LIB)/supers.pl \
 	  Sepia.pm $(INST_LIB)/Sepia.pm \
+	  foo.pl $(INST_LIB)/foo.pl \
 	  modindex.pl $(INST_LIB)/modindex.pl 
 	$(NOECHO) $(TOUCH) $@
 

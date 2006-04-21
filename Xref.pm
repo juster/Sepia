@@ -1,8 +1,6 @@
 ######################################################################
 package Sepia::Xref;
 
-our $VERSION = '0.58';
-
 =head1 NAME
 
 Sepia::Xref - Generates cross reference database for use by Perl programs.
@@ -41,6 +39,8 @@ use B qw(peekop class comppadlist main_start svref_2object walksymtable
 # use Sepia '_apropos_re';
 require Sepia;
 BEGIN { *_apropos_re = *Sepia::_apropos_re; }
+
+BEGIN { no strict; *VERSION = *Sepia::VERSION; }
 
 =head2 Variables
 
@@ -668,9 +668,9 @@ sub var_assigns {
 =item C<file_modules($file)>
 
 List the modules defined in file C<$file>.
- 
+
 =cut
- 
+
 sub file_modules {
     my $file = shift;
     eval "use Module::Include;" and do {

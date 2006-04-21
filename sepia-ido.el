@@ -122,12 +122,10 @@ bells-and-whistles.  Arguments are:
 	(ido-set-matches)
 
         ;; Enter something ending in a "slash"
-	(when (and ido-enter-single-matching-directory
-		   ido-matches
+	(when (and ido-matches
 		   (null (cdr ido-matches))
 		   (ido-final-slash (car ido-matches))
-		   (or try-single-dir-match
-		       (eq ido-enter-single-matching-directory t)))
+		   try-single-dir-match)
 	  (ido-set-current-directory
 	   (concat ido-current-directory (car ido-matches)))
 	  (setq ido-exit 'refresh)
