@@ -20,33 +20,61 @@
 
 (defvar perl-process nil)
 (defvar perl-output nil)
+(defvar perl-passive-output "")
 
 (defun perl-collect-output (string)
   (setq perl-output (concat perl-output string))
   "")
 
 (defun perl-eval-raw (str)
-  (let ((perl-output "")
-        (comint-preoutput-filter-functions '(perl-collect-output)))
-    (comint-send-string perl-process
-                        (concat "eval <<REPLEND\n" str "\nREPLEND\n"))
-    (while (not (and perl-output
-                     (string-match "REPLEND\n> $" perl-output)))
-      (accept-process-output perl-process))
-    (and (string-match "\nREPLEND\n\\(.*\\)\nREPLEND\n" perl-output)
-         (match-string 1 perl-output))))
+  (let (ocpof)
+    (unwind-protect
+         (let ((perl-output "")
+;;              (comint-preoutput-filter-functions '(perl-collect-output))
+               (start 0))
+           (with-current-buffer (process-buffer perl-process)
+             (setq ocpof comint-preoutput-filter-functions
+                   comint-preoutput-filter-functions '(perl-collect-output)))
+           (setq str (concat "local $Sepia::stopdie = 0;\n"
+                             "local $Sepia::stopwarn = 0;\n"
+                             str "\n"))
+           (comint-send-string perl-process
+                               (concat (format "<<%d\n" (length str)) str))
+           (while (not (and perl-output
+                            (string-match "> $" perl-output)))
+             (accept-process-output perl-process))
+           (if (string-match "^;;;[0-9]+\n" perl-output)
+               (cons
+                (let* ((x (read-from-string perl-output (+ start 3)))
+                       (len (car x))
+                       (pos (cdr x)))
+                  (prog1 (substring perl-output (1+ pos) (+ len pos 1))
+                    (setq start (+ pos len 1))))
+                (and (string-match ";;;[0-9]+\n" perl-output start)
+                     (let* ((x (read-from-string
+                                perl-output
+                                (+ (match-beginning 0) 3)))
+                            (len (car x))
+                            (pos (cdr x)))
+                       (substring perl-output (1+ pos) (+ len pos 1)))))
+               (cons perl-output nil)))
+      (with-current-buffer (process-buffer perl-process)
+        (setq comint-preoutput-filter-functions ocpof)))))
 
-(defun perl-eval (str &optional context)
-  (let ((res
-         (perl-eval-raw
-          (case context
-            (list-context 
-             (concat "tolisp([" str "])"))
-            (scalar-context
-             (concat "tolisp(scalar(" str "))"))
-            (t (concat str ";1"))))))
-    (when res
-      (car (read-from-string res)))))
+(defun perl-eval (str &optional context detailed)
+  (let* ((tmp (perl-eval-raw
+               (case context
+                 (list-context 
+                  (concat "Sepia::tolisp([" str "])"))
+                 (scalar-context
+                  (concat "Sepia::tolisp(scalar(" str "))"))
+                 (t (concat str ";1")))))
+         (res (car tmp))
+         (errs (cdr tmp)))
+    (setq res (if context (car (read-from-string res)) 1))
+    (if detailed
+        (cons res errs)
+        res)))
 
 (defun perl-call (fn context &rest args)
   (perl-eval (concat fn "(" (mapconcat #'to-perl args ", ") ")") context))
@@ -112,10 +140,35 @@ might want to bind your keys, which works best when bound to
       (concat mod "::" sym)
       sym))
 
+(defun sepia-watch-for-eval (string)
+  (setq perl-passive-output (concat perl-passive-output string))
+  (cond
+    ((string-match "^;;;###[0-9]+" perl-passive-output)
+     (when (string-match "^;;;###\\([0-9]+\\)\n\\(?:.\\|\n\\)*> "
+                         perl-passive-output)
+       (let* ((len (car (read-from-string
+                         (match-string 1 perl-passive-output))))
+              (pos (1+ (match-end 1)))
+              (res (ignore-errors (eval (car (read-from-string
+                                              perl-passive-output pos
+                                              (+ pos len)))))))
+         (insert (format "%s => %s\n> "
+                         (substring perl-passive-output pos (+ pos len)) res))
+         (goto-char (point-max))
+         (comint-set-process-mark)
+         (message "%s => %s" (substring perl-passive-output pos (+ pos len))
+                  res)
+         (setq perl-passive-output "")))
+     "")
+    (t (setq perl-passive-output "") string)))
+
 (defun sepia-comint-setup ()
   (comint-mode)
   (set (make-local-variable 'comint-dynamic-complete-functions)
        '(sepia-complete-symbol comint-dynamic-complete-filename))
+  (set (make-local-variable 'comint-preoutput-filter-functions)
+       '(sepia-watch-for-eval))
+  (set (make-local-variable 'comint-use-prompt-regexp) t)
   (local-set-key (kbd "TAB") 'comint-dynamic-complete)
   (modify-syntax-entry ?: "_")
   (modify-syntax-entry ?> ".")
@@ -524,27 +577,21 @@ buffer.
 (defun sepia-load-file (file &optional rebuild-p collect-warnings)
   "Reload a file.  With REBUILD-P (or a prefix argument when
 called interactively), also rebuild the xref database."
-  (interactive (progn (save-buffer)
-                      (list (buffer-file-name)
-                            prefix-arg
-               ;;              (format "*%s errors*" (buffer-file-name))
-                            nil
-                            )))
-  (message
-   "sepia: %s returned %s"
-   (abbreviate-file-name file)
-   (perl-eval
-;;     (if collect-warnings
-;;         (format "{ local $SIG{__WARN__} = Sepia::emacs_warner('%s'); do '%s' }"
-;;                 collect-warnings file)
-        (format "do '%s' ? 1 : $@" file)
-    'scalar-context))
-  (when collect-warnings
-    (with-current-buffer (get-buffer-create collect-warnings)
-      (sepia-display-errors (point-min) (point-max))
-      (if (> (buffer-size) 0)
-          (pop-to-buffer (current-buffer))
-          (kill-buffer (current-buffer)))))
+  (interactive (list (expand-file-name (buffer-file-name))
+                     prefix-arg
+                     (format "*%s errors*" (buffer-file-name))))
+  (save-buffer)
+  (let* ((tmp (perl-eval (format "do '%s' ? 1 : $@" file) 'scalar-context t))
+         (res (car tmp))
+         (errs (cdr tmp)))
+    (message "sepia: %s returned %s" (abbreviate-file-name file) res)
+    (when (and collect-warnings
+               (> (length errs) 1))
+      (with-current-buffer (get-buffer-create collect-warnings)
+        (delete-region (point-min) (point-max))
+        (insert errs)
+        (sepia-display-errors (point-min) (point-max))
+        (pop-to-buffer (current-buffer)))))
   (when rebuild-p
     (xref-rebuild)))
 
@@ -707,6 +754,7 @@ be bound to TAB."
   (let ((pos (point)))
     (cperl-indent-command)
     (when (and (= pos (point))
+               (not (bolp))
 	       (eq last-command 'sepia-indent-or-complete))
       (sepia-complete-symbol))))
 
@@ -736,10 +784,11 @@ evaluate the current line and display the result."
 ;; Miscellany
 
 (defun my-perl-frob-region (pre post beg end replace-p)
-  (let* ((exp (concat pre "\""
-		      (shell-quote-argument (buffer-substring beg end))
-		      "\"" post))
-	 (new-str (format "%s" (perl-eval exp 'scalar-context))))
+  (let* ((exp (concat pre "<<'SEPIA_END_REGION';\n"
+                      (buffer-substring-no-properties beg end)
+                      (if (= (char-before end) ?\n) "" "\n")
+		      "SEPIA_END_REGION\n" post))
+	 (new-str (perl-eval exp 'scalar-context)))
     (if replace-p
 	(progn (delete-region beg end)
 	       (goto-char beg)
@@ -758,13 +807,16 @@ evaluate the current line and display the result."
     (beginning-of-line n)
     (point)))
 
+;; asdf asdf asdf
+;; asdf asdf asdf
+
 (defun perl-pe-region (expr beg end &optional replace-p)
 "Do the equivalent of perl -pe on region (i.e. evaluate an
 expression on each line of region).  With prefix arg, replace the
 region with the result."
   (interactive "MExpression: \nr\nP")
   (my-perl-frob-region
-   "{ my $ret='';my $region = "
+   "do { my $ret='';my $region = "
    (concat "; for (split /\n/, $region) { do { " expr
 	   ";}; $ret.=\"$_\\n\"}; $ret}")
    (my-bol-from beg) (my-eol-from end) replace-p))
@@ -775,16 +827,16 @@ expression on each line of region).  With prefix arg, replace the
 region with the result."
   (interactive "MExpression:\nr\nP")
   (my-perl-frob-region
-   "{ my $ret='';my $region = "
+   "do { my $ret='';my $region = "
    (concat "; for (split /\n/, $region) { $ret .= do { " expr
-	   ";} }; $ret}")
+	   ";} }; ''.$ret}")
    (my-bol-from beg) (my-eol-from end) replace-p))
   
 (defun perl-ize-region (expr beg end &optional replace-p)
 "Evaluate a Perl expression on the region as a whole.  With
 prefix arg, replace the region with the result."
   (interactive "MExpression:\nr\nP")
-  (my-perl-frob-region "{ local $_ = "
+  (my-perl-frob-region "do { local $_ = "
 		       (concat "; do { " expr ";}; $_ }")
 		       beg end replace-p))
 
@@ -836,9 +888,9 @@ rebuild its Xrefs."
 (defun sepia-eval-no-run (string &optional discard collect-warnings)
   (condition-case err
       (sepia-eval
-       (concat "BEGIN { use B; B::minus_c(); $^C=1; } { "
+       (concat "\nBEGIN { use B; B::minus_c(); $^C=1; } { "
                string
-               "} BEGIN { die \"ok\\n\" }")
+               "}\nBEGIN { die \"ok\\n\" }")
        discard collect-warnings)
     (perl-error (if (string-match "^ok\n" (cadr err))
                     nil
@@ -937,7 +989,7 @@ the only function that requires EPL (the rest can use Pmacs)."
     (goto-char (point-min))
     (or (and (re-search-forward "^\\s *package\\s +\\([^ ;]+\\)" nil t)
 	     (match-string-no-properties 1))
-	"main")))
+	sepia-eval-package)))
 
 (defun sepia-doc-update ()
 "Update documentation for a file.  This documentation, taken from
@@ -999,7 +1051,7 @@ the only function that requires EPL (the rest can use Pmacs)."
 
 (defun sepia-extract-next-warning (pos &optional end)
   (catch 'foo
-    (while (re-search-forward "^\\(.+\\) at \\(.+\\) line \\([0-9]+\\)\\.$"
+    (while (re-search-forward "^\\(.+\\) at \\(.+?\\) line \\([0-9]+\\)"
                               end t)
       (unless (string= "(eval " (substring (match-string 2) 0 6))
         (throw 'foo (list (match-string 2)
@@ -1028,14 +1080,14 @@ interactively)."
                   msgs)))
     (erase-buffer)
     (goto-char (point-min))
-    (mapcar #'insert msgs)
+    (mapcar #'insert (nreverse msgs))
     (goto-char (point-min))
     (grep-mode)))
 
 (defun to-perl (thing)
   "Convert elisp data structure to Perl."
   (cond
-    ((null thing) "[]")
+    ((null thing) "undef")
     ((symbolp thing)
      (let ((pname (substitute ?_ ?- (symbol-name thing)))
            (type (string-to-char (symbol-name thing))))

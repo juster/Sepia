@@ -1,4 +1,4 @@
-* DESCRIPTION (-*- allout -*- mode)
+* DESCRIPTION (-*- org -*- mode)
 
 Sepia is a set of features to make Emacs a better tool for Perl
 development, including:
@@ -54,23 +54,23 @@ you can then navigate.
 
 * TODO
 
-.- (Easy) Use module, file, and line number to refine queries on the
+** (Easy) Use module, file, and line number to refine queries on the
    Perl side.
-.- (Hard) Use module, file, and line number to filter results on the
+** (Hard) Use module, file, and line number to filter results on the
    Emacs side.
-.- (Easy) Clean up Perl side a bit more.
-.- (Medium) Better documentation for Elisp side.
-.- (Medium) Get the variable def/use analysis working again.
+** (Easy) Clean up Perl side a bit more.
+** (Medium) Better documentation for Elisp side.
+** (Medium) Get the variable def/use analysis working again.
 
 * BUGS
 
-.- Function definition lines may occasionally all go completely wrong.
+** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
-.- The cursor may miss by several lines when jumping to a definition.
+** The cursor may miss by several lines when jumping to a definition.
    This is hard to fix -- Perl doesn't give exact line numbers for sub
    defs, so we have to do some minor regex-searching.
-.- `sepia-var-assigns' doesn't work yet -- don't use it.
-.- named method calls are (mostly?) detected, but nothing smart is
+** `sepia-var-assigns' doesn't work yet -- don't use it.
+** named method calls are (mostly?) detected, but nothing smart is
    done about packages, so e.g. "new Foo" will result in listings for
    every instance of "new" in your program.
 

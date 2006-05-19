@@ -1,13 +1,15 @@
 package Sepia;
-our $VERSION = '0.60';
+$VERSION = '0.62';
+@ISA = qw(Exporter);
 
 require Exporter;
-our @ISA = qw(Exporter);
-
 use strict;
 use Cwd 'abs_path';
 use Scalar::Util 'looks_like_number';
 use Module::Info;
+use PadWalker qw(peek_my peek_our peek_sub closed_over);
+use Sub::Uplevel;
+use Carp;
 use B;
 
 =item C<@compls = completions($string [, $type])>
@@ -17,7 +19,6 @@ Completion operates on word subparts separated by [:_], so
 e.g. "S:m_w" completes to "Sepia::my_walksymtable".
 
 =cut
-
 
 sub _apropos_re($)
 {
@@ -98,7 +99,7 @@ sub location
         my $str = $_;
         if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
             if ($pfx) {
-                print STDERR "Sorry -- can't lookup variables.";
+                warn "Sorry -- can't lookup variables.";
                 [];
             } else {
                 # XXX: svref_2object only seems to work with a package
@@ -119,7 +120,7 @@ sub location
                     my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
                     [Cwd::abs_path($file), $line, $shortname || $name]
                 } else {
-                    print STDERR "Bad CV for $name: $cv";
+                    warn "Bad CV for $name: $cv";
                     [];
                 }
             }
@@ -295,9 +296,9 @@ sub tolisp($)
     my $t = ref $thing;
     if (!$t) {
         if (looks_like_number $thing) {
-            0+$thing;
+            ''.$thing;
         } else {
-            '"'.$thing.'"';
+            qq{"$thing"};
         }
     } elsif ($t eq 'GLOB') {
         (my $name = $$thing) =~ s/\*main:://;
@@ -316,75 +317,310 @@ sub tolisp($)
     }
 }
 
+=item C<printer(\@res [, $iseval])>
+
+Print C<@res> appropriately on the current filehandle.  If C<$iseval>
+is true, use terse format.  Otherwise, use human-readable format.
+
+=cut
+
 sub printer
 {
     no strict;
     local *res = shift;
-    my $marker = shift;
-    if ($marker) {
-        print "\n$marker\n@res\n$marker\n";
+    my ($iseval, $wantarray) = @_;
+    @__ = @res;
+    my $str;
+    if ($iseval) {
+        $__ = "@res";
+    } elsif ($fancy) {
+        local $Data::Dumper::Deparse = 1;
+        local $Data::Dumper::Indent = 0;
+        $__ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+        $__ =~ s/^\$VAR1 = //;
+        $__ =~ s/;$//;
     } else {
-        print "=> @res\n";
+        $__ = "@res";
+    }
+    if ($iseval) {
+        print ';;;', length $__, "\n$__\n";
+    } else {
+        print "=> $__\n";
     }
 }
 
 =item C<repl(\*FH)>
 
-Execute a command prompt on FH.
+Execute a command interpreter on FH.  The prompt has a few bells and
+whistles, including:
+
+  * Obviously-incomplete lines are treated as multiline input.
+
+  * C<die> is overridden to enter a recursive interpreter at the point
+    C<die> is called.  From within this interpreter, you can examine a
+    backtrace by calling "bt", return from C<die> with "r EXPR", or
+    go ahead and die by pressing Control-c.
+
+Behavior is controlled in part through the following package-globals:
+
+=over 4
+
+=item C<$PS1> -- the default prompt
+
+=item C<$stopdie> -- true to enter the inspector on C<die()>
+
+=item C<$stopwarn> -- true to enter the inspector on C<warn()>
+
+=item C<$fancy> -- true for pretty-printing via L<Data::Dumper>
+
+=item C<%REPL> -- maps shortcut names to handlers
 
 =cut
 
+use vars qw($PS1 $ps1 $dies $stopdie $stopwarn $fancy %REPL $PACKAGE);
+BEGIN {
+    no strict;
+    $ps1 = $PS1 = "> ";
+    $dies = 0;
+    $stopdie = 1;
+    $stopwarn = 0;
+    $fancy = 1;
+    $PACKAGE = 'main';
+    *REALDIE = *CORE::GLOBAL::die;
+    *REALWARN = *CORE::GLOBAL::warn;
+    %REPL = (h => \&Sepia::repl_help,
+             cd => \&Sepia::repl_chdir);
+}
+
+sub Dump {
+    Data::Dumper->Dump([$_[0]], [$_[1]]);
+}
+
+my $FRAMES = 4;
+
+sub hiding_me
+{
+    my ($fn, @args) = @_;
+    sub {
+        uplevel $FRAMES, $fn, @args
+    }
+}
+
+sub eval_in_env
+{
+    my ($expr, $env) = @_;
+    local $::ENV = $env;
+    my $str = '';
+    for (keys %$env) {
+        next unless /^([\$\@%])(.+)/;
+        $str .= "local *$2 = \$::ENV->{'$_'}; ";
+    }
+    eval "do { no strict; $str $expr }";
+}
+
+sub debug_upeval
+{
+    my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
+    print " <= $exp\n";
+    (0, eval_in_env($exp, PadWalker::peek_my(0+$lev)));
+}
+
+sub debug_inspect
+{
+    local $_ = shift;
+    for my $i (split) {
+        my $sub = (caller $i)[3];
+        next unless $sub;
+        my $h = PadWalker::peek_my($i);
+        print "[$i] $sub:\n";
+        for (sort keys %$h) {
+            print "\t", Sepia::Dump($h->{$_}, $_);
+        }
+    }
+    0;
+}
+
+sub repl_help
+{
+    print <<EOS;
+REPL commands (prefixed with ','):
+    cd DIR       Change directory to DIR
+EOS
+    0;
+}
+
+sub repl_chdir
+{
+    chomp(my $dir = shift);
+    if (-d $dir) {
+        chdir $dir;
+        my $ecmd = '(cd "'.Cwd::getcwd().'")';
+        print ";;;###".length($ecmd)."\n$ecmd\n";
+    } else {
+        warn "Can't chdir\n";
+    }
+    0;
+}
+
+sub debug_help
+{
+    print <<EOS;
+Inspector commands (prefixed with ','):
+    \\C-c        Pop one debugger level
+    b            show backtrace
+    i N ...      inspect lexicals in frame(s) N ...
+    e N EXPR     evaluate EXPR in lexical environment of frame N
+    r EXPR       return EXPR
+    d/w          keep on dying/warning
+EOS
+    0;
+}
+
+sub debug_backtrace
+{
+    Carp::cluck;0
+}
+
+sub debug_return
+{
+    (1, repl_eval(@_));
+}
+
+sub repl_eval
+{
+    my ($buf, $wantarray) = @_;
+    no strict;
+    $buf = "do { package $PACKAGE; no strict; $buf }";
+#     open O, ">>/tmp/blah";
+#     print O "##############################\n$buf";
+#     close O;
+    if ($wantarray || !defined($wantarray)) {
+        eval $buf;
+    } else {
+        scalar eval $buf;
+    }
+}
+
 sub repl
 {
-    my $fh = shift;
+    my ($fh, $level) = @_;
+    select((select($fh), $|=1)[0]);
+    my $in;
     my $buf = '';
-    my $ps1 = "> ";
+
+    my $nextrepl = sub { $buf = ""; next repl };
+
+    local *__;
+    my $MSG = "('\\C-c' to exit, ',h' for help)";
+    my %dhooks = (
+                b => \&Sepia::debug_backtrace,
+                i => \&Sepia::debug_inspect,
+                e => \&Sepia::debug_upeval,
+                r => \&Sepia::debug_return,
+                h => \&Sepia::debug_help,
+            );
+    local *CORE::GLOBAL::die = sub {
+        my @dieargs = @_;
+        if ($stopdie) {
+            local $dies = $dies+1;
+            local $ps1 = "*$dies*$PS1";
+            no strict;
+            local %Sepia::REPL = (
+                %dhooks, d => sub { local $Sepia::stopdie=0; die @dieargs });
+            print "@_\nDied $MSG\n";
+            return Sepia::repl($fh, 1);
+        }
+        CORE::die(@_);
+    };
+
+    local *CORE::GLOBAL::warn = sub {
+        if ($stopwarn) {
+            local $dies = $dies+1;
+            local $ps1 = "*$dies*$PS1";
+            no strict;
+            local %Sepia::REPL = (
+                %dhooks, w => sub { local $Sepia::stopwarn=0; warn @dieargs });
+            print "@_\nWarned $MSG\n";
+            return Sepia::repl($fh, 1);
+        }
+        CORE::warn(@_);
+    };
+
     print $ps1;
-    repl: while (my $in = <$fh>) {
+    my @sigs = qw(INT TERM PIPE ALRM);
+    local @SIG{@sigs};
+    $SIG{$_} = $nextrepl for @sigs;
+ repl: while (my $in = <$fh>) {
             $buf .= $in;
-            my $marker;
-            if ($buf =~ /^eval\s+<<(REPL\S*)\s*$/) {
-                $marker = $1;
-                $buf = '';
-                local $/ = "\n$1\n";
-                chomp($buf = <$fh>);
+            my $iseval;
+            if ($buf =~ /^<<(\d+)\n(.*)/) {
+                $iseval = 1;
+                my $len = $1;
+                my $tmp;
+                $buf = $2;
+                while ($len && defined($tmp = read $fh, $buf, $len, length $buf)) {
+                    $len -= $tmp;
+                }
             }
-            local $SIG{INT} = sub { $buf = ""; next repl };
-            my @warn;
+            my (@res, @warn);
             local $SIG{__WARN__} = sub {
                 push @warn, shift;
             };
-            my @res;
-            {
-                no strict;
-                @res = eval $buf;
-            }
-            if ($@) {
-                if ($@ =~ /at EOF$/m) {
-                    if ($in eq "\n") {
-                        print "*** cancel ***\n$ps1";
-                        $buf = '';
-                    } else {
-                        print ">> ";
+            if ($buf =~ /^,(\S+)\s*(.*)/s) {
+                ## Inspector shortcuts
+                if (exists $Sepia::REPL{$1}) {
+                    my $ret;
+                    ($ret, @res) = $Sepia::REPL{$1}->($2, wantarray);
+                    if ($ret) {
+                        return wantarray ? @res : $res[0];
                     }
-                    next repl;
                 } else {
-                    warn $@;
+                    print "Unrecignized shortcut '$1'\n";
                     $buf = '';
-                    Sepia::printer \@res, $marker if $marker;
+                    print $ps1;
+                    next repl;
                 }
             } else {
-                Sepia::printer \@res, $marker unless $buf =~ /;$/;
-                $buf = '';
+                ## Ordinary eval
+                @res = repl_eval $buf, wantarray;
+
+                if ($@) {
+                    if ($@ =~ /at EOF$/m) {
+                        ## Possibly-incomplete line
+                        if ($in eq "\n") {
+                            print "*** cancel ***\n$ps1";
+                            $buf = '';
+                        } else {
+                            print ">> ";
+                        }
+                        next repl;
+                    } else {
+                        warn $@;
+                        $buf = '';
+                        Sepia::printer \@res, $iseval, wantarray if $iseval;
+                    }
+                }
             }
-            print "@warn\n" if @warn;
+            if ($buf !~ /;$/) {
+                ## Be quiet if it ends with a semicolon.
+                Sepia::printer \@res, $iseval, wantarray;
+            }
+            $buf = '';
+            if (@warn) {
+                if ($iseval) {
+                    my $tmp = "@warn";
+                    print ';;;'.length($tmp)."\n$tmp\n";
+                } else {
+                    print "@warn\n";
+                }
+            }
             print $ps1;
         }
 }
 
 sub perl_eval
 {
-    tolisp(eval shift);
+    tolisp(repl_eval(shift));
 }
 
 1;

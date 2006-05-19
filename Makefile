@@ -13,7 +13,7 @@
 #     ABSTRACT => q[Simple Emacs-Perl InterAction]
 #     AUTHOR => q[Sean O'Rourke <seano@cpan.org>]
 #     NAME => q[Sepia]
-#     PREREQ_PM => { Module::Info=>q[0], Data::Dumper=>q[0] }
+#     PREREQ_PM => { B::Module::Info=>q[0], Data::Dumper=>q[0] }
 #     VERSION_FROM => q[Sepia.pm]
 
 # --- MakeMaker post_initialize section:
@@ -53,11 +53,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Sepia
 NAME_SYM = Sepia
-VERSION = 0.59
+VERSION = 0.61
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_59
+VERSION_SYM = 0_61
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.59
+XS_VERSION = 0.61
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -250,7 +250,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Sepia
-DISTVNAME = Sepia-0.59
+DISTVNAME = Sepia-0.61
 
 
 # --- MakeMaker macro section:
@@ -443,12 +443,12 @@ metafile :
 	$(NOECHO) $(ECHO) '# http://module-build.sourceforge.net/META-spec.html' > META.yml
 	$(NOECHO) $(ECHO) '#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#' >> META.yml
 	$(NOECHO) $(ECHO) 'name:         Sepia' >> META.yml
-	$(NOECHO) $(ECHO) 'version:      0.59' >> META.yml
+	$(NOECHO) $(ECHO) 'version:      0.61' >> META.yml
 	$(NOECHO) $(ECHO) 'version_from: Sepia.pm' >> META.yml
 	$(NOECHO) $(ECHO) 'installdirs:  site' >> META.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META.yml
+	$(NOECHO) $(ECHO) '    B::Module::Info:               0' >> META.yml
 	$(NOECHO) $(ECHO) '    Data::Dumper:                  0' >> META.yml
-	$(NOECHO) $(ECHO) '    Module::Info:                  0' >> META.yml
 	$(NOECHO) $(ECHO) '' >> META.yml
 	$(NOECHO) $(ECHO) 'distribution_type: module' >> META.yml
 	$(NOECHO) $(ECHO) 'generated_by: ExtUtils::MakeMaker version 6.17' >> META.yml
@@ -713,13 +713,13 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,59,0,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,61,0,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple Emacs-Perl InterAction</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Sean O'\''Rourke &lt;seano@cpan.org&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="B-Module-Info" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Module-Info" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <OS NAME="$(OSNAME)" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-thread-multi-2level" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd

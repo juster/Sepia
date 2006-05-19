@@ -1,3 +1,16 @@
+2006-05-18  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el, Sepia.pm: improved bulk-transfer protocol.
+	* Sepia.pm: override die with simple inspector/debugger.
+	* Sepia.pm: $__ and @__ now contain results of the last
+	  expression.
+	* sepia.el, Sepia.pm: primitive support for evaluating elisp sent
+	  from Perl.  Turn on comint-use-prompt-regexp because the fields
+	  stuff is flaky with this.
+	* sepia.el, Sepia.pm: ",cd" shortcut coordinates directory with
+	  Emacs.
+	* VERSION 0.61, 0.62
+
 2006-04-14  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* generic-repl.el: replaced by comint.
