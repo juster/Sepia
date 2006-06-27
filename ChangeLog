@@ -1,3 +1,19 @@
+2006-05-24  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* Makefile.PL: added missing dependencies on PadWalker,
+	  Sub::Uplevel.
+	* Sepia.pm: improved ",command"
+	* sepia-w3m.el (sepia-w3m-perldoc-this): simplify.
+	* sepia.el (perl-*): rename to sepia-*.
+	* sepia.el: reorg and cleanup.
+	* VERSION: 0.63
+
+2006-05-19  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el: fixed eldoc support.  This only works with CVS Emacs,
+	  relying on `eldoc-documentation-function'.  Also fixed pod
+	  scanning for eldoc.
+
 2006-05-18  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* sepia.el, Sepia.pm: improved bulk-transfer protocol.

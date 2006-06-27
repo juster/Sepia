@@ -72,22 +72,10 @@
 			(w3m-url-encode-string (buffer-name buffer)))))
 
 ;;;###autoload
-(defun sepia-w3m-perldoc-this (obj &optional mod type)
+(defun sepia-w3m-perldoc-this (mod)
   "View perldoc for module at point."
-  (interactive (butlast (sepia-ident-at-point) 1))
-  (let ((mod (if (eq type 'module)
-		 mod
-		 (or mod (fourth (car
-			      (if (eq type 'variable)
-				  (xref-var-defs obj)
-				  (xref-location obj mod))))))))
-    (when mod
-      (w3m-perldoc mod)
-      (when (and obj (not (eq type 'module))
-		 (re-search-forward
-		  (concat "^\\Sw*\\<" obj "\\>") nil t))
-	(beginning-of-line)
-	(recenter)))))
+  (interactive (list (sepia-interactive-arg 'module)))
+  (w3m-perldoc mod))
 
 (defun sepia-module-list ()
   (interactive)

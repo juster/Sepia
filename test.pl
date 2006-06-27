@@ -3,7 +3,7 @@ use Test::Simple tests => 22;
 
 require Data::Dumper;
 require Sepia;
-require Xref;
+require Sepia::Xref;
 ok(1, 'loaded');
 
 Sepia::Xref::rebuild();

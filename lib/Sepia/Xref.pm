@@ -1,4 +1,3 @@
-######################################################################
 package Sepia::Xref;
 
 =head1 NAME
@@ -30,6 +29,9 @@ most of its code.
 
 =cut
 
+BEGIN { *_apropos_re = *Sepia::_apropos_re; }
+$VERSION = '0.63';
+
 use strict;
 use Config;
 use Cwd 'abs_path';
@@ -38,9 +40,6 @@ use B qw(peekop class comppadlist main_start svref_2object walksymtable
 	 cstring);
 # use Sepia '_apropos_re';
 require Sepia;
-BEGIN { *_apropos_re = *Sepia::_apropos_re; }
-
-BEGIN { no strict; *VERSION = *Sepia::VERSION; }
 
 =head2 Variables
 

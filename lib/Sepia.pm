@@ -1,5 +1,12 @@
 package Sepia;
-$VERSION = '0.62';
+
+=head1 NAME
+
+Sepia - Simple Emacs-Perl Interface
+
+=cut
+
+$VERSION = '0.63';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -9,6 +16,7 @@ use Scalar::Util 'looks_like_number';
 use Module::Info;
 use PadWalker qw(peek_my peek_our peek_sub closed_over);
 use Sub::Uplevel;
+use Text::Abbrev;
 use Carp;
 use B;
 
@@ -120,7 +128,7 @@ sub location
                     my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
                     [Cwd::abs_path($file), $line, $shortname || $name]
                 } else {
-                    warn "Bad CV for $name: $cv";
+#                    warn "Bad CV for $name: $cv";
                     [];
                 }
             }
@@ -377,19 +385,24 @@ Behavior is controlled in part through the following package-globals:
 
 =cut
 
-use vars qw($PS1 $ps1 $dies $stopdie $stopwarn $fancy %REPL $PACKAGE);
+use vars qw($PS1 $dies $stopdie $stopwarn $fancy %REPL %RK $PACKAGE);
 BEGIN {
     no strict;
-    $ps1 = $PS1 = "> ";
+    $PS1 = "> ";
     $dies = 0;
     $stopdie = 1;
     $stopwarn = 0;
     $fancy = 1;
     $PACKAGE = 'main';
-    *REALDIE = *CORE::GLOBAL::die;
-    *REALWARN = *CORE::GLOBAL::warn;
-    %REPL = (h => \&Sepia::repl_help,
-             cd => \&Sepia::repl_chdir);
+    %REPL = (help => \&Sepia::repl_help,
+             cd => \&Sepia::repl_chdir,
+             package => \&Sepia::repl_package);
+    %RK = abbrev keys %REPL;
+}
+
+sub prompt()
+{
+    "$PACKAGE\:$PS1"
 }
 
 sub Dump {
@@ -444,7 +457,8 @@ sub repl_help
 {
     print <<EOS;
 REPL commands (prefixed with ','):
-    cd DIR       Change directory to DIR
+    cd DIR             Change directory to DIR
+    package PACKAGE    Set evaluation package to PACKAGE
 EOS
     0;
 }
@@ -462,16 +476,30 @@ sub repl_chdir
     0;
 }
 
+sub repl_package
+{
+    chomp(my $p = shift);
+    no strict;
+    if (defined %{$p.'::'}) {
+        $PACKAGE = $p;
+#         my $ecmd = '(setq sepia-eval-package "'.$p.'")';
+#         print ";;;###".length($ecmd)."\n$ecmd\n";
+    } else {
+        warn "Can't go to package $p -- doesn't exist!\n";
+    }
+    0;
+}
+
 sub debug_help
 {
     print <<EOS;
 Inspector commands (prefixed with ','):
     \\C-c        Pop one debugger level
-    b            show backtrace
-    i N ...      inspect lexicals in frame(s) N ...
-    e N EXPR     evaluate EXPR in lexical environment of frame N
-    r EXPR       return EXPR
-    d/w          keep on dying/warning
+    backtrace       show backtrace
+    inspect N ...   inspect lexicals in frame(s) N ...
+    eval N EXPR     evaluate EXPR in lexical environment of frame N
+    return EXPR     return EXPR
+    die/warn        keep on dying/warning
 EOS
     0;
 }
@@ -488,8 +516,9 @@ sub debug_return
 
 sub repl_eval
 {
-    my ($buf, $wantarray) = @_;
+    my ($buf, $wantarray, $pkg) = @_;
     no strict;
+    local $PACKAGE = $pkg || $PACKAGE;
     $buf = "do { package $PACKAGE; no strict; $buf }";
 #     open O, ">>/tmp/blah";
 #     print O "##############################\n$buf";
@@ -507,26 +536,28 @@ sub repl
     select((select($fh), $|=1)[0]);
     my $in;
     my $buf = '';
+    my $sigged = 0;
 
-    my $nextrepl = sub { $buf = ""; next repl };
+    my $nextrepl = sub { $sigged = 1; };
 
     local *__;
     my $MSG = "('\\C-c' to exit, ',h' for help)";
     my %dhooks = (
-                b => \&Sepia::debug_backtrace,
-                i => \&Sepia::debug_inspect,
-                e => \&Sepia::debug_upeval,
-                r => \&Sepia::debug_return,
-                h => \&Sepia::debug_help,
+                backtrace => \&Sepia::debug_backtrace,
+                inspect => \&Sepia::debug_inspect,
+                eval => \&Sepia::debug_upeval,
+                return => \&Sepia::debug_return,
+                help => \&Sepia::debug_help,
             );
     local *CORE::GLOBAL::die = sub {
         my @dieargs = @_;
         if ($stopdie) {
             local $dies = $dies+1;
-            local $ps1 = "*$dies*$PS1";
+            local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, d => sub { local $Sepia::stopdie=0; die @dieargs });
+                %dhooks, die => sub { local $Sepia::stopdie=0; die @dieargs });
+            local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\nDied $MSG\n";
             return Sepia::repl($fh, 1);
         }
@@ -536,21 +567,28 @@ sub repl
     local *CORE::GLOBAL::warn = sub {
         if ($stopwarn) {
             local $dies = $dies+1;
-            local $ps1 = "*$dies*$PS1";
+            local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, w => sub { local $Sepia::stopwarn=0; warn @dieargs });
+                %dhooks, warn => sub { local $Sepia::stopwarn=0; warn @dieargs });
+            local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\nWarned $MSG\n";
             return Sepia::repl($fh, 1);
         }
         CORE::warn(@_);
     };
 
-    print $ps1;
+    print prompt;
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
     $SIG{$_} = $nextrepl for @sigs;
  repl: while (my $in = <$fh>) {
+            if ($sigged) {
+                $buf = '';
+                $sigged = 0;
+                print "\n", prompt;
+                next repl;
+            }
             $buf .= $in;
             my $iseval;
             if ($buf =~ /^<<(\d+)\n(.*)/) {
@@ -568,16 +606,16 @@ sub repl
             };
             if ($buf =~ /^,(\S+)\s*(.*)/s) {
                 ## Inspector shortcuts
-                if (exists $Sepia::REPL{$1}) {
+                if (exists $Sepia::RK{$1}) {
                     my $ret;
-                    ($ret, @res) = $Sepia::REPL{$1}->($2, wantarray);
+                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$1}}->($2, wantarray);
                     if ($ret) {
                         return wantarray ? @res : $res[0];
                     }
                 } else {
                     print "Unrecignized shortcut '$1'\n";
                     $buf = '';
-                    print $ps1;
+                    print prompt;
                     next repl;
                 }
             } else {
@@ -588,7 +626,7 @@ sub repl
                     if ($@ =~ /at EOF$/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
-                            print "*** cancel ***\n$ps1";
+                            print "*** cancel ***\n", prompt;
                             $buf = '';
                         } else {
                             print ">> ";
@@ -614,7 +652,7 @@ sub repl
                     print "@warn\n";
                 }
             }
-            print $ps1;
+            print prompt;
         }
 }
 

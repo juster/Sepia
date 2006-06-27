@@ -13,8 +13,8 @@
 #     ABSTRACT => q[Simple Emacs-Perl InterAction]
 #     AUTHOR => q[Sean O'Rourke <seano@cpan.org>]
 #     NAME => q[Sepia]
-#     PREREQ_PM => { B::Module::Info=>q[0], Data::Dumper=>q[0] }
-#     VERSION_FROM => q[Sepia.pm]
+#     PREREQ_PM => { PadWalker=>q[0], B::Module::Info=>q[0], Data::Dumper=>q[0], Sub::Uplevel=>q[0] }
+#     VERSION_FROM => q[lib/Sepia.pm]
 
 # --- MakeMaker post_initialize section:
 
@@ -53,11 +53,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Sepia
 NAME_SYM = Sepia
-VERSION = 0.61
+VERSION = 0.63
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_61
+VERSION_SYM = 0_63
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.61
+XS_VERSION = 0.63
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -139,7 +139,7 @@ FULLEXT = Sepia
 BASEEXT = Sepia
 PARENT_NAME = 
 DLBASE = $(BASEEXT)
-VERSION_FROM = Sepia.pm
+VERSION_FROM = lib/Sepia.pm
 OBJECT = 
 LDFROM = $(OBJECT)
 LINKTYPE = dynamic
@@ -150,7 +150,8 @@ C_FILES  =
 O_FILES  = 
 H_FILES  = 
 MAN1PODS = 
-MAN3PODS = Xref.pm
+MAN3PODS = lib/Sepia.pm \
+	lib/Sepia/Xref.pm
 
 # Where is the Config information that we are using/depend on
 CONFIGDEP = $(PERL_ARCHLIB)$(DIRFILESEP)Config.pm $(PERL_INC)$(DIRFILESEP)config.h
@@ -172,22 +173,22 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = Sepia.pm \
-	Xref.pm \
-	foo.pl \
+TO_INST_PM = foo.pl \
+	lib/Sepia.pm \
+	lib/Sepia/Xref.pm \
 	modindex.pl \
 	supers.pl
 
-PM_TO_BLIB = Xref.pm \
-	$(INST_LIB)/Xref.pm \
-	supers.pl \
+PM_TO_BLIB = supers.pl \
 	$(INST_LIB)/supers.pl \
-	Sepia.pm \
-	$(INST_LIB)/Sepia.pm \
+	lib/Sepia/Xref.pm \
+	blib/lib/Sepia/Xref.pm \
 	foo.pl \
 	$(INST_LIB)/foo.pl \
 	modindex.pl \
-	$(INST_LIB)/modindex.pl
+	$(INST_LIB)/modindex.pl \
+	lib/Sepia.pm \
+	blib/lib/Sepia.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -250,7 +251,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Sepia
-DISTVNAME = Sepia-0.61
+DISTVNAME = Sepia-0.63
 
 
 # --- MakeMaker macro section:
@@ -391,10 +392,13 @@ POD2MAN = $(POD2MAN_EXE)
 
 
 manifypods : pure_all  \
-	Xref.pm \
-	Xref.pm
+	lib/Sepia/Xref.pm \
+	lib/Sepia.pm \
+	lib/Sepia/Xref.pm \
+	lib/Sepia.pm
 	$(NOECHO) $(POD2MAN) --section=3 --perm_rw=$(PERM_RW)\
-	  Xref.pm $(INST_MAN3DIR)/Xref.$(MAN3EXT) 
+	  lib/Sepia/Xref.pm $(INST_MAN3DIR)/Sepia::Xref.$(MAN3EXT) \
+	  lib/Sepia.pm $(INST_MAN3DIR)/Sepia.$(MAN3EXT) 
 
 
 
@@ -435,7 +439,7 @@ realclean_subdirs :
 realclean purge ::  clean realclean_subdirs
 	$(RM_RF) $(INST_AUTODIR) $(INST_ARCHAUTODIR)
 	$(RM_RF) $(DISTVNAME)
-	$(RM_F)  $(INST_LIB)/modindex.pl $(INST_LIB)/foo.pl $(INST_LIB)/supers.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE) $(INST_LIB)/Sepia.pm $(INST_LIB)/Xref.pm
+	$(RM_F)  $(INST_LIB)/modindex.pl blib/lib/Sepia.pm $(INST_LIB)/foo.pl $(INST_LIB)/supers.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE) blib/lib/Sepia/Xref.pm
 
 
 # --- MakeMaker metafile section:
@@ -443,12 +447,14 @@ metafile :
 	$(NOECHO) $(ECHO) '# http://module-build.sourceforge.net/META-spec.html' > META.yml
 	$(NOECHO) $(ECHO) '#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#' >> META.yml
 	$(NOECHO) $(ECHO) 'name:         Sepia' >> META.yml
-	$(NOECHO) $(ECHO) 'version:      0.61' >> META.yml
-	$(NOECHO) $(ECHO) 'version_from: Sepia.pm' >> META.yml
+	$(NOECHO) $(ECHO) 'version:      0.63' >> META.yml
+	$(NOECHO) $(ECHO) 'version_from: lib/Sepia.pm' >> META.yml
 	$(NOECHO) $(ECHO) 'installdirs:  site' >> META.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META.yml
 	$(NOECHO) $(ECHO) '    B::Module::Info:               0' >> META.yml
 	$(NOECHO) $(ECHO) '    Data::Dumper:                  0' >> META.yml
+	$(NOECHO) $(ECHO) '    PadWalker:                     0' >> META.yml
+	$(NOECHO) $(ECHO) '    Sub::Uplevel:                  0' >> META.yml
 	$(NOECHO) $(ECHO) '' >> META.yml
 	$(NOECHO) $(ECHO) 'distribution_type: module' >> META.yml
 	$(NOECHO) $(ECHO) 'generated_by: ExtUtils::MakeMaker version 6.17' >> META.yml
@@ -713,13 +719,15 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,61,0,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,63,0,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple Emacs-Perl InterAction</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Sean O'\''Rourke &lt;seano@cpan.org&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="B-Module-Info" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="PadWalker" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Sub-Uplevel" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <OS NAME="$(OSNAME)" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-thread-multi-2level" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
@@ -731,11 +739,11 @@ ppd:
 
 pm_to_blib: $(TO_INST_PM)
 	$(NOECHO) $(PERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')'\
-	  Xref.pm $(INST_LIB)/Xref.pm \
 	  supers.pl $(INST_LIB)/supers.pl \
-	  Sepia.pm $(INST_LIB)/Sepia.pm \
+	  lib/Sepia/Xref.pm blib/lib/Sepia/Xref.pm \
 	  foo.pl $(INST_LIB)/foo.pl \
-	  modindex.pl $(INST_LIB)/modindex.pl 
+	  modindex.pl $(INST_LIB)/modindex.pl \
+	  lib/Sepia.pm blib/lib/Sepia.pm 
 	$(NOECHO) $(TOUCH) $@
 
 # --- MakeMaker selfdocument section:
