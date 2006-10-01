@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.63';
+$VERSION = '0.64';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -303,8 +303,10 @@ sub tolisp($)
     my $thing = @_ == 1 ? shift : \@_;
     my $t = ref $thing;
     if (!$t) {
-        if (looks_like_number $thing) {
-            ''.$thing;
+        if (!defined $thing) {
+            'nil'
+        } elsif (looks_like_number $thing) {
+            ''.(0+$thing);
         } else {
             qq{"$thing"};
         }
@@ -344,9 +346,11 @@ sub printer
     } elsif ($fancy) {
         local $Data::Dumper::Deparse = 1;
         local $Data::Dumper::Indent = 0;
-        $__ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
-        $__ =~ s/^\$VAR1 = //;
-        $__ =~ s/;$//;
+        eval {
+            $__ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+            $__ =~ s/^\$VAR1 = //;
+            $__ =~ s/;$//;
+        };
     } else {
         $__ = "@res";
     }
@@ -406,7 +410,9 @@ sub prompt()
 }
 
 sub Dump {
-    Data::Dumper->Dump([$_[0]], [$_[1]]);
+    eval {
+        Data::Dumper->Dump([$_[0]], [$_[1]]);
+    };
 }
 
 my $FRAMES = 4;
@@ -466,7 +472,10 @@ EOS
 sub repl_chdir
 {
     chomp(my $dir = shift);
+    $dir =~ s/^~\//$ENV{HOME}\//;
+    $dir =~ s/\$HOME/$ENV{HOME}/;
     if (-d $dir) {
+
         chdir $dir;
         my $ecmd = '(cd "'.Cwd::getcwd().'")';
         print ";;;###".length($ecmd)."\n$ecmd\n";
@@ -520,9 +529,6 @@ sub repl_eval
     no strict;
     local $PACKAGE = $pkg || $PACKAGE;
     $buf = "do { package $PACKAGE; no strict; $buf }";
-#     open O, ">>/tmp/blah";
-#     print O "##############################\n$buf";
-#     close O;
     if ($wantarray || !defined($wantarray)) {
         eval $buf;
     } else {

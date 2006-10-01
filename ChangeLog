@@ -1,3 +1,18 @@
+2006-09-29  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* Sepia.pm (Dump): wrap with eval to prevent unexpected exits.
+	* Sepia.pm (repl_chdir): expand '~' and '$HOME'
+
+2006-07-01  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* Sepia.pm (tolisp): undef -> nil
+	* sepia.el (sepia-eval-raw): guess package.
+	* sepia.el (sepia-init): don't pop-to-buffer with prefix argument.
+	* sepia.el (sepia-beginning-of-defun,sepia-end-of-defun): avoid
+	  recursion.
+	* sepia.el (sepia-buffer-package): look backward from point
+	  instead of forward from point-min.
+
 2006-05-24  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* Makefile.PL: added missing dependencies on PadWalker,

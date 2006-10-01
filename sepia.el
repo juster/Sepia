@@ -46,8 +46,8 @@ look for \";;;###\" lisp evaluation markers.")
                    comint-preoutput-filter-functions '(sepia-collect-output)))
            (setq str (concat "local $Sepia::stopdie=0;"
                              "local $Sepia::stopwarn=0;"
-                             "local $Sepia::PACKAGE = '"
-                             str "\n"))
+                             "{ package " (sepia-buffer-package) ";"
+                             str " }\n"))
            (comint-send-string sepia-process
                                (concat (format "<<%d\n" (length str)) str))
            (while (not (and sepia-output
@@ -55,7 +55,8 @@ look for \";;;###\" lisp evaluation markers.")
              (accept-process-output sepia-process))
            (if (string-match "^;;;[0-9]+\n" sepia-output)
                (cons
-                (let* ((x (read-from-string sepia-output (+ start 3)))
+                (let* ((x (read-from-string sepia-output
+                                            (+ (match-beginning 0) 3)))
                        (len (car x))
                        (pos (cdr x)))
                   (prog1 (substring sepia-output (1+ pos) (+ len pos 1))
@@ -134,6 +135,9 @@ each inferior Perl prompt."
   (modify-syntax-entry ?> ".")
   (sepia-install-keys)
   (local-set-key (kbd "TAB") 'comint-dynamic-complete)
+  (local-set-key "\C-a" 'comint-bol)
+  (set (make-local-variable 'comint-prompt-regexp)
+       "^[^>\n]*> *")
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -284,7 +288,8 @@ Does not require loading.")
     (sepia-install-keys cperl-mode-map))
   (when (boundp 'perl-mode-map)
     (sepia-install-keys perl-mode-map))
-  (sepia-interact))
+  (unless noinit
+    (sepia-interact)))
 
 (defun sepia-cperl-mode-hook ()
   (set (make-local-variable 'beginning-of-defun-function)
@@ -556,6 +561,25 @@ buffer.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Perl motion commands.
 
+;;; XXX -- these are a hack to prevent infinite recursion calling
+;;; e.g. beginning-of-defun from beginning-of-defun-function.
+;;; `beginning-of-defun' should handle this.
+(defmacro sepia-safe-bodf ()
+  `(let ((beginning-of-defun-function
+          (if (and (boundp 'beginning-of-defun-function)
+                   (eq beginning-of-defun-function 'sepia-beginning-of-defun))
+              nil
+              beginning-of-defun-function)))
+     (beginning-of-defun)))
+
+(defmacro sepia-safe-eodf ()
+  `(let ((end-of-defun-function
+          (if (and (boundp 'end-of-defun-function)
+                   (eq end-of-defun-function 'sepia-end-of-defun))
+              nil
+              end-of-defun-function)))
+     (end-of-defun)))
+
 (defun sepia-beginning-of-defun (&optional where)
   (interactive "d")
   (let ((here (point)))
@@ -563,22 +587,22 @@ buffer.
     (if (and (not (= here (point)))
              (looking-at sepia-sub-re))
       (point)
-      (beginning-of-defun)
+      (sepia-safe-bodf)
       (let* ((end (point))
-             (beg (progn (previous-line 3) (point))))
+             (beg (progn (forward-line -3) (point))))
         (goto-char end)
         (re-search-backward sepia-sub-re beg t)))))
 
 (defun sepia-end-of-defun (&optional where)
   (interactive "d")
   (let ((here (point)))
-    (beginning-of-defun)
+    (sepia-safe-bodf)
     (let ((beg (point))
           (end-of-defun-function nil)
           (beginning-of-defun-function nil))
       (when (looking-at sepia-sub-re)
         (forward-line 1))
-      (end-of-defun))
+      (sepia-safe-eodf))
     (when (and (>= here (point))
                (re-search-forward sepia-sub-re nil t))
       (sepia-end-of-defun))
@@ -744,9 +768,7 @@ The function is intended to be bound to \\M-TAB, like
   (multiple-value-bind (type name) (sepia-ident-at-point)
     (let ((len  (+ (if type 1 0) (length name)))
           (completions (xref-completions
-                        (if (string-match ":" name)
-                            name
-                            (concat (sepia-buffer-package) "::" name))
+                        name
                         (case type
                           (?$ "SCALAR")
                           (?@ "ARRAY")
@@ -754,7 +776,8 @@ The function is intended to be bound to \\M-TAB, like
                           (?& "CODE")
                           (?* "IO")
                           (t ""))
-                        (sepia-function-at-point))))
+                        (and (not (eq major-mode 'comint-mode))
+                             (sepia-function-at-point)))))
       (case (length completions)
         (0 (message "No completions for %s." name) nil)
         (1 ;; (delete-ident-at-point)
@@ -777,7 +800,9 @@ complete the symbol around point.  This function is intended to
 be bound to TAB."
   (interactive)
   (let ((pos (point)))
-    (cperl-indent-command)
+    (let (beginning-of-defun-function
+          end-of-defun-function)
+      (cperl-indent-command))
     (when (and (= pos (point))
                (not (bolp))
 	       (eq last-command 'sepia-indent-or-complete))
@@ -980,8 +1005,7 @@ rebuild its Xrefs."
 
 (defun sepia-buffer-package ()
   (save-excursion
-    (goto-char (point-min))
-    (or (and (re-search-forward "^\\s *package\\s +\\([^ ;]+\\)" nil t)
+    (or (and (re-search-backward "^\\s *package\\s +\\([^ ;]+\\)\\s *;" nil t)
 	     (match-string-no-properties 1))
 	"main")))
 

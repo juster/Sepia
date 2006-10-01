@@ -19,7 +19,13 @@ tried throughout to use or mimic existing Emacs functionality, rather
 than to create something new.
 
 * INSTALLATION
+** Requirements
+Sepia is developed on (and probably requires) the latest version of
+GNU Emacs, which can be obtained from CVS or as a prebuilt package on
+some platforms.  All of its features could probably be made to work on
+other Emacsen, but some porting would be required.
 
+** Installation procedure
 1) run "perl Makefile.PL; make; make install"
 2) optionally, install the Emacs-w3m and tree-widget packages:
        http://emacs-w3m.namazu.org/

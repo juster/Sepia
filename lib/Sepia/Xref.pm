@@ -30,7 +30,7 @@ most of its code.
 =cut
 
 BEGIN { *_apropos_re = *Sepia::_apropos_re; }
-$VERSION = '0.63';
+$VERSION = '0.64';
 
 use strict;
 use Config;
@@ -674,7 +674,7 @@ sub file_modules {
     my $file = shift;
     eval "use Module::Include;" and do {
         my $mod = Module::Include->new_from_file(abs_path($file));
-        return $mod && $mod->packages_inside;
+        return ($mod && $mod->packages_inside) || undef;
     };
 }
 
