@@ -1,8 +1,8 @@
 ;;; sepia-tree.el -- tree-widget-based calle[re] navigation
 
-;; Copyright (C) 2004 Sean O'Rourke.  All rights reserved, some wrongs
-;; reversed.  This code is distributed under the same terms as Perl
-;; itself.
+;; Copyright (C) 2004-2007 Sean O'Rourke.  All rights reserved, some
+;; wrongs reversed.  This code is distributed under the same terms as
+;; Perl itself.
 
 ;;; Commentary:
 

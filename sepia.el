@@ -1,9 +1,9 @@
 ;;; Sepia -- Simple Emacs-Perl InterAction: ugly, yet effective.
 ;;; (a.k.a. Septik -- Sean's Emacs-Perl Total Integration Kludge.)
 
-;; Copyright (C) 2004 Sean O'Rourke.  All rights reserved, some wrongs
-;; reversed.  This code is distributed under the same terms as Perl
-;; itself.
+;; Copyright (C) 2004-2007 Sean O'Rourke.  All rights reserved, some
+;; wrongs reversed.  This code is distributed under the same terms as
+;; Perl itself.
 
 ;;; Commentary:
 
@@ -14,12 +14,19 @@
 (require 'cperl-mode)
 (require 'comint)
 (require 'cl)
-(eval-when (load eval) (ignore-errors (require 'sepia-w3m)))
-(eval-when (load eval) (ignore-errors (require 'sepia-tree)))
-(eval-when (load eval) (ignore-errors (require 'sepia-ido)))
+;; try optional modules, but don't bitch if we fail:
+(require 'sepia-w3m nil t)
+(require 'sepia-tree nil t)
+(require 'sepia-ido nil t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Comint communication
+
+(defvar sepia-perl5lib nil
+"* Extra PERL5LIB directory for Sepia.pm")
+
+(defvar sepia-program-name "perl"
+"* Perl program name.")
 
 (defvar sepia-process nil
 "The perl process with which we're interacting.")
@@ -133,6 +140,7 @@ each inferior Perl prompt."
   (set (make-local-variable 'comint-use-prompt-regexp) t)
   (modify-syntax-entry ?: "_")
   (modify-syntax-entry ?> ".")
+  (use-local-map (copy-keymap (current-local-map)))
   (sepia-install-keys)
   (local-set-key (kbd "TAB") 'comint-dynamic-complete)
   (local-set-key "\C-a" 'comint-bol)
@@ -161,6 +169,8 @@ subs from the evaluation package, it may not always work.")
     (let ((km (make-sparse-keymap)))
       (dolist (kv '(("c" . sepia-callers)
                     ("C" . sepia-callees)
+                    ("a" . sepia-apropos)
+                    ("A" . sepia-var-apropos)
                     ("v" . sepia-var-uses)
                     ("V" . sepia-var-defs)
                     ;;		  ("V" . sepia-var-assigns)
@@ -169,7 +179,8 @@ subs from the evaluation package, it may not always work.")
                     ("f" . sepia-defs)
                     ("r" . sepia-rebuild)
                     ("m" . sepia-module-find)
-                    ("n" . sepia-next)))
+                    ("n" . sepia-next)
+                    ("t" . find-tag)))
         (define-key km (car kv) (cdr kv)))
       (when (featurep 'sepia-w3m)
         (define-key km "d" 'sepia-w3m-perldoc-this))
@@ -200,15 +211,13 @@ might want to bind your keys, which works best when bound to
 
 ;;;###autoload
 (defun sepia-init (&optional noinit)
-"Perform the initialization necessary to start Sepia, a set of
-tools for developing Perl in Emacs.
+"Perform the initialization necessary to start Sepia.
 
 The following keys are bound to the prefix
 ``sepia-prefix-key'' (`\\M-.' by default), which can be changed
 by setting ``sepia-prefix'' before calling ``sepia-init'':
 
 \\{sepia-keymap}
-
 In addition to these keys, Sepia defines the following keys,
 which may conflict with keys in your setup, but which are
 intended to shadow similar functionality in elisp-mode:
@@ -227,29 +236,33 @@ intended to shadow similar functionality in elisp-mode:
     (setq sepia-process
           (get-buffer-process
            (comint-exec (get-buffer-create "*perl-interaction*")
-                        "perl" "/usr/bin/perl" nil
-                        '("-MData::Dumper" "-MSepia" "-MSepia::Xref"
-                          "-e" "Sepia::repl(*STDIN)"))))
+                        "perl" sepia-program-name nil
+                        (append (and sepia-perl5lib
+                                     (mapcar
+                                      (lambda (x) (concat "-I" x))
+                                      (split-string sepia-perl5lib ":")))
+                                '("-MData::Dumper" "-MSepia" "-MSepia::Xref"
+                                  "-e" "Sepia::repl(*STDIN)")))))
       (with-current-buffer "*perl-interaction*"
         (sepia-comint-setup))
       (accept-process-output sepia-process 0 1)
 
   ;; Create glue wrappers for Module::Info funcs.
-  (dolist (x '((name "Find module name.  Does not require loading.")
-	       (version "Find module version.  Does not require loading.")
+  (dolist (x '((name "Find module name.\n\nDoes not require loading.")
+	       (version "Find module version.\n\nDoes not require loading.")
 	       (inc-dir
-"Find directory in which this module was found.  Does not require loading.")
+"Find directory in which this module was found.\n\nDoes not require loading.")
 	       (file
-"Absolute path of file defining this module.  Does not require loading.")
+"Absolute path of file defining this module.\n\nDoes not require loading.")
 	       (is-core
 "Guess whether or not a module is part of the core distribution.
 Does not require loading.")
 	       (modules-used
-"List modules used by this module.  Requires loading.")
+"List modules used by this module.\n\nRequires loading.")
 	       (packages-inside
-"List sub-packages in this module.  Requires loading.")
+"List sub-packages in this module.\n\nRequires loading.")
 	       (superclasses
-"List module's superclasses.  Requires loading.")))
+"List module's superclasses.\n\nRequires loading.")))
     (apply #'define-modinfo-function x))
 
   ;; Create low-level wrappers for Sepia
@@ -426,6 +439,7 @@ symbol at point."
     (list x)))
 
 (defmacro define-sepia-query (name doc &optional gen test prompt)
+  "Define a sepia querying function."
   `(defun ,name (ident &optional module file line display-p)
      ,(concat doc "
 
@@ -512,6 +526,10 @@ buffer.
   'variable)
 
 (defun sepia-location (name &optional jump-to)
+  "Find the definition of NAME.
+
+When called interactively (or with JUMP-TO true), go directly
+to this location."
   (interactive (list (or (thing-at-point 'symbol)
                          (completing-read "Function: " 'xref-completions))
                      t))
@@ -530,7 +548,7 @@ buffer.
 
 ;;;###autoload
 (defun sepia-dwim (&optional display-p)
-    "Try to DWIM:
+    "Try to do the right thing with identifier at point.
 * Find all definitions, if thing-at-point is a function
 * Find all uses, if thing-at-point is a variable
 * Find all definitions, if thing-at-point is a module
@@ -564,59 +582,65 @@ buffer.
 ;;; XXX -- these are a hack to prevent infinite recursion calling
 ;;; e.g. beginning-of-defun from beginning-of-defun-function.
 ;;; `beginning-of-defun' should handle this.
-(defmacro sepia-safe-bodf ()
+(defmacro sepia-safe-bodf (&optional n)
   `(let ((beginning-of-defun-function
           (if (and (boundp 'beginning-of-defun-function)
                    (eq beginning-of-defun-function 'sepia-beginning-of-defun))
               nil
               beginning-of-defun-function)))
-     (beginning-of-defun)))
+     (beginning-of-defun ,n)))
 
-(defmacro sepia-safe-eodf ()
+(defmacro sepia-safe-eodf (&optional n)
   `(let ((end-of-defun-function
           (if (and (boundp 'end-of-defun-function)
                    (eq end-of-defun-function 'sepia-end-of-defun))
               nil
               end-of-defun-function)))
-     (end-of-defun)))
+     (end-of-defun ,n)))
 
-(defun sepia-beginning-of-defun (&optional where)
-  (interactive "d")
+(defun sepia-beginning-of-defun (&optional n)
+"Move to beginning of current function.
+
+If prefix argument given, move N functions backward."
+  (interactive "p")
   (let ((here (point)))
     (beginning-of-line)
     (if (and (not (= here (point)))
              (looking-at sepia-sub-re))
-      (point)
-      (sepia-safe-bodf)
-      (let* ((end (point))
-             (beg (progn (forward-line -3) (point))))
-        (goto-char end)
-        (re-search-backward sepia-sub-re beg t)))))
+        (point)
+        (sepia-safe-bodf n)
+        (let* ((end (point))
+               (beg (progn (forward-line -3) (point))))
+          (goto-char end)
+          (re-search-backward sepia-sub-re beg t)))))
 
-(defun sepia-end-of-defun (&optional where)
-  (interactive "d")
+(defun sepia-end-of-defun (&optional n)
+  "Move to end of current function.
+
+If prefix argument given, move N functions forward."
+  (interactive "p")
   (let ((here (point)))
-    (sepia-safe-bodf)
-    (let ((beg (point))
-          (end-of-defun-function nil)
-          (beginning-of-defun-function nil))
-      (when (looking-at sepia-sub-re)
-        (forward-line 1))
-      (sepia-safe-eodf))
+    ;; (sepia-safe-bodf)
+    (when (looking-at sepia-sub-re)
+      (forward-line 1))
+    (sepia-safe-eodf n)
     (when (and (>= here (point))
                (re-search-forward sepia-sub-re nil t))
-      (sepia-end-of-defun))
+      (sepia-safe-eodf))
     (point)))
 
 (defun sepia-defun-around-point (&optional where)
+  "Return the text of function around point."
   (interactive "d")
   (unless where
     (setq where (point)))
   (save-excursion
-    (and (sepia-beginning-of-defun where)
+    (goto-char where)
+    (and (sepia-beginning-of-defun)
          (match-string-no-properties 1))))
 
 (defun sepia-lexicals-at-point (&optional where)
+  "Find lexicals in scope at point."
   (interactive "d")
   (unless where
     (setq where (point)))
@@ -626,8 +650,10 @@ buffer.
 
 ;;;###autoload
 (defun sepia-load-file (file &optional rebuild-p collect-warnings)
-  "Reload a file.  With REBUILD-P (or a prefix argument when
-called interactively), also rebuild the xref database."
+  "Reload a file (interactively, the current buffer's file).
+
+With REBUILD-P (or a prefix argument when called interactively),
+also rebuild the xref database."
   (interactive (list (expand-file-name (buffer-file-name))
                      prefix-arg
                      (format "*%s errors*" (buffer-file-name))))
@@ -721,6 +747,7 @@ called interactively), also rebuild the xref database."
 ;; Completion
 
 (defun sepia-ident-at-point ()
+  "Find the Perl identifier at point."
   (save-excursion
     (when (looking-at "[%$@*&]")
       (forward-char 1))
@@ -739,6 +766,7 @@ called interactively), also rebuild the xref database."
             (buffer-substring-no-properties beg end)))))
 
 (defun sepia-function-at-point ()
+  "Find the Perl function called at point."
   (condition-case nil
       (save-excursion
         (let ((pt (point))
@@ -757,8 +785,9 @@ called interactively), also rebuild the xref database."
     (error nil)))
 
 (defun sepia-complete-symbol ()
-  "Try to complete the word at point, either as a global variable if it
-has a sigil (sorry, no lexicals), a module, or a function.  The
+  "Try to complete the word at point.
+The word may be either a global variable if it has a
+sigil (sorry, no lexicals), a module, or a function.  The
 function currently ignores module qualifiers, which may be
 annoying in larger programs.
 
@@ -795,9 +824,10 @@ The function is intended to be bound to \\M-TAB, like
     ))
 
 (defun sepia-indent-or-complete ()
-"Indent the current line and, if indentation doesn't move point,
-complete the symbol around point.  This function is intended to
-be bound to TAB."
+"Indent the current line or complete the symbol around point.
+
+Specifically, try completion when indentation doesn't move point.
+This function is intended to be bound to TAB."
   (interactive)
   (let ((pos (point)))
     (let (beginning-of-defun-function
@@ -805,7 +835,8 @@ be bound to TAB."
       (cperl-indent-command))
     (when (and (= pos (point))
                (not (bolp))
-	       (eq last-command 'sepia-indent-or-complete))
+	       (or (eq last-command 'sepia-indent-or-complete)
+                   (looking-at "\\_>")))
       (sepia-complete-symbol))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -813,16 +844,18 @@ be bound to TAB."
 
 ;;;###autoload
 (defun sepia-scratch ()
-"Create a buffer to interact with a Perl interpreter.  The buffer
-is placed in cperl-mode; calling ``sepia-scratch-send-line'' will
-evaluate the current line and display the result."
+  "Create a buffer to interact with a Perl interpreter.
+
+The buffer is placed in cperl-mode; calling
+``sepia-scratch-send-line'' will evaluate the current line and
+display the result."
   (interactive)
   (switch-to-buffer (get-buffer-create "*perl-scratch*"))
   (cperl-mode)
   (local-set-key "\C-j" 'sepia-scratch-send-line))
 
 (defun sepia-scratch-send-line (&optional scalarp)
-"Send the current line to perl, and display the result."
+  "Send the current line to perl, and display the result."
   (interactive "P")
   (insert
    (sepia-eval (concat "do{"
@@ -834,6 +867,7 @@ evaluate the current line and display the result."
 ;; Miscellany
 
 (defun my-perl-frob-region (pre post beg end replace-p)
+  "Pass buffer text from BEG to END through a Perl command."
   (let* ((exp (concat pre "<<'SEPIA_END_REGION';\n"
                       (buffer-substring-no-properties beg end)
                       (if (= (char-before end) ?\n) "" "\n")
@@ -861,9 +895,10 @@ evaluate the current line and display the result."
 ;; asdf asdf asdf
 
 (defun perl-pe-region (expr beg end &optional replace-p)
-"Do the equivalent of perl -pe on region (i.e. evaluate an
-expression on each line of region).  With prefix arg, replace the
-region with the result."
+  "Do the equivalent of perl -pe on region
+
+\(i.e. evaluate an expression on each line of region).  With
+prefix arg, replace the region with the result."
   (interactive "MExpression: \nr\nP")
   (my-perl-frob-region
    "do { my $ret='';my $region = "
@@ -872,9 +907,10 @@ region with the result."
    (my-bol-from beg) (my-eol-from end) replace-p))
 
 (defun perl-ne-region (expr beg end &optional replace-p)
-"Do the moral equivalent of perl -ne on region (i.e. evaluate an
-expression on each line of region).  With prefix arg, replace the
-region with the result."
+  "Do the moral equivalent of perl -ne on region
+
+\(i.e. evaluate an expression on each line of region).  With
+prefix arg, replace the region with the result."
   (interactive "MExpression:\nr\nP")
   (my-perl-frob-region
    "do { my $ret='';my $region = "
@@ -883,8 +919,9 @@ region with the result."
    (my-bol-from beg) (my-eol-from end) replace-p))
   
 (defun perl-ize-region (expr beg end &optional replace-p)
-"Evaluate a Perl expression on the region as a whole.  With
-prefix arg, replace the region with the result."
+  "Evaluate a Perl expression on the region as a whole.
+
+With prefix arg, replace the region with the result."
   (interactive "MExpression:\nr\nP")
   (my-perl-frob-region "do { local $_ = "
 		       (concat "; do { " expr ";}; $_ }")
@@ -903,13 +940,12 @@ prefix arg, replace the region with the result."
 
 ;;;###autoload
 (defun sepia-eval-defun ()
-  "Re-evaluate the current sub in the appropriate package, and
-rebuild its Xrefs."
+  "Re-evaluate the current function and rebuild its Xrefs."
   (interactive)
   (save-excursion
     (let* ((pt (point))
            (end (progn (end-of-defun) (point)))
-           (beg (progn (sepia-beginning-of-defun pt) (point))))
+           (beg (progn (goto-char pt) (beginning-of-defun) (point))))
       (goto-char beg)
       (when (looking-at "^sub\\s +\\(.+\\_>\\)")
 	(let* ((sub (match-string 1))
@@ -957,7 +993,7 @@ rebuild its Xrefs."
 
 ;;;###autoload
 (defun sepia-interact ()
-"Start or switch to a perl interaction buffer."
+  "Start or switch to a perl interaction buffer."
   (interactive)
   (pop-to-buffer (get-buffer "*perl-interaction*")))
 
@@ -1010,8 +1046,10 @@ rebuild its Xrefs."
 	"main")))
 
 (defun sepia-doc-update ()
-"Update documentation for a file.  This documentation, taken from
-\"=item\" entries in the POD, is used for eldoc feedback."
+  "Update documentation for a file.
+
+This documentation, taken from \"=item\" entries in the POD, is
+used for eldoc feedback."
   (interactive)
   (let ((pack (ifa (sepia-buffer-package) (concat it "::") "")))
     (dolist (x (sepia-doc-scan-buffer))
@@ -1022,9 +1060,10 @@ rebuild its Xrefs."
 	(puthash (concat pack (second x)) (third x) map)))))
 
 (defun sepia-symbol-info ()
-"Eldoc function for Sepia-mode.  Looks in ``sepia-doc-map'' and
-``sepia-var-doc-map'', then tries calling
-``cperl-describe-perl-symbol''."
+  "Eldoc function for Sepia-mode.
+
+Looks in ``sepia-doc-map'' and ``sepia-var-doc-map'', then tries
+calling ``cperl-describe-perl-symbol''."
   (save-excursion
     (multiple-value-bind (type obj) (sepia-ident-at-point)
       (when (consp obj)
@@ -1048,7 +1087,7 @@ rebuild its Xrefs."
         ""))))
 
 (defun sepia-install-eldoc ()
-"Install Sepia hooks for eldoc support (probably requires Emacs >= 21.3)."
+  "Install Sepia hooks for eldoc support."
   (interactive)
   (set (make-variable-buffer-local
 	'eldoc-documentation-function)
@@ -1070,9 +1109,8 @@ rebuild its Xrefs."
                           (match-string 1)))))))
 
 (defun sepia-goto-error-at (pos)
-  "Visit the source of the error on line at POS (point if called
-interactively)."
-  (interactive (list (point)))
+  "Visit the source of the error on line at point."
+  (interactive "d")
   (ifa (sepia-extract-next-warning (my-bol-from pos) (my-eol-from pos))
        (destructuring-bind (file line msg) it
 	 (find-file file)
@@ -1081,6 +1119,7 @@ interactively)."
        (error "No error to find.")))
 
 (defun sepia-display-errors (beg end)
+  "Display source causing errors in current buffer from BEG to END."
   (interactive "r")
   (goto-char beg)
   (let ((msgs nil))

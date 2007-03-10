@@ -37,6 +37,7 @@
 
 ;;;###autoload
 (defun w3m-about-perldoc-buffer (url &optional no-decode no-cache &rest args)
+  "Handle about://perldoc-buffer/ links."
   (when (string-match "\\`about://perldoc-buffer/" url)
     (let ((buf (get-buffer (w3m-url-decode-string
 			    (substring url (match-end 0)))))
@@ -78,6 +79,7 @@
   (w3m-perldoc mod))
 
 (defun sepia-module-list ()
+  "List installed modules in an HTML page, with links to their documentation."
   (interactive)
   (let ((file "/tmp/modlist.html"))
     (unless (file-exists-p file)

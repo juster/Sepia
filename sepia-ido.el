@@ -9,11 +9,11 @@
                                                  slashp-fn)
 "Like `ido-read-file-name', but without all the file-specific
 bells-and-whistles.  Arguments are:
-    list-fn -- list current dir
-    parent-fn -- get parent dir
-    chdir-fn -- change to dir
-    rootp-fn -- is dir root?
-    slashp-fn -- does dir end in slash?
+    list-fn           list current dir
+    parent-fn         get parent dir
+    chdir-fn          change to dir
+    rootp-fn          is dir root?
+    slashp-fn         does dir end in slash?
 "
   (flet ((ido-make-file-list (prefix)
            (setq ido-temp-list (funcall list-fn (or prefix ""))))
@@ -77,7 +77,7 @@ bells-and-whistles.  Arguments are:
     (t nil)))
 
 (defun sepia-jump-to-symbol ()
-"Jump to a symbol, navigating packages in a blaze of ido glory."
+"Jump to a symbol's definition using ido-like completion."
   (interactive)
   (let ((pack (concat (sepia-buffer-package) "::")))
     (sepia-location
@@ -91,9 +91,9 @@ bells-and-whistles.  Arguments are:
 
 (defun sepia-ido-exhibit ()
   "Post command hook for `sepia-icompleting-recursive-read'.
-  Like `ido-exhibit', but without weird file-specific bells and
-  whistles.  Since ido is controlled through a bunch of dynamic
-  variables, it's hard to figure out what can be safely cut."
+Like `ido-exhibit', but without weird file-specific bells and
+whistles.  Since ido is controlled through a bunch of dynamic
+variables, it's hard to figure out what can be safely cut."
 
   (when (= ido-use-mycompletion-depth (minibuffer-depth))
     (let ((contents (buffer-substring-no-properties (minibuffer-prompt-end)
@@ -143,7 +143,7 @@ bells-and-whistles.  Arguments are:
 
 
 (defun sepia-ido-complete ()
-  "Try and complete the current pattern amongst the file names."
+  "Try to complete the current pattern amongst the file names."
   (interactive)
   (let (res)
     (cond

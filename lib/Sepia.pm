@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.64';
+$VERSION = '0.65';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -75,7 +75,7 @@ sub completions
 {
     no strict;
     my ($str, $type, $infunc) = @_;
-    map { s/^:://; $_ } ($type ? do {
+    my @ret = map { s/^:://; $_ } ($type ? do {
         (grep { defined *{$_}{$type} } _completions $str),
             (defined $infunc && defined *{$infunc}{CODE}) ? do {
                 my ($apre) = _apropos_re($str);
@@ -90,7 +90,30 @@ sub completions
             defined *{$_}{CODE} || defined *{$_}{IO}
                 || (/::$/ && defined *{$_}{HASH});
         } _completions $str;
-    })
+    });
+    if (!@ret && $str !~ /[^\w\d]/) {
+        ## Complete "simple" sequences as abbreviations, e.g.:
+        ##   wtci -> Want_To_Complete_It, NOT
+        ##        -> WaTCh_trIpe
+        my $broad = join '.*', map "\\b$_", split '', $str;
+        @ret = map { s/^:://; $_ } ($type ? do {
+            (grep { defined *{$_}{$type} } _completions1 '::', qr/$broad/),
+                (defined $infunc && defined *{$infunc}{CODE}) ? do {
+                    my ($apre) = _apropos_re($str);
+                    my $st = $sigil{$type};
+                    grep {
+                        (my $tmp = $_) =~ s/^\Q$st//;
+                        $tmp =~ /$apre/;
+                    } lexicals($infunc);
+                } : ();
+        } : do {
+            grep {
+                defined *{$_}{CODE} || defined *{$_}{IO}
+                    || (/::$/ && defined *{$_}{HASH});
+            } _completions1 '::', qr/$broad/;
+        })
+    }
+    @ret;
 }
 
 =item C<@locs = location(@names)>
@@ -343,6 +366,8 @@ sub printer
     my $str;
     if ($iseval) {
         $__ = "@res";
+    } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
+        $__ = "$res[0]";
     } elsif ($fancy) {
         local $Data::Dumper::Deparse = 1;
         local $Data::Dumper::Indent = 0;
@@ -400,7 +425,9 @@ BEGIN {
     $PACKAGE = 'main';
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
-             package => \&Sepia::repl_package);
+             package => \&Sepia::repl_package,
+             who => \&Sepia::repl_who,
+         );
     %RK = abbrev keys %REPL;
 }
 
@@ -464,7 +491,9 @@ sub repl_help
     print <<EOS;
 REPL commands (prefixed with ','):
     cd DIR             Change directory to DIR
+    help               Display this message
     package PACKAGE    Set evaluation package to PACKAGE
+    who PACKAGE        List variables and subs in PACKAGE
 EOS
     0;
 }
@@ -482,6 +511,26 @@ sub repl_chdir
     } else {
         warn "Can't chdir\n";
     }
+    0;
+}
+
+sub who
+{
+    my $pack = shift || '';
+    no strict;
+    sort map {
+        (defined %{$pack.'::'.$_} ? '%'.$_ : (),
+         defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
+         defined @{$pack.'::'.$_} ? '@'.$_ : (),
+         defined &{$pack.'::'.$_} ? $_ : (),
+     )
+    } grep !/::$/ && !/^(?:_<|[^\w])/, keys %{$pack.'::'};
+}
+
+sub repl_who
+{
+    my @who = who @_;
+    Sepia::printer(\@who);
     0;
 }
 
@@ -614,7 +663,9 @@ sub repl
                 ## Inspector shortcuts
                 if (exists $Sepia::RK{$1}) {
                     my $ret;
-                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$1}}->($2, wantarray);
+                    my $arg = $2;
+                    chomp $arg;
+                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$1}}->($arg, wantarray);
                     if ($ret) {
                         return wantarray ? @res : $res[0];
                     }

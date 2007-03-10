@@ -1,3 +1,29 @@
+2007-03-09  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.65
+	* sepia.el (sepia-keymap): add *-apropos, find-tag bindings.
+	* README: add organized function index.
+	* sepia.el (sepia-beginning-of-defun, sepia-end-of-defun):
+	  fix argument to be prefix instead of point.
+	* sepia.el: documentation.
+	* sepia-ido.el: documentation.
+	* README: cleanup; note limitation of sepia-bodf and -eodf.
+
+2007-02-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* Makefile.PL: add Scalar::Util as prereq.
+	* sepia.el (sepia-perl5lib): new variable holding extra PERL5LIB
+	  entry.
+	* sepia.el (sepia-init): use it.
+	* sepia.el (sepia-comint-setup): don't clobber keymap.
+	* sepia.el (sepia-indent-or-complete): complete first time if at
+	  end of word.
+	* Sepia.pm (completions): enhanced completion -- e.g. "wtf"
+	  matches "want_to_feed".
+	* Sepia.pm (printer): special-case PDL to use its stringification
+	  (XXX: should test for overloaded "").
+	* Sepia.pm (who,repl_who): new functions.
+
 2006-09-29  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* Sepia.pm (Dump): wrap with eval to prevent unexpected exits.
