@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.65';
+$VERSION = '0.66';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -357,6 +357,47 @@ is true, use terse format.  Otherwise, use human-readable format.
 
 =cut
 
+sub print_dumper
+{
+    local $Data::Dumper::Deparse = 1;
+    local $Data::Dumper::Indent = 0;
+    no strict;
+    eval {
+        local $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+        s/^\$VAR1 = //;
+        s/;$//;
+        $_;
+    };
+}
+
+sub print_plain
+{
+    no strict;
+    $__ = "@res";
+}
+
+sub print_yaml
+{
+    no strict;
+    eval { require YAML };
+    if ($@) {
+        print_dumper;
+    } else {
+        YAML::Dump(\@res);
+    }
+}
+
+sub print_dump
+{
+    no strict;
+    eval { require Data::Dump };
+    if ($@) {
+        print_dumper;
+    } else {
+        Data::Dump::dump;
+    }
+}
+
 sub printer
 {
     no strict;
@@ -368,16 +409,8 @@ sub printer
         $__ = "@res";
     } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
         $__ = "$res[0]";
-    } elsif ($fancy) {
-        local $Data::Dumper::Deparse = 1;
-        local $Data::Dumper::Indent = 0;
-        eval {
-            $__ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
-            $__ =~ s/^\$VAR1 = //;
-            $__ =~ s/;$//;
-        };
     } else {
-        $__ = "@res";
+        $__ = $PRINTER->();
     }
     if ($iseval) {
         print ';;;', length $__, "\n$__\n";
@@ -404,36 +437,44 @@ Behavior is controlled in part through the following package-globals:
 
 =item C<$PS1> -- the default prompt
 
-=item C<$stopdie> -- true to enter the inspector on C<die()>
+=item C<$STOPDIE> -- true to enter the inspector on C<die()>
 
-=item C<$stopwarn> -- true to enter the inspector on C<warn()>
-
-=item C<$fancy> -- true for pretty-printing via L<Data::Dumper>
+=item C<$STOPWARN> -- true to enter the inspector on C<warn()>
 
 =item C<%REPL> -- maps shortcut names to handlers
 
+=item C<$PACKAGE> -- evaluation package
+
+=item C<$WANTARRAY> -- evaluation context
+
+=item C<$PRINTER> -- result printer (default: print_dumper)
+
 =cut
 
-use vars qw($PS1 $dies $stopdie $stopwarn $fancy %REPL %RK $PACKAGE);
+use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK
+            $PACKAGE $WANTARRAY $PRINTER);
 BEGIN {
     no strict;
     $PS1 = "> ";
     $dies = 0;
-    $stopdie = 1;
-    $stopwarn = 0;
-    $fancy = 1;
+    $STOPDIE = 1;
+    $STOPWARN = 0;
     $PACKAGE = 'main';
+    $WANTARRAY = 1;
+    $PRINTER = \&Sepia::print_dumper;
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
              package => \&Sepia::repl_package,
              who => \&Sepia::repl_who,
+             wantarray => \&Sepia::repl_wantarray,
+             format => \&Sepia::repl_format,
          );
     %RK = abbrev keys %REPL;
 }
 
 sub prompt()
 {
-    "$PACKAGE\:$PS1"
+    "$PACKAGE ".($WANTARRAY ? '@' : '$').$PS1
 }
 
 sub Dump {
@@ -491,10 +532,29 @@ sub repl_help
     print <<EOS;
 REPL commands (prefixed with ','):
     cd DIR             Change directory to DIR
+    define
+    format [dumper|dump|yaml|plain]
+                       Set output formatter (default: dumper)
     help               Display this message
     package PACKAGE    Set evaluation package to PACKAGE
+    wantarray [0|1]    Set or toggle evaluation context
     who PACKAGE        List variables and subs in PACKAGE
 EOS
+    0;
+}
+
+sub repl_format
+{
+    my $t = shift;
+    chomp $t;
+    $t = 'dumper' if $t eq '';
+    my %formats = abbrev qw(dumper dump yaml plain);
+    if (exists $formats{$t}) {
+        no strict;
+        $PRINTER = \&{'print_'.$formats{$t}};
+    } else {
+        warn "No such format '$t' (dumper, dump, yaml, plain).\n";
+    }
     0;
 }
 
@@ -531,6 +591,13 @@ sub repl_who
 {
     my @who = who @_;
     Sepia::printer(\@who);
+    0;
+}
+
+sub repl_wantarray
+{
+    my $x = shift;
+    $WANTARRAY = defined $x ? $x : !$WANTARRAY;
     0;
 }
 
@@ -578,7 +645,11 @@ sub repl_eval
     no strict;
     local $PACKAGE = $pkg || $PACKAGE;
     $buf = "do { package $PACKAGE; no strict; $buf }";
-    if ($wantarray || !defined($wantarray)) {
+    my $wa = $WANTARRAY;
+    if (!defined $wa) {
+        $wa = wantarray ? 'ARRAY' : 'SCALAR';
+    }
+    if ($wa) {
         eval $buf;
     } else {
         scalar eval $buf;
@@ -606,12 +677,12 @@ sub repl
             );
     local *CORE::GLOBAL::die = sub {
         my @dieargs = @_;
-        if ($stopdie) {
+        if ($STOPDIE) {
             local $dies = $dies+1;
             local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, die => sub { local $Sepia::stopdie=0; die @dieargs });
+                %dhooks, die => sub { local $Sepia::STOPDIE=0; die @dieargs });
             local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\nDied $MSG\n";
             return Sepia::repl($fh, 1);
@@ -620,12 +691,12 @@ sub repl
     };
 
     local *CORE::GLOBAL::warn = sub {
-        if ($stopwarn) {
+        if ($STOPWARN) {
             local $dies = $dies+1;
             local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, warn => sub { local $Sepia::stopwarn=0; warn @dieargs });
+                %dhooks, warn => sub { local $Sepia::STOPWARN=0; warn @dieargs });
             local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\nWarned $MSG\n";
             return Sepia::repl($fh, 1);

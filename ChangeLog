@@ -1,3 +1,11 @@
+2007-03-13  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* README (TODO): user-defined REPL abbrevs.
+	* lib/Sepia.pm (print_*): optional printing via YAML and
+	  Data::Dump (from Shell::Perl).
+	(repl_wantarray): change eval context (same).
+	(repl_format): set formatter (same).
+
 2007-03-09  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* VERSION: 0.65

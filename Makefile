@@ -183,7 +183,6 @@ PERL_ARCHIVE_AFTER =
 TO_INST_PM = foo.pl \
 	lib/Sepia.pm \
 	lib/Sepia/Xref.pm \
-	modindex.pl \
 	supers.pl
 
 PM_TO_BLIB = supers.pl \
@@ -192,8 +191,6 @@ PM_TO_BLIB = supers.pl \
 	blib/lib/Sepia/Xref.pm \
 	foo.pl \
 	$(INST_LIB)/foo.pl \
-	modindex.pl \
-	$(INST_LIB)/modindex.pl \
 	lib/Sepia.pm \
 	blib/lib/Sepia.pm
 
@@ -813,7 +810,6 @@ pm_to_blib : $(TO_INST_PM)
 	  supers.pl $(INST_LIB)/supers.pl \
 	  lib/Sepia/Xref.pm blib/lib/Sepia/Xref.pm \
 	  foo.pl $(INST_LIB)/foo.pl \
-	  modindex.pl $(INST_LIB)/modindex.pl \
 	  lib/Sepia.pm blib/lib/Sepia.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 

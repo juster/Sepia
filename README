@@ -213,14 +213,11 @@ Use completion based on Xref database.  Turning this off may speed up
 some operations, if you don't mind losing completion.
 
 * TODO
-
-** (Easy) Use module, file, and line number to refine queries on the
-   Perl side.
-** (Hard) Use module, file, and line number to filter results on the
-   Emacs side.
-** (Easy) Clean up Perl side a bit more.
-** (Medium) Better documentation for Elisp side.
+** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.
+** (Medium) Support user-defined abbrevs in REPL
+** (Easy) Clean up Perl side a bit more.
+** (Hard) Use module, file, line to filter results (Emacs side)
 
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
