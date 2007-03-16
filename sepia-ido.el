@@ -24,7 +24,7 @@ bells-and-whistles.  Arguments are:
            (funcall chdir-fn dir subdir foo))
          (ido-final-slash (str &rest blah)
            (funcall slashp-fn str))
-         (file-name-directory (x)
+         (ido-file-name-directory (x)
            (funcall parent-fn x))
          ;; And stub out these two suckers...
          (ido-is-tramp-root (&rest blah) nil)
@@ -34,7 +34,7 @@ bells-and-whistles.  Arguments are:
           (ido-directory-nonreadable nil)
           (ido-context-switch-command 'ignore)
           (ido-directory-too-big nil))
-      (ido-read-internal 'file prompt nil))))
+      (sepia-ido-read-internal 'file prompt nil nil t))))
 
 (defun sepia-rootp-fn (dir)
   (member dir '("" "::")))
@@ -42,11 +42,15 @@ bells-and-whistles.  Arguments are:
 (defun sepia-chdir-fn (dir sub blah)
   (setq dir
         (cond
-          (sub (concat dir subdir))
+          (sub (concat dir (car ido-matches)))
           ((member dir (list ido-current-directory "::")) dir)
           ((string-match (concat "^" dir) ido-current-directory)
            dir)
-          (t (concat ido-current-directory dir))))
+          (t (concat ido-current-directory (car ido-matches)))))
+  ;; XXX what's that doing?!?
+  ;; (unless ido-matches
+  ;;   (error "help! dir = %s" dir))
+  ;; (setq dir (concat ido-current-directory (car ido-matches)))
   (if (string-equal ido-current-directory dir)
       nil
       ;; XXX: concat?
@@ -66,7 +70,7 @@ bells-and-whistles.  Arguments are:
             (xref-apropos (concat listing-dir str ".*") t "CODE" "STASH"))))
 
 (defun sepia-dir-fn (str)
-  (if (string-match "^\\(.*::\\)[^:]+:$" str)
+  (if (string-match "^\\(.*::\\)[^:]+:*$" str)
       (match-string 1 str)
       ""))
 
@@ -174,7 +178,6 @@ variables, it's hard to figure out what can be safely cut."
            (call-interactively
             (setq this-command ido-cannot-complete-command)))))))
 
-
 (defun sepia-ido-read-internal (item prompt history &optional
                                 default require-match initial)
   "Perform the ido-read-buffer and ido-read-file-name functions.
@@ -207,7 +210,8 @@ If INITIAL is non-nil, it specifies the initial input string."
        (ido-enable-regexp ido-enable-regexp)
        )
 
-    (ido-define-mode-map)
+    ;; (ido-define-mode-map)
+    (ido-setup-completion-map)
     (setq ido-text-init initial)
     (while (not done)
       (ido-trace "\n_LOOP_" ido-text-init)
@@ -229,7 +233,7 @@ If INITIAL is non-nil, it specifies the initial input string."
       (if (and ido-matches (eq ido-try-merged-list 'auto))
 	  (setq ido-try-merged-list t))
       (let
-	  ((minibuffer-local-completion-map ido-mode-map)
+	  ((minibuffer-local-completion-map ido-completion-map)
 	   (max-mini-window-height (or ido-max-window-height
 				       (and (boundp 'max-mini-window-height)
                                             max-mini-window-height)))
@@ -276,7 +280,7 @@ If INITIAL is non-nil, it specifies the initial input string."
 	;; cannot go up if already at the root-dir (Unix) or at the
 	;; root-dir of a certain drive (Windows or MS-DOS).
         (unless (ido-is-root-directory)
-          (ido-set-current-directory (file-name-directory
+          (ido-set-current-directory (ido-file-name-directory
                                       (substring ido-current-directory 0 -2)))
           (setq ido-set-default-item t)))
 

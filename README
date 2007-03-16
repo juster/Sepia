@@ -1,5 +1,4 @@
 * DESCRIPTION (-*- org -*-)
-
 Sepia is a set of features to make Emacs a better tool for Perl
 development, including:
 
@@ -19,32 +18,43 @@ tried throughout to use or mimic existing Emacs functionality, rather
 than to create something new.
 
 * INSTALLATION
-** Requirements
 Sepia is developed on (and probably requires) the latest version of
 GNU Emacs, which can be obtained from CVS or as a prebuilt package on
 some platforms.  All of its features could probably be made to work on
-other Emacsen, but some porting would be required.
+other Emacsen, but some porting would be required.  The basic
+procedure is:
 
-** Installation procedure
-1) run "perl Makefile.PL; make; make install"
-2) optionally, install the Emacs-w3m and tree-widget packages:
-       http://emacs-w3m.namazu.org/
-       http://emhacks.sf.net/
-3) put the elisp files somewhere Emacs will find them.
+    1) run "perl Makefile.PL; make; make install"
+    2) optionally, install w3m and Emacs-w3m
+    3) put the elisp files somewhere Emacs will find them.
+
+** Requirements for GNU Emacs 22
+*** (optional) emacs-w3m from http://emacs-w3m.namazu.org/
+*** (optional) w3m from http://w3m.sourceforge.net/
+** Requirements GNU Emacs 21
+*** ido.el
+    http://cvs.savannah.gnu.org/viewcvs/*checkout*/emacs/lisp/ido.el?root=emacs
+*** FreeBSD may require the following packages:
+    tree-widget-emacs21-2.0
+    emacs-w3m-emacs21-1.4.4_2
+    mule-ucs-emacs21-0.85.r3
+    semi-emacs21-1.14.6_1
+    wv-1.2.4
+    xlhtml-0.5_1,1
+    libgsf-1.14.3
+    flim-emacs21-1.14.8
+    apel-emacs21-10.7
+    ja-nkf-2.05
 
 * GETTING STARTED
-
-In Emacs, type
+To start the interpreter, type
 
    M-x load-library RET sepia RET
    M-x sepia-init RET
 
-to start the interpreter.  For other features that require additional
-emacs packages, you will have to manually load sepia-w3m and sepia-tree.
-
-Probably the most useful part of the package is the cross-reference
-facility.  Since it can take several seconds to create, and become
-outdated when the program changes, it must be built explicitly by
+Since the cross-reference database can take several seconds to create,
+and become outdated when the program changes, it must be built
+explicitly by
 
    M-x sepia-rebuild RET
 
@@ -52,7 +62,7 @@ Type
 
    C-h f sepia-init RET
 
-to get a list of Sepia functions.  The xref functions will look up
+to get a list of Sepia functions.  Locating functions will look up
 zero or more source locations, then allow you to cycle through them
 with "M-x sepia-next" ("\M-," by default).  With a prefix argument,
 the functions will instead display a grep-mode buffer listing all the

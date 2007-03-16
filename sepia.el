@@ -402,30 +402,32 @@ symbol at point."
 (defun sepia-show-locations (locs)
   (when locs
     (pop-to-buffer (get-buffer-create "*sepia-places*"))
-    (erase-buffer)
-    (dolist (loc (sort locs (lambda (a b)
-			      (or (string< (car a) (car b))
-				  (and (string= (car a) (car b))
-				       (< (second a) (second b)))))))
-      (destructuring-bind (file line name &rest blah) loc
-	(let ((str (ifa (find-buffer-visiting file)
-			(with-current-buffer it
-			  (ifa sepia-found-refiner
-			       (funcall it line name)
-			       (goto-line line))
-			  (message "line for %s was %d, now %d" name line
-				   (line-number-at-pos))
-			  (setq line (line-number-at-pos))
-                          (let ((tmpstr
-                                 (buffer-substring (my-bol-from (point))
-                                                   (my-eol-from (point)))))
-                            (if (> (length tmpstr) 60)
-                                (concat "\n    " tmpstr)
-                                tmpstr)))
-			"...")))
-	  (insert (format "%s:%d:%s\n" (abbreviate-file-name file) line str)))))
-    (grep-mode)
-    (goto-char (point-min))))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (dolist (loc (sort (remove nil locs) ; XXX where's nil from?
+                         (lambda (a b)
+                           (or (string< (car a) (car b))
+                               (and (string= (car a) (car b))
+                                    (< (second a) (second b)))))))
+        (destructuring-bind (file line name &rest blah) loc
+          (let ((str (ifa (find-buffer-visiting file)
+                          (with-current-buffer it
+                            (ifa sepia-found-refiner
+                                 (funcall it line name)
+                                 (goto-line line))
+                            (message "line for %s was %d, now %d" name line
+                                     (line-number-at-pos))
+                            (setq line (line-number-at-pos))
+                            (let ((tmpstr
+                                   (buffer-substring (my-bol-from (point))
+                                                     (my-eol-from (point)))))
+                              (if (> (length tmpstr) 60)
+                                  (concat "\n    " tmpstr)
+                                  tmpstr)))
+                          "...")))
+            (insert (format "%s:%d:%s\n" (abbreviate-file-name file) line str)))))
+      (grep-mode)
+      (goto-char (point-min)))))
 
 (defun sepia-filter-by-module (x)
   "Filter to limit hits by module only."
@@ -807,6 +809,11 @@ The function is intended to be bound to \\M-TAB, like
                           (t ""))
                         (and (not (eq major-mode 'comint-mode))
                              (sepia-function-at-point)))))
+      (when (and (not completions)
+                 (or (not type) (eq type ?&)))
+        (when (string-match ".*::([^:]+)$" name)
+          (setq name (match-string 1 name)))
+        (setq completions (all-completions name sepia-perl-builtins)))
       (case (length completions)
         (0 (message "No completions for %s." name) nil)
         (1 ;; (delete-ident-at-point)
@@ -1157,6 +1164,213 @@ calling ``cperl-describe-perl-symbol''."
     ;; hash table
     (t
      (concat "{" (mapconcat #'sepia-lisp-to-perl thing ", ") "}"))))
+
+(defvar sepia-perl-builtins
+  (eval-when-compile
+    (let ((h (make-hash-table)))
+      (dolist (s '("abs"
+"accept"
+"alarm"
+"atan2"
+"bind"
+"binmode"
+"bless"
+"caller"
+"chdir"
+"chmod"
+"chomp"
+"chop"
+"chown"
+"chr"
+"chroot"
+"close"
+"closedir"
+"connect"
+"continue"
+"cos"
+"crypt"
+"dbmclose"
+"dbmopen"
+"defined"
+"delete"
+"die"
+"dump"
+"each"
+"endgrent"
+"endhostent"
+"endnetent"
+"endprotoent"
+"endpwent"
+"endservent"
+"eof"
+"eval"
+"exec"
+"exists"
+"exit"
+"exp"
+"fcntl"
+"fileno"
+"flock"
+"fork"
+"format"
+"formline"
+"getc"
+"getgrent"
+"getgrgid"
+"getgrnam"
+"gethostbyaddr"
+"gethostbyname"
+"gethostent"
+"getlogin"
+"getnetbyaddr"
+"getnetbyname"
+"getnetent"
+"getpeername"
+"getpgrp"
+"getppid"
+"getpriority"
+"getprotobyname"
+"getprotobynumber"
+"getprotoent"
+"getpwent"
+"getpwnam"
+"getpwuid"
+"getservbyname"
+"getservbyport"
+"getservent"
+"getsockname"
+"getsockopt"
+"glob"
+"gmtime"
+"goto"
+"grep"
+"hex"
+"import"
+"index"
+"int"
+"ioctl"
+"join"
+"keys"
+"kill"
+"last"
+"lc"
+"lcfirst"
+"length"
+"link"
+"listen"
+"local"
+"localtime"
+"log"
+"lstat"
+"map"
+"mkdir"
+"msgctl"
+"msgget"
+"msgrcv"
+"msgsnd"
+"next"
+"oct"
+"open"
+"opendir"
+"ord"
+"pack"
+"package"
+"pipe"
+"pop"
+"pos"
+"print"
+"printf"
+"prototype"
+"push"
+"quotemeta"
+"rand"
+"read"
+"readdir"
+"readline"
+"readlink"
+"readpipe"
+"recv"
+"redo"
+"ref"
+"rename"
+"require"
+"reset"
+"return"
+"reverse"
+"rewinddir"
+"rindex"
+"rmdir"
+"scalar"
+"seek"
+"seekdir"
+"select"
+"semctl"
+"semget"
+"semop"
+"send"
+"setgrent"
+"sethostent"
+"setnetent"
+"setpgrp"
+"setpriority"
+"setprotoent"
+"setpwent"
+"setservent"
+"setsockopt"
+"shift"
+"shmctl"
+"shmget"
+"shmread"
+"shmwrite"
+"shutdown"
+"sin"
+"sleep"
+"socket"
+"socketpair"
+"sort"
+"splice"
+"split"
+"sprintf"
+"sqrt"
+"srand"
+"stat"
+"study"
+"sub"
+"sub*"
+"substr"
+"symlink"
+"syscall"
+"sysopen"
+"sysread"
+"sysseek"
+"system"
+"syswrite"
+"tell"
+"telldir"
+"tie"
+"tied"
+"time"
+"times"
+"truncate"
+"uc"
+"ucfirst"
+"umask"
+"undef"
+"unlink"
+"unpack"
+"unshift"
+"untie"
+"utime"
+"values"
+"vec"
+"wait"
+"waitpid"
+"wantarray"
+"warn"
+"write"
+))
+        (puthash s t h))
+      h)))
 
 (provide 'sepia)
 ;;; sepia.el ends here

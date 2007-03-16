@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.66';
+$VERSION = '0.67';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -195,6 +195,9 @@ sub apropos
     no strict;
     if ($it =~ /^(.*::)([^:]+)$/) {
         my ($stash, $name) = ($1, $2);
+        if (!defined %$stash) {
+            return;
+        }
         if ($re) {
             my $name = qr/^$name/;
             map {
