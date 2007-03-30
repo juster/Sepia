@@ -189,8 +189,13 @@ View perldoc for module at point.
 *** (`sepia-w3m-view-pod')
 View POD for the current buffer.
 
+*** (`sepia-package-list')
+List installed packages in an HTML page, with links to the
+documentation of their top-level modules.
+
 *** (`sepia-module-list')
-List installed modules in an HTML page, with links to their documentation.
+List installed modules in an HTML page, grouped by package, with links
+to their documentation.
 
 ** Tree browsing (somewhat flaky)
 Pressing RET on a function's name displays its definition.  With

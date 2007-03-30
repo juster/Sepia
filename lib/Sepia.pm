@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.67';
+$VERSION = '0.68';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -298,6 +298,65 @@ sub mod_file
         $m =~ s#(?:^|/)[^/]+$##;
     }
     $m ? $INC{"$m.pm"} : undef;
+}
+
+=item C<@mods = package_list>
+
+Gather a list of all distributions on the system. XXX UNUSED
+
+=cut
+
+our $INST;
+sub inst()
+{
+    unless ($INST) {
+        eval 'require ExtUtils::Installed';
+        $INST = new ExtUtils::Installed;
+    }
+    $INST;
+}
+
+sub package_list
+{
+    sort inst->modules;
+}
+
+=item C<@mods = module_list>
+
+Gather a list of all packages (.pm files, really) installed on the
+system, grouped by distribution. XXX UNUSED
+
+=cut
+
+sub module_list
+{
+    @_ = package_list unless @_;
+    my $incre = join '|', map quotemeta, @INC;
+    $incre = qr|(?:$incre)/|;
+    my $inst = inst;
+    map {
+        [$_, sort map {
+            s/$incre//; s|/|::|g;$_
+        } grep /\.pm$/, $inst->files($_)]
+    } @_;
+}
+
+=item C<@mods = doc_list>
+
+Gather a list of all documented packages (.?pm files, really)
+installed on the system, grouped by distribution. XXX UNUSED
+
+=cut
+
+sub doc_list
+{
+    @_ = package_list unless @_;
+    my $inst = inst;
+    map {
+        [$_, sort map {
+            s/.*man.\///; s|/|::|g;s/\..?pm//; $_
+        } grep /\..pm$/, $inst->files($_)]
+    } @_;
 }
 
 =item C<lexicals($subname)>

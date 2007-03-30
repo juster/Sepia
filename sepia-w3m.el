@@ -79,6 +79,51 @@
   (w3m-perldoc mod))
 
 (defun sepia-module-list ()
+  "List installed (documented) modules in an HTML page, with
+links to their documentation."
+  (interactive)
+  (let ((file "/tmp/modlist.html"))
+    (unless (file-exists-p file)
+      (with-temp-buffer
+	(insert "use ExtUtils::Installed;
+
+print \"<html><body><ul>\";
+my $inst = new ExtUtils::Installed;
+for (sort $inst->modules) {
+    print qq{<li>$_<ul>};
+    for (sort $inst->files($_)) {
+        if (/\\.\\dpm$/) {
+            s/.*man.\\///; s|/|::|g;s/\..?pm//;
+            print qq{<li><a href=\"about://perldoc/$_\">$_</a>};
+        }
+    }
+    print '</ul>';
+}
+print \"</ul></body></html>\n\";
+")
+	(shell-command-on-region (point-min) (point-max)
+				 (concat "perl > " file))))
+    (w3m-find-file file)))
+
+(defun sepia-package-list ()
+  "List installed modules in an HTML page, with links to their documentation."
+  (interactive)
+  (let ((file "/tmp/packlist.html"))
+    (unless (file-exists-p file)
+      (with-temp-buffer
+	(insert "use ExtUtils::Installed;
+
+print \"<html><body><ul>\";
+for (sort ExtUtils::Installed->new->modules) {
+    print qq{<li><a href=\"about://perldoc/$_\">$_</a>};
+}
+print \"</ul></body></html>\n\";
+")
+	(shell-command-on-region (point-min) (point-max)
+				 (concat "perl > " file))))
+    (w3m-find-file file)))
+
+(defun sepia-module-list ()
   "List installed modules in an HTML page, with links to their documentation."
   (interactive)
   (let ((file "/tmp/modlist.html"))

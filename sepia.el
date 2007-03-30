@@ -682,7 +682,8 @@ also rebuild the xref database."
 (defun sepia-set-found (list &optional type)
   (setq list
 	(remove-if (lambda (x)
-		     (and (not (car x)) (string= (fourth x) "main")))
+                     (or (not x)
+                         (and (not (car x)) (string= (fourth x) "main"))))
 		   list))
   (setq sepia-found list
 	sepia-found-head list)
@@ -1075,7 +1076,9 @@ calling ``cperl-describe-perl-symbol''."
     (multiple-value-bind (type obj) (sepia-ident-at-point)
       (when (consp obj)
         (setq obj (car obj)))
-      (if obj
+      (unless type
+        (setq type 'function))
+      (if (and obj (member type '(function variable module)))
         (or (gethash obj (ecase (or type 'function)
                            (function sepia-doc-map)
                            (variable sepia-var-doc-map)

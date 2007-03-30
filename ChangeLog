@@ -1,7 +1,21 @@
+2007-03-30  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia-w3m.el (sepia-module-list, sepia-package-list): added
+	  detailed index of installed modules.
+	* VERSION: 0.68
+
+2007-03-16  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-set-found): filter spurious nils (XXX: this
+	  really needs a fix).
+	  (sepia-symbol-info): avoid eldoc errors in ecase.
+
 2007-03-15  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* sepia.el (sepia-complete-symbol): fallback completion of
 	  builtins.
+	* set COPY_EXTENDED_ATTRIBUTES_DISABLE=true to avoid creating ._*
+	  files (RT #25490).
 
 2007-03-15  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
