@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.68';
+$VERSION = '0.69';
 @ISA = qw(Exporter);
 
 require Exporter;
