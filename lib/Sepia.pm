@@ -638,9 +638,11 @@ sub repl_chdir
 
 sub who
 {
-    my $pack = shift || '';
+    my ($pack, $re) = (shift =~ /^(\S+)(?:\s+(\S.*))?/);
+    $re ||= '';
+    $re = qr/$re/;
     no strict;
-    sort map {
+    sort grep /$re/, map {
         (defined %{$pack.'::'.$_} ? '%'.$_ : (),
          defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
          defined @{$pack.'::'.$_} ? '@'.$_ : (),
