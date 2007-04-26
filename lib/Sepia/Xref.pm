@@ -75,8 +75,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 my @most = qw(redefined forget rebuild callers callees
 	      var_defs var_uses
-	      mod_subs mod_files mod_decls mod_apropos
-	      apropos var_apropos file_apropos);
+	      var_apropos);
 our @EXPORT_OK = (@most,
     qw(xref_definitions xref_object xref_main
        %call %callby %var_use %var_def));

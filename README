@@ -118,14 +118,15 @@ Start or switch to a Perl interaction buffer.
 
 ** Finding definitions and uses
 *** `M-. KEY' keys
-    M-.             sepia-location
+    M-.             sepia-dwim
+    l               sepia-location
     a               sepia-apropos
     A               sepia-var-apropos
     f               sepia-defs
-    C               sepia-callees
     c               sepia-callers
-    V               sepia-var-defs
+    C               sepia-callees
     v               sepia-var-uses
+    V               sepia-var-defs
     m               sepia-module-find
     d               sepia-w3m-perldoc-this
     j               sepia-jump-to-symbol
@@ -153,6 +154,13 @@ Go to a named function's definition.
 
 *** `M-. r' (`sepia-rebuild')
 Rebuild the Xref database.
+
+*** `M-.' (`sepia-dwim')
+Try to do the right thing with identifier at point:
+    * Find all definitions, if thing-at-point is a function
+    * Find all uses, if thing-at-point is a variable
+    * Find documentation, if thing-at-point is a module
+    * Prompt otherwise
 
 ** Miscellany
 *** (`sepia-init')
@@ -258,3 +266,8 @@ key components have been stolen and adapted from other packages:
 
     * Sepia::Xref is taken from B::Xref.
     * sepia-w3m is taken from w3m-perldoc.
+* COPYRIGHT AND LICENCE
+Copyright (C) 2004-2007 by Sean O'Rourke
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.

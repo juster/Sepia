@@ -37,6 +37,9 @@ to by `perl-collect-output'.")
 "Current perl output for miscellaneous user interaction, used to
 look for \";;;###\" lisp evaluation markers.")
 
+(defvar sepia-perl-builtins nil
+"List of Perl builtins for completion.")
+
 (defun sepia-collect-output (string)
 "Collect perl output for `sepia-eval-raw' into sepia-output."
   (setq sepia-output (concat sepia-output string))
@@ -174,8 +177,9 @@ subs from the evaluation package, it may not always work.")
                     ("v" . sepia-var-uses)
                     ("V" . sepia-var-defs)
                     ;;		  ("V" . sepia-var-assigns)
-                    ;; 		  ("\M-." . sepia-dwim)
-                    ("\M-." . sepia-location)
+                    ("\M-." . sepia-dwim)
+                    ;; ("\M-." . sepia-location)
+                    ("l" . sepia-location)
                     ("f" . sepia-defs)
                     ("r" . sepia-rebuild)
                     ("m" . sepia-module-find)
@@ -270,6 +274,7 @@ Does not require loading.")
                (location "Find an identifier's location.")
 	       (mod-subs "Find all subs defined in a package.")
 	       (mod-decls "Generate declarations for subs in a package.")
+	       (mod-file "Find the file defining a package.")
 	       (apropos "Find subnames matching RE.")
                (lexicals "Find lexicals for a sub.")
                ))
@@ -290,10 +295,12 @@ Does not require loading.")
 	       (var-uses "Find all uses of a variable.")
 
 	       (mod-redefined "Rebuild Xref information for a given package.")
-	       (mod-files "Find the file defining a package.")
 	       (guess-module-file "Guess file corresponding to module.")
 	       (file-modules "List the modules defined in a file.")))
-    (apply #'define-xref-function "Sepia::Xref" x)))
+    (apply #'define-xref-function "Sepia::Xref" x))
+
+  ;; Initialize built hash
+  (sepia-init-perl-builtins))
   (add-hook 'cperl-mode-hook 'sepia-install-eldoc)
   (add-hook 'cperl-mode-hook 'sepia-doc-update)
   (add-hook 'cperl-mode-hook 'sepia-cperl-mode-hook)
@@ -386,11 +393,14 @@ symbol at point."
     (message "%s" result))
   result)
 
+(defun sepia-find-module-file (mod)
+  (or (sepia-module-file mod)
+      (car (xref-guess-module-file mod))))
+
 (defun sepia-module-find (mod)
 "Find the file defining module MOD."
   (interactive (list (sepia-interactive-arg 'module)))
-  (let ((fn (or (sepia-module-file mod)
-                (car (xref-guess-module-file mod)))))
+  (let ((fn (sepia-find-module-file mod)))
     (when fn
       (message "Module %s in %s." mod fn)
       (pop-to-buffer (find-file-noselect (expand-file-name fn))))))
@@ -428,17 +438,6 @@ symbol at point."
             (insert (format "%s:%d:%s\n" (abbreviate-file-name file) line str)))))
       (grep-mode)
       (goto-char (point-min)))))
-
-(defun sepia-filter-by-module (x)
-  "Filter to limit hits by module only."
-  (when (or (not module) (string= module (fourth x)))
-    (list x)))
-
-(defun sepia-filter-by-all (x)
-  "Filter to limit hits by module and file."
-  (when (and (or (not module) (string= module (fourth x)))
-	     (or (not file) (string= file (first x))))
-    (list x)))
 
 (defmacro define-sepia-query (name doc &optional gen test prompt)
   "Define a sepia querying function."
@@ -553,25 +552,24 @@ to this location."
     "Try to do the right thing with identifier at point.
 * Find all definitions, if thing-at-point is a function
 * Find all uses, if thing-at-point is a variable
-* Find all definitions, if thing-at-point is a module
+* Find documentation, if thing-at-point is a module
 * Prompt otherwise
 "
     (interactive "P")
     (multiple-value-bind (type obj) (sepia-ident-at-point)
-      (setq type (if type (string type) ""))
-      (message "%s %S" type obj)
-      (if type
-	  (progn
-;;	    (sepia-set-found nil 'variable)
-	    (let ((ret (if type
-			 (function (list (sepia-location raw)))
-			 (variable (xref-var-uses raw))
-			 (module `((,(car (xref-mod-files mod)) 1 nil nil))))))
-	      (if display-p
-		  (sepia-show-locations ret)
-		  (sepia-set-found ret type)
-		  (sepia-next))))
-	  (call-interactively 'sepia-defs))))
+      (sepia-set-found nil type)
+      (let ((ret
+             (cond
+               ((member type '(?% ?$ ?@)) (xref-var-defs obj))
+               ((or (equal type ?&)
+                    (let (case-fold-search)
+                      (string-match "^[^A-Z]" obj)))
+                (list (sepia-location obj)))
+               (t `((,(sepia-w3m-perldoc-this obj) 1 nil nil))))))
+        (if display-p
+            (sepia-show-locations ret)
+            (sepia-set-found ret type)
+            (sepia-next)))))
 
 (defun sepia-rebuild ()
   "Rebuild the Xref database."
@@ -731,13 +729,13 @@ also rebuild the xref database."
       (destructuring-bind (file line short &optional mod &rest blah)
 	  (car sepia-found)
 	(unless file
-	  (setq file (and mod (sepia-module-file mod)))
+	  (setq file (and mod (sepia-find-module-file mod)))
 	  (if file
 	      (setf (caar sepia-found) file)
 	      (error "No file for %s." (car sepia-found))))
 	(message "%s at %s:%s" short file line)
         (when (file-exists-p file)
-          (find-file (or file (car (xref-mod-files mod))))
+          (find-file (or file (sepia-find-module-file mod)))
           (when sepia-found-refiner
             (funcall sepia-found-refiner line short))
           (beginning-of-line)
@@ -1099,9 +1097,7 @@ calling ``cperl-describe-perl-symbol''."
 (defun sepia-install-eldoc ()
   "Install Sepia hooks for eldoc support."
   (interactive)
-  (set (make-variable-buffer-local
-	'eldoc-documentation-function)
-       'sepia-symbol-info)
+  (set-variable 'eldoc-documentation-function 'sepia-symbol-info t)
   (if cperl-lazy-installed (cperl-lazy-unstall))
   (eldoc-mode 1)
   (setq eldoc-idle-delay 1.0))
@@ -1168,10 +1164,9 @@ calling ``cperl-describe-perl-symbol''."
     (t
      (concat "{" (mapconcat #'sepia-lisp-to-perl thing ", ") "}"))))
 
-(defvar sepia-perl-builtins
-  (eval-when-compile
-    (let ((h (make-hash-table)))
-      (dolist (s '("abs"
+(defun sepia-init-perl-builtins ()
+  (setq sepia-perl-builtins (make-hash-table))
+  (dolist (s '("abs"
 "accept"
 "alarm"
 "atan2"
@@ -1372,8 +1367,7 @@ calling ``cperl-describe-perl-symbol''."
 "warn"
 "write"
 ))
-        (puthash s t h))
-      h)))
+        (puthash s t sepia-perl-builtins)))
 
 (provide 'sepia)
 ;;; sepia.el ends here

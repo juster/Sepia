@@ -1,3 +1,23 @@
+2007-04-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.70
+	* README: add license.
+	* Makefile.PL: remove dependency on Sub::Uplevel, make PadWalker
+	  optional. 
+	* lib/Sepia.pm (who): add optional regex filter.
+	(debug_inspect): fix non-scalar printing.
+	* sepia.el (sepia-dwim): fix staleness; change to find
+	  documentation for modules.
+	(sepia-find-module-file): new function to try sepia- and xref-
+	module file-finding functions.
+	(sepia-next): use it.
+	(sepia-filter-by-module,sepia-filter-by-all): remove.
+	(sepia-keymap): use `sepia-dwim' for M-.
+
+2007-04-15  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (who): add optional regex argument.
+
 2007-03-30  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* sepia-w3m.el (sepia-module-list, sepia-package-list): added

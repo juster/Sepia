@@ -6,7 +6,7 @@ Sepia - Simple Emacs-Perl Interface
 
 =cut
 
-$VERSION = '0.69';
+$VERSION = '0.70';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -14,11 +14,15 @@ use strict;
 use Cwd 'abs_path';
 use Scalar::Util 'looks_like_number';
 use Module::Info;
-use PadWalker qw(peek_my peek_our peek_sub closed_over);
-use Sub::Uplevel;
 use Text::Abbrev;
 use Carp;
 use B;
+BEGIN {
+    eval { require PadWalker; import PadWalker qw(peek_my) };
+    if ($@) {
+        *peek_my = sub { +{ } };
+    }
+}
 
 =item C<@compls = completions($string [, $type])>
 
@@ -545,16 +549,6 @@ sub Dump {
     };
 }
 
-my $FRAMES = 4;
-
-sub hiding_me
-{
-    my ($fn, @args) = @_;
-    sub {
-        uplevel $FRAMES, $fn, @args
-    }
-}
-
 sub eval_in_env
 {
     my ($expr, $env) = @_;
@@ -571,7 +565,7 @@ sub debug_upeval
 {
     my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
     print " <= $exp\n";
-    (0, eval_in_env($exp, PadWalker::peek_my(0+$lev)));
+    (0, eval_in_env($exp, peek_my(0+$lev)));
 }
 
 sub debug_inspect
@@ -580,10 +574,12 @@ sub debug_inspect
     for my $i (split) {
         my $sub = (caller $i)[3];
         next unless $sub;
-        my $h = PadWalker::peek_my($i);
+        my $h = peek_my($i);
         print "[$i] $sub:\n";
+        no strict;
         for (sort keys %$h) {
-            print "\t", Sepia::Dump($h->{$_}, $_);
+            local @res = $h->{$_};
+            print "\t$_ = ", $PRINTER->(), "\n";
         }
     }
     0;

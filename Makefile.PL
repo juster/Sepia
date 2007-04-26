@@ -7,8 +7,6 @@ WriteMakefile(
     'VERSION_FROM'	=> 'lib/Sepia.pm', # finds $VERSION
     'PREREQ_PM'         => { 'Data::Dumper'    => 0,
 			     'B::Module::Info' => 0,
-                             'PadWalker'       => 1.0,
-                             'Sub::Uplevel'    => 0,
                              'Scalar::Util'    => 0,
                          },
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
@@ -18,7 +16,16 @@ WriteMakefile(
 );
 
 print <<EOS;
-*** To actually use this package in a useful way, you probably need to
-*** move the Emacs Lisp files somewhere.  Where will depend on your
-*** installation.
+NOTE: To actually use this package in a useful way, you probably need
+to move the Emacs Lisp files somewhere.  Where will depend on your
+installation.
 EOS
+
+eval { require PadWalker };
+if ($@) {
+    print <<EOS;
+
+Some features of the interactive debugger require PadWalker >= 1.0.
+Please install it to enable them.
+EOS
+}
