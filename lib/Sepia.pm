@@ -4,9 +4,20 @@ package Sepia;
 
 Sepia - Simple Emacs-Perl Interface
 
+=head1 SYNOPSIS
+
+From inside Emacs:
+
+   M-x load-library RET sepia RET
+   M-x sepia-init RET
+
+At the prompt in the C<*perl-interaction*> buffer:
+
+   main @> ,help
+
 =cut
 
-$VERSION = '0.70';
+$VERSION = '0.72';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -17,14 +28,42 @@ use Module::Info;
 use Text::Abbrev;
 use Carp;
 use B;
+
+use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK %REPL_DOC
+            $PACKAGE $WANTARRAY $PRINTER $STRICT);
+
 BEGIN {
     eval { require PadWalker; import PadWalker qw(peek_my) };
     if ($@) {
         *peek_my = sub { +{ } };
     }
+    eval { require Lexical::Persistence; import Lexical::Persistence };
+    if ($@) {
+        *repl_strict = sub {
+            print STDERR "Strict mode requires Lexical::Persistence.\n";
+            0;
+        };
+    } else {
+        *repl_strict = sub {
+            my $x = as_boolean(shift, $STRICT);
+            if ($x && !$STRICT) {
+                $STRICT = new Lexical::Persistence;
+            } elsif (!$x) {
+                undef $STRICT;
+            }
+            0;
+        };
+    }
 }
 
-=item C<@compls = completions($string [, $type])>
+=head1 DESCRIPTION
+
+Sepia is a set of features to make Emacs a better tool for Perl
+development.  This package contains the Perl side of the
+implementation, including all user-serviceable parts (for the
+cross-referencing facility see L<Sepia::Xref>).
+
+=head2 C<@compls = completions($string [, $type])>
 
 Find a list of completions for C<$string> with glob type $type.
 Completion operates on word subparts separated by [:_], so
@@ -120,7 +159,7 @@ sub completions
     @ret;
 }
 
-=item C<@locs = location(@names)>
+=head2 C<@locs = location(@names)>
 
 Return a list of [file, line, name] triples, one for each function
 name in C<@names>.
@@ -166,7 +205,7 @@ sub location
     return @x;
 }
 
-=item C<@matches = apropos($name [, $is_regex])>
+=head2 C<@matches = apropos($name [, $is_regex])>
 
 Search for function C<$name>, either in all packages or, if C<$name>
 is qualified, only in one package.  If C<$is_regex> is true, the
@@ -226,7 +265,7 @@ sub apropos
     }
 }
 
-=item C<@names = mod_subs($pack)>
+=head2 C<@names = mod_subs($pack)>
 
 Find subs in package C<$pack>.
 
@@ -242,7 +281,7 @@ sub mod_subs
     }
 }
 
-=item C<@decls = mod_decls($pack)>
+=head2 C<@decls = mod_decls($pack)>
 
 Generate a list of declarations for all subroutines in package
 C<$pack>.
@@ -262,7 +301,7 @@ sub mod_decls
     return wantarray ? @ret : join '', @ret;
 }
 
-=item C<$info = module_info($module, $type)>
+=head2 C<$info = module_info($module, $type)>
 
 Emacs-called function to get module information.
 
@@ -288,7 +327,7 @@ sub module_info($$)
     }
 }
 
-=item C<$file = mod_file($mod)>
+=head2 C<$file = mod_file($mod)>
 
 Find the likely file owner for module C<$mod>.
 
@@ -304,7 +343,7 @@ sub mod_file
     $m ? $INC{"$m.pm"} : undef;
 }
 
-=item C<@mods = package_list>
+=head2 C<@mods = package_list>
 
 Gather a list of all distributions on the system. XXX UNUSED
 
@@ -325,7 +364,7 @@ sub package_list
     sort inst->modules;
 }
 
-=item C<@mods = module_list>
+=head2 C<@mods = module_list>
 
 Gather a list of all packages (.pm files, really) installed on the
 system, grouped by distribution. XXX UNUSED
@@ -345,7 +384,7 @@ sub module_list
     } @_;
 }
 
-=item C<@mods = doc_list>
+=head2 C<@mods = doc_list>
 
 Gather a list of all documented packages (.?pm files, really)
 installed on the system, grouped by distribution. XXX UNUSED
@@ -363,7 +402,7 @@ sub doc_list
     } @_;
 }
 
-=item C<lexicals($subname)>
+=head2 C<lexicals($subname)>
 
 Return a list of C<$subname>'s lexical variables.  Note that this
 includes all nested scopes -- I don't know if or how Perl
@@ -381,7 +420,7 @@ sub lexicals
     } grep B::class($_) ne 'SPECIAL', $names->ARRAY;
 }
 
-=item C<$lisp = tolisp($perl)>
+=head2 C<$lisp = tolisp($perl)>
 
 Convert a Perl scalar to some ELisp equivalent.
 
@@ -416,10 +455,11 @@ sub tolisp($)
     }
 }
 
-=item C<printer(\@res [, $iseval])>
+=head2 C<printer(\@res [, $iseval])>
 
 Print C<@res> appropriately on the current filehandle.  If C<$iseval>
-is true, use terse format.  Otherwise, use human-readable format.
+is true, use terse format.  Otherwise, use human-readable format,
+which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
 
 =cut
 
@@ -485,12 +525,13 @@ sub printer
     }
 }
 
-=item C<repl(\*FH)>
+=head2 C<repl(\*FH)>
 
 Execute a command interpreter on FH.  The prompt has a few bells and
 whistles, including:
 
-  * Obviously-incomplete lines are treated as multiline input.
+  * Obviously-incomplete lines are treated as multiline input (press
+    'return' twice or 'C-c' to discard).
 
   * C<die> is overridden to enter a recursive interpreter at the point
     C<die> is called.  From within this interpreter, you can examine a
@@ -501,24 +542,28 @@ Behavior is controlled in part through the following package-globals:
 
 =over 4
 
+=item C<$PACKAGE> -- evaluation package
+
+=item C<$PRINTER> -- result printer (default: print_dumper)
+
 =item C<$PS1> -- the default prompt
 
 =item C<$STOPDIE> -- true to enter the inspector on C<die()>
 
 =item C<$STOPWARN> -- true to enter the inspector on C<warn()>
 
-=item C<%REPL> -- maps shortcut names to handlers
-
-=item C<$PACKAGE> -- evaluation package
+=item C<$STRICT> -- whether 'use strict' is applied to input
 
 =item C<$WANTARRAY> -- evaluation context
 
-=item C<$PRINTER> -- result printer (default: print_dumper)
+=item C<%REPL> -- maps shortcut names to handlers
+
+=item C<%REPL_DOC> -- maps shortcut names to documentation
+
+=back
 
 =cut
 
-use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK
-            $PACKAGE $WANTARRAY $PRINTER);
 BEGIN {
     no strict;
     $PS1 = "> ";
@@ -530,11 +575,32 @@ BEGIN {
     $PRINTER = \&Sepia::print_dumper;
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
+             methods => \&Sepia::repl_methods,
              package => \&Sepia::repl_package,
              who => \&Sepia::repl_who,
              wantarray => \&Sepia::repl_wantarray,
              format => \&Sepia::repl_format,
+             strict => \&Sepia::repl_strict,
          );
+    %REPL_DOC = (
+        cd =>
+    'cd DIR            Change directory to DIR',
+        format =>
+    'format [dumper|dump|yaml|plain]
+                       Set output formatter (default: dumper)',
+        help =>
+    'help               Display this message',
+        methods =>
+    'methods X          List methods for reference or package X',
+        package =>
+    'package PACKAGE    Set evaluation package to PACKAGE',
+        strict =>
+    'strict [0|1]       Turn \'use strict\' mode on or off',
+        wantarray =>
+    'wantarray [0|1]    Set or toggle evaluation context',
+        who =>
+    'who PACKAGE        List variables and subs in PACKAGE',
+    );
     %RK = abbrev keys %REPL;
 }
 
@@ -587,17 +653,11 @@ sub debug_inspect
 
 sub repl_help
 {
-    print <<EOS;
-REPL commands (prefixed with ','):
-    cd DIR             Change directory to DIR
-    define
-    format [dumper|dump|yaml|plain]
-                       Set output formatter (default: dumper)
-    help               Display this message
-    package PACKAGE    Set evaluation package to PACKAGE
-    wantarray [0|1]    Set or toggle evaluation context
-    who PACKAGE        List variables and subs in PACKAGE
-EOS
+    print "REPL commands (prefixed with ','):\n";
+    for (sort keys %REPL) {
+        print "    ",
+            exists $REPL_DOC{$_} ? "$REPL_DOC{$_}\n": "$_    (undocumented)\n";
+    }
     0;
 }
 
@@ -654,10 +714,37 @@ sub repl_who
     0;
 }
 
-sub repl_wantarray
+sub methods
+{
+    my $pack = shift;
+    no strict;
+    (grep(defined &{"$pack\::$_"}, keys %{$pack.'::'}),
+     defined @{$pack.'::ISA'} ? (map methods($_), @{$pack.'::ISA'}) : ());
+}
+
+sub repl_methods
 {
     my $x = shift;
-    $WANTARRAY = defined $x ? $x : !$WANTARRAY;
+    $x =~ s/^\s+//;
+    $x =~ s/\s+$//;
+    if ($x =~ /^\$/) {
+        $x = eval "ref $x";
+        return 1 if $@;
+    }
+    Sepia::printer [methods $x];
+    0;
+}
+
+sub as_boolean
+{
+    my ($val, $cur) = @_;
+    $val =~ s/\s+//g;
+    length($val) ? $val : !$cur;
+}
+
+sub repl_wantarray
+{
+    $WANTARRAY = as_boolean shift, $WANTARRAY;
     0;
 }
 
@@ -704,15 +791,25 @@ sub repl_eval
     my ($buf, $wantarray, $pkg) = @_;
     no strict;
     local $PACKAGE = $pkg || $PACKAGE;
-    $buf = "do { package $PACKAGE; no strict; $buf }";
-    my $wa = $WANTARRAY;
-    if (!defined $wa) {
-        $wa = wantarray ? 'ARRAY' : 'SCALAR';
-    }
-    if ($wa) {
-        eval $buf;
+    if ($STRICT) {
+        if (!$WANTARRAY) {
+            $buf = 'scalar($buf)';
+        }
+        my $ctx = join(',', keys %{$STRICT->get_context('_')});
+        $ctx = $ctx ? "my ($ctx);" : '';
+        $buf = eval "sub { package $PACKAGE; use strict; $ctx $buf }";
+        if ($@) {
+            print STDERR "ERROR\n$@\n";
+            return;
+        }
+        $STRICT->call($buf);
     } else {
-        scalar eval $buf;
+        $buf = "do { package $PACKAGE; no strict; $buf }";
+        if ($WANTARRAY) {
+            eval $buf;
+        } else {
+            scalar eval $buf;
+        }
     }
 }
 
@@ -814,7 +911,7 @@ sub repl
                     if ($@ =~ /at EOF$/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
-                            print "*** cancel ***\n", prompt;
+                            print "Error:\n$@\n*** cancel ***\n", prompt;
                             $buf = '';
                         } else {
                             print ">> ";

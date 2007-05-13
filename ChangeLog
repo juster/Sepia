@@ -1,3 +1,26 @@
+2007-05-12  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.72
+	* Makefile.PL: add license.
+
+2007-05-09  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.71
+	* sepia.el (sepia-load-file): set inhibit-read-only when
+	  displaying errors.
+	* lib/Sepia.pm (repl_methods): walk ISA hierarchy looking for
+	  functions (XXX: this is much too coarse).
+	(repl_help): use %REPL_DOC to hold command documentation for
+	easier extension.
+	(repl): display error on canceled continued statement.
+
+2007-05-07  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (repl_strict): add 'strict mode' (thanks to
+	  Lexical::Persistence) for those who swing that way (I don't),
+	  inspired by Devel::REPL.
+	(repl_wantarray): Fix logic.
+
 2007-04-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* VERSION: 0.70

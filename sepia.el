@@ -665,10 +665,11 @@ also rebuild the xref database."
     (when (and collect-warnings
                (> (length errs) 1))
       (with-current-buffer (get-buffer-create collect-warnings)
-        (delete-region (point-min) (point-max))
-        (insert errs)
-        (sepia-display-errors (point-min) (point-max))
-        (pop-to-buffer (current-buffer)))))
+        (let ((inhibit-read-only t))
+          (delete-region (point-min) (point-max))
+          (insert errs)
+          (sepia-display-errors (point-min) (point-max))
+          (pop-to-buffer (current-buffer))))))
   (when rebuild-p
     (xref-rebuild)))
 

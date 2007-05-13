@@ -12,7 +12,8 @@ WriteMakefile(
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
      (AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",
       ABSTRACT => 'Simple Emacs-Perl InterAction')
-     : ())
+     : ()),
+    LICENSE => 'perl'
 );
 
 print <<EOS;
@@ -25,7 +26,14 @@ eval { require PadWalker };
 if ($@) {
     print <<EOS;
 
-Some features of the interactive debugger require PadWalker >= 1.0.
-Please install it to enable them.
+Stack/lexical inspection requires PadWalker >= 1.0.
+EOS
+}
+
+eval { require Lexical::Persistence };
+if ($@) {
+    print <<EOS;
+
+Strict mode requires Lexical::Persistence.
 EOS
 }
