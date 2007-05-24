@@ -63,6 +63,10 @@ development.  This package contains the Perl side of the
 implementation, including all user-serviceable parts (for the
 cross-referencing facility see L<Sepia::Xref>).
 
+Though not intended to be used independent of the Emacs interface, the
+Sepia module's functionality can be used through a rough procedural
+interface.
+
 =head2 C<@compls = completions($string [, $type])>
 
 Find a list of completions for C<$string> with glob type $type.
@@ -984,3 +988,22 @@ sub perl_eval
 }
 
 1;
+__END__
+
+=head1 TODO
+
+See the README file included with the distribution.
+
+=head1 AUTHOR
+
+Sean O'Rourke, E<lt>seano@cpan.orgE<gt>
+
+Bug reports welcome, patches even more welcome.
+
+=head1 COPYRIGHT
+
+Copyright (C) 2005-2007 Sean O'Rourke.  All rights reserved, some
+wrongs reversed.  This module is distributed under the same terms as
+Perl itself.
+
+=cut
