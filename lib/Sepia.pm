@@ -17,7 +17,7 @@ At the prompt in the C<*perl-interaction*> buffer:
 
 =cut
 
-$VERSION = '0.72';
+$VERSION = '0.73';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -75,6 +75,7 @@ sub _apropos_re($)
 {
     # Do that crazy multi-word identifier completion thing:
     my $re = shift;
+    return qr/.*/ if $re eq '';
     if (wantarray) {
         map {
             s/(?:^|(?<=[A-Za-z\d]))(([^A-Za-z\d])\2*)/[A-Za-z\\d]*$2+/g;
@@ -91,13 +92,13 @@ sub _apropos_re($)
 sub _completions1
 {
     no strict;
+    print STDERR "_completions1(@_)\n";
     my $stash = shift;
-    if (@_ == 1) {
-        map {
-            "$stash$_"
-        } grep /$_[0]/, keys %$stash;
+    my $re = shift || '';
+    $re = qr/$re/;
+    if (@_ == 0 || !defined $_[0]) {
+        map "$stash$_", grep /$re/, keys %$stash;
     } else {
-        my $re = shift;
         map {
             _completions1("$stash$_", @_);
         } grep /$re.*::$/, keys %$stash;
@@ -479,7 +480,7 @@ sub print_dumper
 sub print_plain
 {
     no strict;
-    $__ = "@res";
+    $::__ = "@res";
 }
 
 sub print_yaml
@@ -512,16 +513,16 @@ sub printer
     @__ = @res;
     my $str;
     if ($iseval) {
-        $__ = "@res";
+        $::__ = "@res";
     } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
-        $__ = "$res[0]";
+        $::__ = "$res[0]";
     } else {
-        $__ = $PRINTER->();
+        $::__ = $PRINTER->();
     }
     if ($iseval) {
-        print ';;;', length $__, "\n$__\n";
+        print ';;;', length $::__, "\n$::__\n";
     } else {
-        print "=> $__\n";
+        print "=> $::__\n";
     }
 }
 
@@ -581,6 +582,7 @@ BEGIN {
              wantarray => \&Sepia::repl_wantarray,
              format => \&Sepia::repl_format,
              strict => \&Sepia::repl_strict,
+             quit => \&Sepia::repl_quit,
          );
     %REPL_DOC = (
         cd =>
@@ -594,6 +596,8 @@ BEGIN {
     'methods X          List methods for reference or package X',
         package =>
     'package PACKAGE    Set evaluation package to PACKAGE',
+        quit =>
+    'quit               Quit the REPL',
         strict =>
     'strict [0|1]       Turn \'use strict\' mode on or off',
         wantarray =>
@@ -707,10 +711,28 @@ sub who
     } grep !/::$/ && !/^(?:_<|[^\w])/, keys %{$pack.'::'};
 }
 
+
+sub columnate
+{
+    my $len = 0;
+    my $width = $ENV{COLUMNS} || 80;
+    for (@_) {
+        $len = length if $len < length;
+    }
+    my $nc = int($width / ($len+1)) || 1;
+    my $nr = @_ / $nc + (@_ % $nc ? 1 : 0);
+    my $fmt = ('%-'.($len+1).'s') x $nc . "\n";
+    my @incs = map { $_ * $nr } 0..$nc-1;
+    my $str = '';
+    for my $r (0..$nr) {
+        $str .= sprintf $fmt, map { $_ || '' } @_[map { $r + $_ } @incs];
+    }
+    $str
+}
+
 sub repl_who
 {
-    my @who = who @_;
-    Sepia::printer(\@who);
+    print columnate who @_;
     0;
 }
 
@@ -760,6 +782,11 @@ sub repl_package
         warn "Can't go to package $p -- doesn't exist!\n";
     }
     0;
+}
+
+sub repl_quit
+{
+    1;
 }
 
 sub debug_help
@@ -860,7 +887,10 @@ sub repl
         }
         CORE::warn(@_);
     };
-
+    print <<EOS;
+Sepia version $Sepia::VERSION.
+Press ",h" for help, or "^D" or ",q" to exit.
+EOS
     print prompt;
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
@@ -889,16 +919,23 @@ sub repl
             };
             if ($buf =~ /^,(\S+)\s*(.*)/s) {
                 ## Inspector shortcuts
-                if (exists $Sepia::RK{$1}) {
+                my $short = $1;
+                if (exists $Sepia::RK{$short}) {
                     my $ret;
                     my $arg = $2;
                     chomp $arg;
-                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$1}}->($arg, wantarray);
+                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$short}}->($arg, wantarray);
                     if ($ret) {
                         return wantarray ? @res : $res[0];
                     }
                 } else {
-                    print "Unrecignized shortcut '$1'\n";
+                    if (grep /^$short/, keys %Sepia::REPL) {
+                        print "Ambiguous shortcut '$short': ",
+                            join(', ', sort grep /^$short/, keys %Sepia::REPL),
+                                "\n";
+                    } else {
+                        print "Unrecognized shortcut '$short'\n";
+                    }
                     $buf = '';
                     print prompt;
                     next repl;

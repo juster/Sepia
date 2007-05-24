@@ -1,3 +1,25 @@
+2007-05-23  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (_apropos_re): handle empty completions.
+	(columnate): pretty-print ",who" output.
+
+	* sepia.el (sepia-complete-symbol): bury stale completions buffer;
+	  suggested by Hilko Bengen.
+
+2007-05-17  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (_completions1): Fix infinite recursion.
+	(repl): typo; clarify ambiguous vs. unrecognized shortcuts.
+
+2007-05-15  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-dwim): don't try to jump to location when
+	  looking up module docs.
+
+	* lib/Sepia.pm: use $::__ instead of $Sepia::__
+	(repl_quit): new command.
+	(repl): add banner.
+
 2007-05-12  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* VERSION: 0.72

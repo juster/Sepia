@@ -558,18 +558,22 @@ to this location."
     (interactive "P")
     (multiple-value-bind (type obj) (sepia-ident-at-point)
       (sepia-set-found nil type)
-      (let ((ret
-             (cond
-               ((member type '(?% ?$ ?@)) (xref-var-defs obj))
-               ((or (equal type ?&)
-                    (let (case-fold-search)
-                      (string-match "^[^A-Z]" obj)))
-                (list (sepia-location obj)))
-               (t `((,(sepia-w3m-perldoc-this obj) 1 nil nil))))))
-        (if display-p
-            (sepia-show-locations ret)
-            (sepia-set-found ret type)
-            (sepia-next)))))
+      (let* (module-doc-p
+             (ret
+              (cond
+                ((member type '(?% ?$ ?@)) (xref-var-defs obj))
+                ((or (equal type ?&)
+                     (let (case-fold-search)
+                       (string-match "^[^A-Z]" obj)))
+                 (list (sepia-location obj)))
+                (t
+                 (setq module-doc-p t)
+                 `((,(sepia-w3m-perldoc-this obj) 1 nil nil))))))
+        (unless module-doc-p
+          (if display-p
+              (sepia-show-locations ret)
+              (sepia-set-found ret type)
+              (sepia-next))))))
 
 (defun sepia-rebuild ()
   "Rebuild the Xref database."
@@ -819,12 +823,17 @@ The function is intended to be bound to \\M-TAB, like
         (1 ;; (delete-ident-at-point)
          (delete-region (- (point) len) (point))
          (insert (if type (string type) "") (car completions))
+         ;; Hide stale completions buffer (stolen from lisp.el).
+         (let ((win (get-buffer-window "*Completions*" 0)))
+           (if win (with-selected-window win (bury-buffer))))
          t)
         (t (let ((old name)
                  (new (try-completion "" completions)))
              (if (string= new old)
                  (with-output-to-temp-buffer "*Completions*"
                    (display-completion-list completions))
+                 (let ((win (get-buffer-window "*Completions*" 0)))
+                   (if win (with-selected-window win (bury-buffer))))
                  (delete-region (- (point) len) (point))
                  (insert (if type (string type) "") new)))
            t)))
