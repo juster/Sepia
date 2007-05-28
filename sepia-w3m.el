@@ -79,66 +79,26 @@
   (w3m-perldoc mod))
 
 (defun sepia-module-list ()
-  "List installed (documented) modules in an HTML page, with
-links to their documentation."
+  "List installed modules with links to their documentation.
+
+This lists not just top-level packages appearing in packlist
+files, but all documented modules on the system, organized by
+package."
   (interactive)
   (let ((file "/tmp/modlist.html"))
     (unless (file-exists-p file)
-      (with-temp-buffer
-	(insert "use ExtUtils::Installed;
-
-print \"<html><body><ul>\";
-my $inst = new ExtUtils::Installed;
-for (sort $inst->modules) {
-    print qq{<li>$_<ul>};
-    for (sort $inst->files($_)) {
-        if (/\\.\\dpm$/) {
-            s/.*man.\\///; s|/|::|g;s/\..?pm//;
-            print qq{<li><a href=\"about://perldoc/$_\">$_</a>};
-        }
-    }
-    print '</ul>';
-}
-print \"</ul></body></html>\n\";
-")
-	(shell-command-on-region (point-min) (point-max)
-				 (concat "perl > " file))))
+      (sepia-eval (format "Sepia::html_module_list(\"%s\")" file)))
     (w3m-find-file file)))
 
 (defun sepia-package-list ()
-  "List installed modules in an HTML page, with links to their documentation."
+  "List installed packages with links to their documentation.
+
+This lists only top-level packages appearing in packlist files.
+For modules within packages, see `sepia-module-list'."
   (interactive)
   (let ((file "/tmp/packlist.html"))
     (unless (file-exists-p file)
-      (with-temp-buffer
-	(insert "use ExtUtils::Installed;
-
-print \"<html><body><ul>\";
-for (sort ExtUtils::Installed->new->modules) {
-    print qq{<li><a href=\"about://perldoc/$_\">$_</a>};
-}
-print \"</ul></body></html>\n\";
-")
-	(shell-command-on-region (point-min) (point-max)
-				 (concat "perl > " file))))
-    (w3m-find-file file)))
-
-(defun sepia-module-list ()
-  "List installed modules in an HTML page, with links to their documentation."
-  (interactive)
-  (let ((file "/tmp/modlist.html"))
-    (unless (file-exists-p file)
-      (with-temp-buffer
-	(insert "use ExtUtils::Installed;
-
-print \"<html><body><ul>\";
-for (sort ExtUtils::Installed->new->modules) {
-    print qq{<li><a href=\"about://perldoc/$_\">$_</a>};
-}
-print \"</ul></body></html>\n\";
-")
-	(shell-command-on-region (point-min) (point-max)
-				 (concat "perl > " file))))
+      (sepia-eval (format "Sepia::html_package_list(\"%s\")" file)))
     (w3m-find-file file)))
 
 (provide 'sepia-w3m)

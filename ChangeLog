@@ -1,3 +1,28 @@
+2007-05-27  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (repl_methods): fixed.
+
+2007-05-26  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.74
+	* sepia.el (sepia-doc-scan-buffer): Better doc regex for
+	  variables.
+	(sepia-indent-or-complete): try to expand abbrevs before
+	completion (try with snippet.el).
+	(sepia-indent-expand-abbrev): control the above feature.
+	(sepia-complete-symbol): scroll completion buffer; suggested by
+	Hilko Bengen.
+
+	* lib/Sepia.pm (html_package_list,html_module_list): new
+	  functions.
+	(completions): '$'-completion only generates scalars.
+
+	* sepia-w3m.el: remove spurious sepia-module-list, improve
+	  documentation.
+	(sepia-module-list,sepia-package-list): better output.
+	(sepia-package-list,sepia-module-list): move Perl code to
+	Sepia.pm, generate list in inferior perl instead of shelling out.
+
 2007-05-23  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* lib/Sepia.pm (_apropos_re): handle empty completions.

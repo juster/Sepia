@@ -800,44 +800,60 @@ annoying in larger programs.
 The function is intended to be bound to \\M-TAB, like
 ``lisp-complete-symbol''."
   (interactive)
-  (multiple-value-bind (type name) (sepia-ident-at-point)
-    (let ((len  (+ (if type 1 0) (length name)))
-          (completions (xref-completions
-                        name
-                        (case type
-                          (?$ "SCALAR")
-                          (?@ "ARRAY")
-                          (?% "HASH")
-                          (?& "CODE")
-                          (?* "IO")
-                          (t ""))
-                        (and (not (eq major-mode 'comint-mode))
-                             (sepia-function-at-point)))))
-      (when (and (not completions)
-                 (or (not type) (eq type ?&)))
-        (when (string-match ".*::([^:]+)$" name)
-          (setq name (match-string 1 name)))
-        (setq completions (all-completions name sepia-perl-builtins)))
-      (case (length completions)
-        (0 (message "No completions for %s." name) nil)
-        (1 ;; (delete-ident-at-point)
-         (delete-region (- (point) len) (point))
-         (insert (if type (string type) "") (car completions))
-         ;; Hide stale completions buffer (stolen from lisp.el).
-         (let ((win (get-buffer-window "*Completions*" 0)))
-           (if win (with-selected-window win (bury-buffer))))
-         t)
-        (t (let ((old name)
-                 (new (try-completion "" completions)))
-             (if (string= new old)
-                 (with-output-to-temp-buffer "*Completions*"
-                   (display-completion-list completions))
-                 (let ((win (get-buffer-window "*Completions*" 0)))
-                   (if win (with-selected-window win (bury-buffer))))
-                 (delete-region (- (point) len) (point))
-                 (insert (if type (string type) "") new)))
-           t)))
-    ))
+  (let ((win (get-buffer-window "*Completions*" 0)))
+    (if (and (eq last-command this-command)
+             win (window-live-p win) (window-buffer win)
+             (buffer-name (window-buffer win)))
+        ;; If this command was repeated, and
+        ;; there's a fresh completion window with a live buffer,
+        ;; and this command is repeated, scroll that window.
+        (with-current-buffer (window-buffer win)
+          (if (pos-visible-in-window-p (point-max) win)
+              (set-window-start win (point-min))
+              (save-selected-window
+                (select-window win)
+                (scroll-up))))
+
+        (multiple-value-bind (type name) (sepia-ident-at-point)
+          (let ((len  (+ (if type 1 0) (length name)))
+                (completions (xref-completions
+                              name
+                              (case type
+                                (?$ "SCALAR")
+                                (?@ "ARRAY")
+                                (?% "HASH")
+                                (?& "CODE")
+                                (?* "IO")
+                                (t ""))
+                              (and (not (eq major-mode 'comint-mode))
+                                   (sepia-function-at-point)))))
+            (when (and (not completions)
+                       (or (not type) (eq type ?&)))
+              (when (string-match ".*::([^:]+)$" name)
+                (setq name (match-string 1 name)))
+              (setq completions (all-completions name sepia-perl-builtins)))
+            (case (length completions)
+              (0 (message "No completions for %s." name) nil)
+              (1 ;; (delete-ident-at-point)
+               (delete-region (- (point) len) (point))
+               (insert (if type (string type) "") (car completions))
+               ;; Hide stale completions buffer (stolen from lisp.el).
+               (if win (with-selected-window win (bury-buffer)))
+               t)
+              (t (let ((old name)
+                       (new (try-completion "" completions)))
+                   (if (string= new old)
+                       (with-output-to-temp-buffer "*Completions*"
+                         (display-completion-list completions))
+                       (let ((win (get-buffer-window "*Completions*" 0)))
+                         (if win (with-selected-window win (bury-buffer))))
+                       (delete-region (- (point) len) (point))
+                       (insert (if type (string type) "") new)))
+                 t)))
+          ))))
+
+(defvar sepia-indent-expand-abbrev t
+"* If non-NIL, `sepia-indent-or-complete' tries `expand-abbrev'.")
 
 (defun sepia-indent-or-complete ()
 "Indent the current line or complete the symbol around point.
@@ -849,11 +865,13 @@ This function is intended to be bound to TAB."
     (let (beginning-of-defun-function
           end-of-defun-function)
       (cperl-indent-command))
-    (when (and (= pos (point))
-               (not (bolp))
-	       (or (eq last-command 'sepia-indent-or-complete)
-                   (looking-at "\\_>")))
-      (sepia-complete-symbol))))
+    (unless (or (not sepia-indent-expand-abbrev)
+                (expand-abbrev))
+      (when (and (= pos (point))
+                 (not (bolp))
+                 (or (eq last-command 'sepia-indent-or-complete)
+                     (looking-at "\\_>")))
+        (sepia-complete-symbol)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; scratchpad code
@@ -1027,13 +1045,12 @@ With prefix arg, replace the region with the result."
   (save-excursion
     (goto-char (point-min))
     (loop while (re-search-forward
-		 "^=\\(item\\|head2\\)\\s +\\([%$&@A-Za-z_].*\\)" nil t)
+		 "^=\\(item\\|head[2-9]\\)\\s +\\([%$&@A-Za-z_].*\\)" nil t)
        if (ignore-errors
             (let* ((s1 (match-string 2))
                    (s2 (let ((case-fold-search nil))
                          (replace-regexp-in-string
-                          "[A-Z]<\\([^>]+\\)>"
-                          (lambda (x) (match-string 1 s1)) s1)))
+                          "[A-Z]<\\([^>]+\\)>" "\\1" s1)))
                    (longdoc
                     (let ((beg (progn (forward-line 2) (point)))
                           (end (1- (re-search-forward "^=" nil t))))
@@ -1046,11 +1063,16 @@ With prefix arg, replace the region with the result."
                                    0 (position ?. (match-string 1))))
                           s2))))
               (cond
+                ;; e.g. "$x -- this is x"
+                ((string-match "^[%$@]\\([A-Za-z0-9_:]+\\)\\s *--\\s *\\(.*\\)"
+                               s2)
+                 (list 'variable (match-string-no-properties 1 s2)
+                       (or (and (equal s2 (match-string 1 s2)) longdoc) s2)))
                 ;; e.g. "C<foo(BLAH)>" or "$x = $y->foo()"
-                ((string-match "\\([A-Za-z0-9_]+\\)\\s *\\($\\|(\\)" s2)
+                ((string-match "\\([A-Za-z0-9_:]+\\)\\s *\\(\\$\\|(\\)" s2)
                  (list 'function (match-string-no-properties 1 s2)
                        (or (and (equal s2 (match-string 1 s2)) longdoc) s2)))
-                ;; e.g. "$x -- this is x" (note: this has to come second)
+                ;; e.g. "$x this is x" (note: this has to come last)
                 ((string-match "^[%$@]\\([^( ]+\\)" s2)
                  (list 'variable (match-string-no-properties 1 s2) longdoc)))))
        collect it)))
