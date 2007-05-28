@@ -17,7 +17,7 @@ At the prompt in the C<*perl-interaction*> buffer:
 
 =cut
 
-$VERSION = '0.74';
+$VERSION = '0.75';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -30,7 +30,7 @@ use Carp;
 use B;
 
 use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK %REPL_DOC
-            $PACKAGE $WANTARRAY $PRINTER $STRICT);
+            $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY);
 
 BEGIN {
     eval { require PadWalker; import PadWalker qw(peek_my) };
@@ -493,7 +493,7 @@ sub print_dumper
 sub print_plain
 {
     no strict;
-    $::__ = "@res";
+    "@res";
 }
 
 sub print_yaml
@@ -523,19 +523,24 @@ sub printer
     no strict;
     local *res = shift;
     my ($iseval, $wantarray) = @_;
-    @__ = @res;
+    @::__ = @res;
+    $::__ = @res == 1 ? $res[0] : [@res];
     my $str;
     if ($iseval) {
-        $::__ = "@res";
+        $res = "@res";
     } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
-        $::__ = "$res[0]";
+        $res = $res[0];
+    } elsif (!$iseval && $PRINT_PRETTY && @res > 1 && grep !ref $_, @res) {
+        $res = columnate(@res);
+        print $res;
+        return;
     } else {
-        $::__ = $PRINTER->();
+        $res = $PRINTER->();
     }
     if ($iseval) {
-        print ';;;', length $::__, "\n$::__\n";
+        print ';;;', length $res, "\n$::__\n";
     } else {
-        print "=> $::__\n";
+        print "=> $res\n";
     }
 }
 
@@ -570,6 +575,11 @@ Behavior is controlled in part through the following package-globals:
 
 =item C<$WANTARRAY> -- evaluation context
 
+=item C<$PRINT_PRETTY> -- format some output nicely (default = 0)
+
+Format some values nicely, independent of $PRINTER.  Currently, this
+displays arrays of scalars as columns.
+
 =item C<%REPL> -- maps shortcut names to handlers
 
 =item C<%REPL_DOC> -- maps shortcut names to documentation
@@ -587,6 +597,7 @@ BEGIN {
     $PACKAGE = 'main';
     $WANTARRAY = 1;
     $PRINTER = \&Sepia::print_dumper;
+    $PRINT_PRETTY = 0;
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
              methods => \&Sepia::repl_methods,
@@ -605,8 +616,10 @@ BEGIN {
                        Set output formatter (default: dumper)',
         help =>
     'help               Display this message',
-        methods =>
-    'methods X          List methods for reference or package X',
+        methods => <<EOS,
+    'methods X [RE]     List methods for reference or package X,
+                        matching optional pattern RE.
+EOS
         package =>
     'package PACKAGE    Set evaluation package to PACKAGE',
         quit =>
@@ -615,8 +628,10 @@ BEGIN {
     'strict [0|1]       Turn \'use strict\' mode on or off',
         wantarray =>
     'wantarray [0|1]    Set or toggle evaluation context',
-        who =>
-    'who PACKAGE        List variables and subs in PACKAGE',
+        who => <<EOS,
+who PACKAGE [RE]   List variables and subs in PACKAGE matching optional
+                   pattern RE.
+EOS
     );
     %RK = abbrev keys %REPL;
 }
@@ -711,8 +726,8 @@ sub repl_chdir
 
 sub who
 {
-    my ($pack, $re) = (shift =~ /^(\S+)(?:\s+(\S.*))?/);
-    $re ||= '';
+    my ($pack, $re) = @_;
+    $re ||= '.?';
     $re = qr/$re/;
     no strict;
     sort grep /$re/, map {
@@ -733,19 +748,21 @@ sub columnate
         $len = length if $len < length;
     }
     my $nc = int($width / ($len+1)) || 1;
-    my $nr = @_ / $nc + (@_ % $nc ? 1 : 0);
+    my $nr = int(@_ / $nc) + (@_ % $nc ? 1 : 0);
     my $fmt = ('%-'.($len+1).'s') x ($nc-1) . "%s\n";
     my @incs = map { $_ * $nr } 0..$nc-1;
     my $str = '';
-    for my $r (0..$nr) {
+    for my $r (0..$nr-1) {
         $str .= sprintf $fmt, map { $_ || '' } @_[map { $r + $_ } @incs];
     }
+    $str =~ s/ +$//m;
     $str
 }
 
 sub repl_who
 {
-    print columnate who @_;
+    my ($pkg, $re) = split ' ', shift;
+    print columnate who($pkg || $PACKAGE, $re);
     0;
 }
 
@@ -759,14 +776,16 @@ sub methods
 
 sub repl_methods
 {
-    my $x = shift;
+    my ($x, $re) = split ' ', shift;
     $x =~ s/^\s+//;
     $x =~ s/\s+$//;
     if ($x =~ /^\$/) {
         $x = repl_eval("ref $x");
         return 0 if $@;
     }
-    print columnate sort { $a cmp $b } methods $x;
+    $re ||= '.?';
+    $re = qr/$re/;
+    print columnate sort { $a cmp $b } grep /$re/, methods $x;
     0;
 }
 

@@ -865,12 +865,12 @@ This function is intended to be bound to TAB."
     (let (beginning-of-defun-function
           end-of-defun-function)
       (cperl-indent-command))
-    (unless (or (not sepia-indent-expand-abbrev)
-                (expand-abbrev))
-      (when (and (= pos (point))
-                 (not (bolp))
-                 (or (eq last-command 'sepia-indent-or-complete)
-                     (looking-at "\\_>")))
+    (when (and (= pos (point))
+               (not (bolp))
+               (or (eq last-command 'sepia-indent-or-complete)
+                   (looking-at "\\_>")))
+      (when (or (not sepia-indent-expand-abbrev)
+               (expand-abbrev))
         (sepia-complete-symbol)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -960,6 +960,18 @@ With prefix arg, replace the region with the result."
   (my-perl-frob-region "do { local $_ = "
 		       (concat "; do { " expr ";}; $_ }")
 		       beg end replace-p))
+
+(defun sepia-core-version (module)
+  "Report the first version of Perl shipping with MODULE."
+  (interactive (list (read-string "Module: "
+                                  nil nil (sepia-thing-at-point 'symbol))))
+  (let ((res (sepia-eval
+              (format "eval { Module::CoreList->first_release('%s') }" module)
+              'scalar-context)))
+    (if res
+        (message "%s was first released in %s." module res)
+        (message "%s is not in core." module))
+    res))
 
 (defun sepia-guess-package (sub &optional file)
   "Guess which package SUB is defined in."

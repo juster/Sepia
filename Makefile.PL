@@ -22,18 +22,16 @@ to move the Emacs Lisp files somewhere.  Where will depend on your
 installation.
 EOS
 
-eval { require PadWalker };
-if ($@) {
-    print <<EOS;
-
-Stack/lexical inspection requires PadWalker >= 1.0.
-EOS
+sub test_for
+{
+    my $mod = shift;
+    eval "require $mod";
+    if ($@) {
+        print "@_\n";
+    }
 }
 
-eval { require Lexical::Persistence };
-if ($@) {
-    print <<EOS;
-
-Strict mode requires Lexical::Persistence.
-EOS
-}
+test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0.';
+test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence.';
+test_for 'Module::CoreList',
+    'sepia-core-version requires Module::CoreList.';

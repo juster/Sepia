@@ -1,3 +1,13 @@
+2007-05-28  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.75
+	* sepia.el (sepia-core-version): new function.
+	(sepia-indent-or-complete): fix abbrev expansion.
+	* lib/Sepia.pm (printer): Use @::__; distinguish "last as scalar"
+	  $__ from printed representation.
+	($PRINT_PRETTY): columnate lists if this is on.
+	(columnate): fixed.
+
 2007-05-27  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* lib/Sepia.pm (repl_methods): fixed.
@@ -12,11 +22,9 @@
 	(sepia-indent-expand-abbrev): control the above feature.
 	(sepia-complete-symbol): scroll completion buffer; suggested by
 	Hilko Bengen.
-
 	* lib/Sepia.pm (html_package_list,html_module_list): new
 	  functions.
 	(completions): '$'-completion only generates scalars.
-
 	* sepia-w3m.el: remove spurious sepia-module-list, improve
 	  documentation.
 	(sepia-module-list,sepia-package-list): better output.
@@ -27,7 +35,6 @@
 
 	* lib/Sepia.pm (_apropos_re): handle empty completions.
 	(columnate): pretty-print ",who" output.
-
 	* sepia.el (sepia-complete-symbol): bury stale completions buffer;
 	  suggested by Hilko Bengen.
 
@@ -40,7 +47,6 @@
 
 	* sepia.el (sepia-dwim): don't try to jump to location when
 	  looking up module docs.
-
 	* lib/Sepia.pm: use $::__ instead of $Sepia::__
 	(repl_quit): new command.
 	(repl): add banner.
