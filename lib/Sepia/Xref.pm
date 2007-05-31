@@ -30,7 +30,7 @@ most of its code.
 =cut
 
 BEGIN { *_apropos_re = *Sepia::_apropos_re; }
-$VERSION = '0.64';
+$VERSION = '0.65';
 
 use strict;
 use Config;
@@ -429,7 +429,7 @@ sub pp_method_named {
 	$top = [$lastclass || "(method)", '->', $name];
 	undef $lastclass;
     } else {
-	warn "method_named: wtf: sizeof padval = ".@padval;
+	dprint 'method_named', "method_named: wtf: sizeof padval = ".@padval;
     }
 }
 
@@ -605,7 +605,8 @@ sub _var_ret_list
     if ($mod) {
         @r = exists $h->{$mod} ? @{$h->{$mod}} : ();
     } else {
-       @r = map { @$_ } values %$h;
+        ## XXX: Need to revisit when this is/isn't an array!
+        @r = map { ref $_ eq 'ARRAY' ? @$_ : $_ } values %$h;
     }
     @r = grep $_->{assign}, @r if $assign;
     @r = map { [@{$_}{qw(file line sub package)}] } @r;

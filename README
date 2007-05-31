@@ -191,10 +191,10 @@ Install Sepia bindings in the current local keymap.
 Find all subroutines in a package.
 
 ** Documentation browsing
-*** (`sepia-w3m-perldoc-this')
+*** (`sepia-perldoc-this')
 View perldoc for module at point.
 
-*** (`sepia-w3m-view-pod')
+*** (`sepia-view-pod')
 View POD for the current buffer.
 
 *** (`sepia-package-list')
@@ -241,7 +241,6 @@ some operations, if you don't mind losing completion.
 ** (Medium) Support user-defined abbrevs in REPL
 ** (Easy) Clean up Perl side a bit more.
 ** (Hard) Use module, file, line to filter results (Emacs side)
-
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

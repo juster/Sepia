@@ -10,7 +10,7 @@
 
 ;;; Code:
 
-(require 'tree-widget)
+(require 'tree-widget nil t)
 
 (defun sepia-tree-button-cb (widget &rest blah)
   (let* ((pw (widget-get widget :parent))

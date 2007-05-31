@@ -33,7 +33,7 @@
 ;;    http://emacs-w3m.namazu.org/
 
 ;;; Code:
-(require 'w3m-perldoc)
+(require 'w3m-perldoc nil t)
 
 ;;;###autoload
 (defun w3m-about-perldoc-buffer (url &optional no-decode no-cache &rest args)
@@ -67,16 +67,8 @@
 
 ;;;###autoload
 (defun sepia-w3m-view-pod (&optional buffer)
-  "View POD for the current buffer."
-  (interactive)
   (w3m-goto-url (concat "about://perldoc-buffer/"
 			(w3m-url-encode-string (buffer-name buffer)))))
-
-;;;###autoload
-(defun sepia-w3m-perldoc-this (mod)
-  "View perldoc for module at point."
-  (interactive (list (sepia-interactive-arg 'module)))
-  (w3m-perldoc mod))
 
 (defun sepia-module-list ()
   "List installed modules with links to their documentation.

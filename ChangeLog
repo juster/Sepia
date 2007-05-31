@@ -1,12 +1,49 @@
+2007-05-30  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+	* sepia.texi: shiny new manual.
+	* lib/Sepia.pm (completions): add special 'VARIABLE' type.
+	(methods): add second $qualified arg.
+	(repl_reload): new function.
+	(sig_warn,repl): override __WARN__ (and __DIE__) cautiously.
+	(repl): nicer warning format.
+
+	* sepia.el (sepia-eval-raw): stopwarn -> STOPWARN.
+	(sepia-load-file): Fix pop-up error buffer.
+	(sepia-lisp-to-perl): fix quoting of strings.
+	Good citizenship:
+	(sepia-mode): make a real major mode.
+	(sepia-scratchpad-mode): ditto.
+
+2007-05-29  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/sepia/Xref.pm (pp_method_named): warn -> dprint.
+	* sepia.el (sepia-simple-method-before-point): new function.
+	(sepia-complete-symbol): use it to complete methods.
+	make w3m optional:
+	(sepia-perldoc-function,sepia-view-pod-function,
+	  sepia-module-list-function): new variables.
+	(sepia-perldoc-this,sepia-view-pod): new functions.
+	* lib/Sepia.pm (repl): trim leading spaces.
+	(tolisp): escape metacharacters.
+	(repl): don't override "die" if someone has installed a
+	$SIG{__DIE__} handler
+
 2007-05-28  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
-	* VERSION: 0.75
+	* VERSION: 0.75+
 	* sepia.el (sepia-core-version): new function.
 	(sepia-indent-or-complete): fix abbrev expansion.
+	(sepia-symbol-info): report core version in eldoc.
+	(sepia-ident-before-point): new function.
+	(sepia-complete-symbol): use it instead of *-at-point.
+	(sepia-complete-symbol): complete arrays and hashes when '$'
+	starts a word.
 	* lib/Sepia.pm (printer): Use @::__; distinguish "last as scalar"
 	  $__ from printed representation.
 	($PRINT_PRETTY): columnate lists if this is on.
 	(columnate): fixed.
+	(repl_methods): add regex argument.
+	(repl_who): fix.
+	(completions): Add in package names.
 
 2007-05-27  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
@@ -18,10 +55,10 @@
 	* sepia.el (sepia-doc-scan-buffer): Better doc regex for
 	  variables.
 	(sepia-indent-or-complete): try to expand abbrevs before
-	completion (try with snippet.el).
+	  completion (try with snippet.el).
 	(sepia-indent-expand-abbrev): control the above feature.
 	(sepia-complete-symbol): scroll completion buffer; suggested by
-	Hilko Bengen.
+	  Hilko Bengen.
 	* lib/Sepia.pm (html_package_list,html_module_list): new
 	  functions.
 	(completions): '$'-completion only generates scalars.
@@ -29,7 +66,8 @@
 	  documentation.
 	(sepia-module-list,sepia-package-list): better output.
 	(sepia-package-list,sepia-module-list): move Perl code to
-	Sepia.pm, generate list in inferior perl instead of shelling out.
+	  Sepia.pm, generate list in inferior perl instead of shelling
+	  out.
 
 2007-05-23  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 

@@ -1,4 +1,4 @@
-(require 'ido)
+(require 'ido nil t)
 (require 'cl)
 
 (defun* sepia-icompleting-recursive-read (prompt dir &key

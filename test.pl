@@ -42,11 +42,22 @@ ok(Sepia::module_info('Sepia', 'name') eq 'Sepia');
 ok(Sepia::module_info('Sepia', 'version') eq $Sepia::VERSION);
 ok(Sepia::module_info('Sepia', 'file') =~ /Sepia\.pm$/);
 ok(Sepia::module_info('Sepia', 'is_core') == 0);
-my @mu = sort(Sepia::module_info('Sepia', 'modules_used'));
-my @mu_exp = qw(B Cwd Exporter Module::Info strict);
-ok(1 || all(map { $mu[$_] eq $mu_exp[$_] } 0..$#mu), "@mu");
-ok((Sepia::module_info('Sepia', 'packages_inside'))[0] eq 'Sepia');
-ok((Sepia::module_info('Sepia', 'superclasses'))[0] eq 'Exporter');
-# 18 to here
+
+if (exists $INC{'Module/Info.pm'}) {
+    my %mu;
+    undef @mu{Sepia::module_info('Sepia', 'modules_used')};
+
+    my @mu_exp = ('B', 'Carp', 'Cwd', 'Exporter', 'Module::Info',
+                  'Scalar::Util', 'Text::Abbrev', 'strict', 'vars');
+
+    ok(all(map { exists $mu{$_} } @mu_exp), "uses (@mu_exp)");
+    ok((Sepia::module_info('Sepia', 'packages_inside'))[0] eq 'Sepia');
+    ok((Sepia::module_info('Sepia', 'superclasses'))[0] eq 'Exporter');
+} else {
+    ok(1, "no module info");
+    ok(1, "no module info");
+    ok(1, "no module info");
+}
+# 18 to here.
 
 exit;

@@ -9,15 +9,17 @@ Sepia - Simple Emacs-Perl Interface
 From inside Emacs:
 
    M-x load-library RET sepia RET
-   M-x sepia-init RET
+   M-x sepia-repl RET
 
-At the prompt in the C<*perl-interaction*> buffer:
+At the prompt in the C<*sepia-repl*> buffer:
 
    main @> ,help
 
+For more information, please see F<sepia/index.html>.
+
 =cut
 
-$VERSION = '0.75';
+$VERSION = '0.76_01';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -54,6 +56,12 @@ BEGIN {
             0;
         };
     }
+    eval { require Module::CoreList };
+    if ($@) {
+        *Sepia::core_version = sub { '???' };
+    } else {
+        *Sepia::core_version = sub { Module::CoreList->first_release(@_) };
+    }
 }
 
 =head1 DESCRIPTION
@@ -61,7 +69,9 @@ BEGIN {
 Sepia is a set of features to make Emacs a better tool for Perl
 development.  This package contains the Perl side of the
 implementation, including all user-serviceable parts (for the
-cross-referencing facility see L<Sepia::Xref>).
+cross-referencing facility see L<Sepia::Xref>).  This document is
+aimed as Sepia developers; for user documentation, see
+L<sepia/index.html>.
 
 Though not intended to be used independent of the Emacs interface, the
 Sepia module's functionality can be used through a rough procedural
@@ -69,9 +79,20 @@ interface.
 
 =head2 C<@compls = completions($string [, $type])>
 
-Find a list of completions for C<$string> with glob type $type.
+Find a list of completions for C<$string> with glob type C<$type>,
+which may be "SCALAR", "HASH", "ARRAY", "CODE", "IO", or the special
+value "VARIABLE", which means either scalar, hash, or array.
 Completion operates on word subparts separated by [:_], so
 e.g. "S:m_w" completes to "Sepia::my_walksymtable".
+
+=head2 C<@compls = method_completions($expr, $string [,$eval])>
+
+Complete among methods on the object returned by C<$expr>.  The
+C<$eval> argument, if present, is a function used to do the
+evaluation; the default is C<eval>, but for example the Sepia REPL
+uses C<Sepia::repl_eval>.  B<Warning>: Since it has to evaluate
+C<$expr>, method completion can be extremely problematic.  Use with
+care.
 
 =cut
 
@@ -131,7 +152,13 @@ sub completions
         } _completions $str;
     } else {
         @ret = grep {
-            $type eq 'SCALAR' ? defined ${$_} : defined *{$_}{$type}
+            if ($type eq 'SCALAR') {
+                defined ${$_};
+            } elsif ($type eq 'VARIABLE') {
+                defined ${$_} || defined *{$_}{HASH} || defined *{$_}{ARRAY};
+            } else {
+                defined *{$_}{$type}
+            }
         } _completions $str;
         if (defined $infunc && defined *{$infunc}{CODE}) {
             my ($apre) = _apropos_re($str);
@@ -166,11 +193,39 @@ sub completions
             } lexicals($infunc);
         }
     }
+    ## Complete packages so e.g. "new B:T" -> "new Blah::Thing"
+    ## instead of "new Blah::Thing::"
+    if (!$type) {
+        @ret = map { /(.*)::$/ ? ($1, $_) : $_ } @ret;
+    }
     ## XXX: Control characters, $", and $1, etc. confuse Emacs, so
     ## remove them.
     grep {
-        !looks_like_number $_ && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
+        length > 0 && !looks_like_number $_ && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
     } map { s/^:://; $_ } @ret;
+}
+
+sub method_completions
+{
+    my ($expr, $fn, $eval) = @_;
+    $expr =~ s/^\s+//;
+    $expr =~ s/\s+$//;
+    $eval ||= 'eval';
+    no strict;
+    my $x;
+    if ($x =~ /^\$/) {
+        $x = $eval->("ref($expr)");
+    } elsif ($eval->('defined(%{'.$expr.'::})')) {
+        $x = $expr;
+    } else {
+        return;
+    }
+    unless ($@) {
+        my $re = _apropos_re $fn;
+        print STDERR "$x / $re\n";
+        return sort { $a cmp $b } map { s/.*:://; $_ }
+            grep { defined *{$_}{CODE} && /::$re/ } methods($x, 1);
+    }
 }
 
 =head2 C<@locs = location(@names)>
@@ -450,6 +505,9 @@ sub tolisp($)
         } elsif (looks_like_number $thing) {
             ''.(0+$thing);
         } else {
+            ## XXX Elisp and perl have slightly different
+            ## escaping conventions, so we do this crap instead.
+            $thing =~ s/["\\]/\\\1/g;
             qq{"$thing"};
         }
     } elsif ($t eq 'GLOB') {
@@ -530,15 +588,15 @@ sub printer
         $res = "@res";
     } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
         $res = $res[0];
-    } elsif (!$iseval && $PRINT_PRETTY && @res > 1 && grep !ref $_, @res) {
-        $res = columnate(@res);
+    } elsif (!$iseval && $PRINT_PRETTY && @res > 1 && !grep ref, @res) {
+        $res = columnate(sort @res);
         print $res;
         return;
     } else {
         $res = $PRINTER->();
     }
     if ($iseval) {
-        print ';;;', length $res, "\n$::__\n";
+        print ';;;', length $res, "\n$res\n";
     } else {
         print "=> $res\n";
     }
@@ -575,7 +633,7 @@ Behavior is controlled in part through the following package-globals:
 
 =item C<$WANTARRAY> -- evaluation context
 
-=item C<$PRINT_PRETTY> -- format some output nicely (default = 0)
+=item C<$PRINT_PRETTY> -- format some output nicely (default = 1)
 
 Format some values nicely, independent of $PRINTER.  Currently, this
 displays arrays of scalars as columns.
@@ -597,7 +655,7 @@ BEGIN {
     $PACKAGE = 'main';
     $WANTARRAY = 1;
     $PRINTER = \&Sepia::print_dumper;
-    $PRINT_PRETTY = 0;
+    $PRINT_PRETTY = 1;
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
              methods => \&Sepia::repl_methods,
@@ -607,18 +665,19 @@ BEGIN {
              format => \&Sepia::repl_format,
              strict => \&Sepia::repl_strict,
              quit => \&Sepia::repl_quit,
+             reload => \&Sepia::repl_reload,
          );
     %REPL_DOC = (
         cd =>
-    'cd DIR            Change directory to DIR',
+    'cd DIR             Change directory to DIR',
         format =>
     'format [dumper|dump|yaml|plain]
                        Set output formatter (default: dumper)',
         help =>
     'help               Display this message',
         methods => <<EOS,
-    'methods X [RE]     List methods for reference or package X,
-                        matching optional pattern RE.
+methods X [RE]     List methods for reference or package X,
+                       matching optional pattern RE.
 EOS
         package =>
     'package PACKAGE    Set evaluation package to PACKAGE',
@@ -630,8 +689,10 @@ EOS
     'wantarray [0|1]    Set or toggle evaluation context',
         who => <<EOS,
 who PACKAGE [RE]   List variables and subs in PACKAGE matching optional
-                   pattern RE.
+                       pattern RE.
 EOS
+        reload =>
+    'reload             Reload Sepia.pm and relaunch the REPL.',
     );
     %RK = abbrev keys %REPL;
 }
@@ -768,10 +829,16 @@ sub repl_who
 
 sub methods
 {
-    my $pack = shift;
+    my ($pack, $qualified) = @_;
     no strict;
-    (grep(defined *{"$pack\::$_"}{CODE}, keys %{$pack.'::'}),
-     defined @{$pack.'::ISA'} ? (map methods($_), @{$pack.'::ISA'}) : ());
+    my @own = $qualified ? grep {
+        defined *{$_}{CODE}
+    } map { "$pack\::$_" } keys %{$pack.'::'}
+        : grep {
+            defined *{"$pack\::$_"}{CODE}
+        } keys %{$pack.'::'};
+    (@own, defined @{$pack.'::ISA'}
+         ? (map methods($_, $qualified), @{$pack.'::ISA'}) : ());
 }
 
 sub repl_methods
@@ -821,11 +888,22 @@ sub repl_quit
     1;
 }
 
+sub repl_reload
+{
+    do $INC{'Sepia.pm'};
+    if ($@) {
+        print "Reload failed:\n$@\n";
+    } else {
+        @_ = (select, 0);
+        goto &Sepia::repl;
+    }
+}
+
 sub debug_help
 {
     print <<EOS;
 Inspector commands (prefixed with ','):
-    \\C-c        Pop one debugger level
+    ^C              Pop one debugger level
     backtrace       show backtrace
     inspect N ...   inspect lexicals in frame(s) N ...
     eval N EXPR     evaluate EXPR in lexical environment of frame N
@@ -872,6 +950,30 @@ sub repl_eval
     }
 }
 
+## Collects warnings for REPL
+my @warn;
+
+sub sig_warn
+{
+    push @warn, shift
+}
+
+sub print_warnings
+{
+    my $iseval = shift;
+    if (@warn) {
+        if ($iseval) {
+            my $tmp = "@warn";
+            print ';;;'.length($tmp)."\n$tmp\n";
+        } else {
+            for (@warn) {
+                # s/(.*) at .*/$1/;
+                print "warning: $_\n";
+            }
+        }
+    }
+}
+
 sub repl
 {
     my ($fh, $level) = @_;
@@ -892,22 +994,25 @@ sub repl
                 help => \&Sepia::debug_help,
             );
     local *CORE::GLOBAL::die = sub {
-        my @dieargs = @_;
-        if ($STOPDIE) {
+        ## Protect us against people doing weird things.
+        if ($STOPDIE && !$SIG{__DIE__}) {
+            my @dieargs = @_;
             local $dies = $dies+1;
             local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
                 %dhooks, die => sub { local $Sepia::STOPDIE=0; die @dieargs });
             local %Sepia::RK = abbrev keys %Sepia::REPL;
-            print "@_\nDied $MSG\n";
+            print "@_\n\tin ".caller()."\nDied $MSG\n";
             return Sepia::repl($fh, 1);
         }
-        CORE::die(@_);
+        CORE::die(Carp::shortmess @_);
     };
 
     local *CORE::GLOBAL::warn = sub {
-        if ($STOPWARN) {
+        ## Again, this is above our pay grade:
+        if ($STOPWARN && $SIG{__WARN__} eq 'Sepia::sig_warn') {
+            my @dieargs = @_;
             local $dies = $dies+1;
             local $PS1 = "*$dies*> ";
             no strict;
@@ -917,9 +1022,10 @@ sub repl
             print "@_\nWarned $MSG\n";
             return Sepia::repl($fh, 1);
         }
-        CORE::warn(@_);
+        ## Avoid showing up in location information.
+        CORE::warn(Carp::shortmess @_);
     };
-    print <<EOS;
+    print <<EOS if $dies == 0;
 Sepia version $Sepia::VERSION.
 Press ",h" for help, or "^D" or ",q" to exit.
 EOS
@@ -935,6 +1041,7 @@ EOS
                 next repl;
             }
             $buf .= $in;
+            $buf =~ s/^\s*//;
             my $iseval;
             if ($buf =~ /^<<(\d+)\n(.*)/) {
                 $iseval = 1;
@@ -945,10 +1052,13 @@ EOS
                     $len -= $tmp;
                 }
             }
-            my (@res, @warn);
-            local $SIG{__WARN__} = sub {
-                push @warn, shift;
-            };
+            my (@res);
+            ## Only install a magic handler if no one else is playing.
+            local $SIG{__WARN__} = $SIG{__WARN__};
+            @warn = ();
+            unless ($SIG{__WARN__}) {
+                $SIG{__WARN__} = 'Sepia::sig_warn';
+            }
             if ($buf =~ /^,(\S+)\s*(.*)/s) {
                 ## Inspector shortcuts
                 my $short = $1;
@@ -975,9 +1085,15 @@ EOS
             } else {
                 ## Ordinary eval
                 @res = repl_eval $buf, wantarray;
-
                 if ($@) {
-                    if ($@ =~ /at EOF$/m) {
+                    if ($iseval) {
+                        ## Always return results for an eval request
+                        Sepia::printer \@res, 1, wantarray;
+                        Sepia::printer [$@], 1, wantarray;
+                        # print_warnings $iseval;
+                        $buf = '';
+                        print prompt;
+                    } elsif ($@ =~ /at EOF$/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
                             print "Error:\n$@\n*** cancel ***\n", prompt;
@@ -985,12 +1101,14 @@ EOS
                         } else {
                             print ">> ";
                         }
-                        next repl;
                     } else {
-                        warn $@;
+                        print_warnings;
+                        # $@ =~ s/(.*) at eval .*/$1/;
+                        print "error: $@\n";
+                        print prompt;
                         $buf = '';
-                        Sepia::printer \@res, $iseval, wantarray if $iseval;
                     }
+                    next repl;
                 }
             }
             if ($buf !~ /;$/ && $buf !~ /^,/) {
@@ -999,14 +1117,7 @@ EOS
                 Sepia::printer \@res, $iseval, wantarray;
             }
             $buf = '';
-            if (@warn) {
-                if ($iseval) {
-                    my $tmp = "@warn";
-                    print ';;;'.length($tmp)."\n$tmp\n";
-                } else {
-                    print "@warn\n";
-                }
-            }
+            print_warnings $iseval;
             print prompt;
         }
 }
@@ -1036,31 +1147,31 @@ sub html_module_list
     my $inst = inst();
     return unless $inst;
     return unless open OUT, ">$file";
-    print "<html><body><ul>";
+    print OUT "<html><body><ul>";
     my $pfx = '';
     my %ns;
     for (package_list) {
         push @{$ns{$1}}, $_ if /^([^:]+)/;
     }
     for (sort keys %ns) {
-        print qq{<li><b>$_</b><ul>} if @{$ns{$_}} > 1;
+        print OUT qq{<li><b>$_</b><ul>} if @{$ns{$_}} > 1;
         for (sort @{$ns{$_}}) {
             my @fs = map {
                 s/.*man.\///; s|/|::|g; s/\..?pm//; $_
             } grep /\.\dpm$/, sort $inst->files($_);
             if (@fs == 1) {
-                print qq{<li><a href="$base$fs[0]">$fs[0]</a>};
+                print OUT qq{<li><a href="$base$fs[0]">$fs[0]</a>};
             } else {
-                print qq{<li>$_<ul>};
+                print OUT qq{<li>$_<ul>};
                 for (@fs) {
-                    print qq{<li><a href="$base$_">$_</a>};
+                    print OUT qq{<li><a href="$base$_">$_</a>};
                 }
-                print '</ul>';
+                print OUT '</ul>';
             }
         }
-        print qq{</ul>} if @{$ns{$_}} > 1;
+        print OUT qq{</ul>} if @{$ns{$_}} > 1;
     }
-    print "</ul></body></html>\n";
+    print OUT "</ul></body></html>\n";
     close OUT;
     1;
 }
