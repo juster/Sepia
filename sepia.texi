@@ -1,0 +1,604 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename sepia.info
+@settitle Simple Emacs Perl Integration
+@dircategory Emacs
+@direntry
+* Sepia: (sepia).    Simple Emacs Perl Integration.
+@end direntry
+@c %**end of header
+
+@titlepage
+@title Sepia: Simple Emacs Perl Integration
+@author Sean O'Rourke
+@end titlepage
+
+@macro kbinding{key,cmd}
+@item \key\ `\cmd\'
+@kindex \key\
+@end macro
+
+@macro fitem{name}
+@item \name\
+@findex \name\
+@end macro
+
+@macro xxx{stuff}
+@b{XXX: \stuff\}
+@end macro
+
+@node Top, Introduction, (dir), (dir)
+
+@ifinfo
+@top SEPIA
+@end ifinfo
+
+Sepia is a set of Perl development tools for Emacs supporting code
+navigation and interactive evaluation.
+
+@menu
+* Introduction::                
+* Editing::                     
+* Interactive Perl::            
+* Customization::               
+* Internals::                   
+* Credits::                     
+* Function Index::              
+@end menu
+
+@c ============================================================
+@node Introduction, Editing, Top, Top
+@chapter Introduction
+
+Sepia is a set of tools for Perl development in Emacs.  Its goal is to
+extend CPerl mode with two contributions: fast code navigation and
+interactive development.  It is inspired by Emacs' current support for a
+number of other languages, including Lisp, Python, and Emacs Lisp.
+
+@menu
+* Getting Started::             
+* Philosophy::                  
+@end menu
+
+@node Getting Started, Philosophy, Introduction, Introduction
+@section Getting Started
+
+To install Sepia, its Emacs Lisp files must be in Emacs'
+@code{load-path}, and the @file{lib} directory must be in Perl's
+@code{@@INC}.  Assuming that Sepia has been unpacked in
+@file{~/sepia}, it can be installed by adding the following lines to
+@file{~/.emacs}:
+
+@example
+(add-to-list 'load-path "~/sepia")
+(setq sepia-perl5lib (expand-file-name "~/sepia/lib"))
+(defalias 'perl-mode 'sepia-mode)
+@end example
+
+Then to bring up the interactive Perl prompt, type @kbd{M-x sepia-repl}.
+
+@node Philosophy,  , Getting Started, Introduction
+@section Philosophy
+
+@xxx{There's a bit at the top of the README.  Expand on it.}
+
+@c ============================================================
+@node Editing, Interactive Perl, Introduction, Top
+@chapter Editing
+
+Sepia's first contribution is a set of commands to explore a Perl
+codebase.  These include commands to browse and display documentation,
+to find function definitions, and to query a cross-reference database of
+function and variable uses.  Sepia also provides intelligent symbol
+completion.
+
+@menu
+* Navigation::                  
+* Documentation::               
+* Evaluation::                  
+* Completion::                  
+* Mutilation::                  
+@end menu
+
+@node Navigation, Documentation, Editing, Editing
+@section Navigation
+
+Sepia provides several commands for navigating program source.  All of
+them rely on information from the inferior Perl process, so it is
+important both that it be running, and that its internal representation
+of the program matches the program on disk.  The commands marked (Xref)
+below also rely on a cross-reference database, which must be explicitly
+rebuilt by calling @code{xref-rebuild} when the program changes.
+
+There are two basic kinds of navigation commands.  The first kind jump
+directly to the first matching location when possible, prompting only if
+no such location is found.  These commands find only a single location,
+and do not put their results on the found-location ring.
+
+@c direct-jump commands
+@table @kbd
+
+@item M-. M-.
+@itemx M-x sepia-dwim
+@findex sepia-dwim
+Guess what kind of identifier is at point, and try to do the right
+thing: for a function, find its definition(s); for a variable, find its
+uses; for a module, view its documentation; otherwise, prompt for the
+name of a function to visit.  @code{sepia-dwim} automatically goes to
+the first function definition or variable use found.
+
+@item M-. l
+@itemx M-x sepia-location
+@findex sepia-location
+Jump directly to the definition of the function at point, prompting if
+point is not on a symbol.  If multiple definitions are found, choose one
+arbitrarily.  This function is similar to @code{sepia-defs}, and the two
+should probably be merged.
+
+@item M-. j
+@itemx M-x sepia-jump-to-symbol
+@findex sepia-jump-to-symbol
+Navigate to a function using ``ido'' interactive completion.  Within
+interactive completion, press @key{:} to descend into a package,
+@key{DEL} to ascend to a parent package, and @key{RET} to go to the
+currently-selected function.
+
+@end table
+
+The second kind of navigation commands always prompt the user -- though
+usually with a sensible default value -- and find multiple locations.
+When called with a prefix argument, these commands present their results
+in a @code{grep-mode} buffer.  When called @emph{without} a prefix
+argument, these commands place all results on the found-location ring
+and jump directly to the first.  The remaining locations can be cycled
+through by calls to @code{sepia-next}.
+
+@c prompt-and-go commands
+@table @kbd
+@item M-. f @var{name} @key{RET}
+@itemx M-x sepia-defs
+@findex sepia-defs
+Find definition(s) of function @var{name}.
+
+@item M-. m
+@itemx M-x sepia-module-find @var{name} @key{RET}
+@findex sepia-module-find
+Find the source of module @var{name}.
+
+@item M-. a @var{regexp} @key{RET}
+@itemx M-x sepia-apropos
+@findex sepia-apropos
+Find definitions of all functions whose names match @var{regexp}.
+
+@item M-. c @var{name} @key{RET}
+@itemx M-x sepia-callers
+@findex sepia-callers
+(Xref) Find calls to function @var{name}.
+
+@item M-. C @var{name} @key{RET}
+@itemx M-x sepia-callees
+@findex sepia-callees
+(Xref) Find the definitions of functions called by @var{name}.
+
+@item M-. v @var{name} @key{RET}
+@itemx M-x sepia-var-uses
+@findex sepia-var-uses
+(Xref) Find uses of the global variable @var{name}.
+
+@item M-. V @var{name} @key{RET}
+@itemx M-x sepia-var-defs
+@findex sepia-var-defs
+(Xref) Find definitions of global variable @var{name}.  Since Perl's
+global variables are not declared, this is rarely useful
+
+@c XXX: broken, so don't mention it.
+@c @item M-. A @var{regexp} @key{RET}
+@c @itemx M-x sepia-var-apropos
+@c @findex sepia-var-apropos
+@c Find definitions of all variables whose names match @var{regexp}.  Since
+@c this function does not handle lexical variables, and since Perl's global
+@c variables are not declared, this is rarely useful.
+
+@end table
+
+Finally, there are several other navigation-related commands that do not
+fit into either of the above categories.
+
+@c other commands
+@table @kbd
+@item M-. n
+@itemx M-x sepia-next
+@findex sepia-next
+Cycle through the definitions found by the previous @key{M-.} search.
+
+@item M-. r
+@itemx M-x sepia-rebuild
+@findex sepia-rebuild
+Rebuild the cross-reference database by walking the op-tree and
+stashes.
+
+@item M-. t
+@itemx M-x find-tag
+Execute the @code{find-tag} command typically bound to @key{M-.}.
+
+@end table
+
+@node Documentation, Evaluation, Navigation, Editing
+@section Documentation
+
+Sepia can be used to browse installed modules' documentation, to format
+and display the current buffer's POD, and to browse the list of modules
+installed on the system.
+
+@table @kbd
+@item M-. d @var{name} @key{RET}
+@itemx M-x sepia-perldoc-this
+@findex sepia-perldoc-this
+View documentation for module @var{name} or Perl manpage @var{name}.
+
+@item C-c C-d
+@itemx M-x sepia-view-pod
+@findex sepia-view-pod
+Format and view the current buffer's documentation.
+
+@item sepia-package-list
+@findex sepia-package-list
+Browse a tree of installed packages.  This lists only the top-level
+packages from installed distributions, so if package @code{My::Stuff}
+also provides @code{My::Stuff::Details}, it will not be displayed.  When
+Emacs-w3m is available, each module is linked to its documentation.
+
+@item sepia-module-list
+@findex sepia-module-list
+Browse a tree of both top-level and internal packages, like
+@code{sepia-package-list}.
+
+@end table
+
+@findex sepia-install-eldoc
+Sepia also integrates with Eldoc (at least in GNU Emacs >= 22).  To
+toggle eldoc support, type @kbd{M-x sepia-install-eldoc}.  Documentation
+for Perl builtins and control structures is taken from CPerl mode.
+Sepia can also display documentation for user-defined functions if their
+POD is formatted in the standard way, with functions described in a
+``=head2'' or ``=item'' entry.  To load user documentation, visit the
+relevant file and type @kbd{M-x sepia-doc-update}.
+
+If @code{Module::CoreList} is available Sepia's eldoc function will also
+display the first version of Perl in which a module was shipped by
+default.  This is intended to give the programmer a sense of when he is
+creating external dependencies.
+
+@c ============================================================
+@node Interactive Perl, Customization, Editing, Top
+@chapter Interactive Perl
+
+Sepia's second main contribution is an interactive interface (REPL) to
+an inferior Perl process in comint mode.  The interface is based on
+comint-mode, and inherits many of its bindings; this chapter discusses
+only the Sepia extensions.  In addition to the standard interactive
+REPL, Sepia provides a number of other ways to evaluate pieces of code
+in Perl, and commands to process buffer regions with Perl.
+
+@findex sepia-repl
+To start or switch to the repl, type @kbd{M-x sepia-repl}.  As in Perl
+code, @key{TAB} in the REPL performs partial-word completion with
+@code{sepia-complete-symbol}.  However, it also supports filename
+completion like standard comint mode.
+
+@menu
+* Shortcuts::                   
+* The Debugger::                
+* Scratchpad::                  
+@end menu
+
+@node Shortcuts, The Debugger, Interactive Perl, Interactive Perl
+@section Shortcuts
+
+``Shortcuts'' are commands handled specially by the REPL rather than
+being evaluated as perl code.  They either communicate with the REPL
+function, or provide a convenient interface to variables in the Sepia
+package.  Shortcuts are prefixed by a comma (@key{,}), and may be
+abbreviated to the shortest unique prefix.
+
+@table @kbd
+@item cd @var{dir}
+Change perl's current directory to @var{dir}.
+
+@item format @var{type}
+Set the output format to @var{type}, either ``dumper'' (using
+@code{Data::Dumper}), ``dump'' (@code{Data::Dump}), ``yaml''
+(@code{YAML}), or ``plain'' (stringification).  Default: ``dumper''.
+
+@item help
+Display a list of shortcuts.
+
+@item methods @var{name} [@var{regexp}]
+Display a list of functions defined in package @var{name} and its
+@code{ISA}-ancestors matching optional pattern @var{regexp}.
+
+@item package @var{name}
+Set the default evaluation package to @var{name}.
+
+@item quit
+Exit the inferior Perl process.
+
+@item reload
+Reload @file{Sepia.pm} and recursively invoke the REPL.  This command is
+mostly of interest when working on Sepia itself.
+
+@item strict [@var{val}]
+Set evaluation strictness to @var{val}, or toggle it if @var{val} is not
+given.  Note that turning strictness off and on clears the REPL's
+lexical environment.
+
+@item wantarray [@var{val}]
+Set the evaluation context to @var{val}, or toggle between scalar and
+array context.
+
+@item who [@var{name} [@var{regexp}]]
+List identifiers in package @var{name} (main by default) matching
+optional pattern @var{regexp}.
+
+@end table
+
+@node The Debugger, Scratchpad, Shortcuts, Interactive Perl
+@section Debugger
+
+Unfortunately Sepia does @emph{not} use Perl's debugger hooks, so it
+does not support a true debugger with breakpoints, single-stepping, etc.
+However, the REPL overrides the @code{die()} and @code{warn()}
+operators, allowing it to intercept failures while their context is
+still available.  This makes it possible to produce a backtrace, inspect
+and modify global variables, and continue execution.  If the PadWalker
+module is available, Sepia also provides functions to inspect and modify
+lexical variables.
+
+The debugger has its own set of shortcuts, also prefixed by a comma.
+
+@table @kbd
+@item backtrace
+Show a backtrace with @code{Carp::cluck}.
+
+@item inspect @var{n}
+Inspect lexicals in frame @var{n}, counting upward (requires PadWalker).
+
+@item eval @var{n} @var{expr}
+Evaluate @var{expr} in the lexical environment of frame @var{n}
+(requires PadWalker).  @var{expr} should not transfer control out of
+this environment, but is free to modify its lexicals.
+
+@item return @var{expr}
+Continue execution as if @code{die()} or @code{warn()} had returned the
+value of @var{expr}, which is evaluated in the global environment.
+
+@item die
+@itemx warn
+Continue dying or warning as the program would have done without
+debugger intervention.
+
+@end table
+
+@node Evaluation, Completion, Documentation, Editing
+@section Evaluation
+
+When interactive Perl is running, Sepia can evaluate regions of code in
+the inferior Perl process.  The following commands assume that this
+process has already been started by calling @code{sepia-repl}.
+
+@table @kbd
+@item C-M-x
+@itemx M-x sepia-eval-defun
+@findex sepia-eval-defun
+Evaluate the function around point in the inferior Perl process.
+
+@item C-c C-l
+@itemx M-x sepia-load-file
+@findex sepia-load-file
+Save the current buffer, then reload its file and if warnings or errors
+occur, display an error buffer.  With a prefix argument, also rebuild
+the cross-reference index.
+
+@item C-c e
+@itemx M-x sepia-eval-expression @key{RET} @var{expr} @key{RET}
+@findex sepia-eval-expression
+Evaluate @var{expr} in scalar context and echo the result.  With a
+prefix argument, evaluate in list context.
+
+@end table
+
+@node Completion, Mutilation, Evaluation, Editing
+@section Completion
+
+Sepia implements fairly sophisticated partial-word completion in
+collaboration with the inferior Perl process.  For example,
+@samp{%S:X:v_u} completes to @samp{%Sepia::Xref::var_use} when Sepia is
+loaded.
+
+@xxx{explain the rules for completion: packages, vars, subs, methods, ...}
+
+@table @kbd
+@item M-x sepia-complete-symbol
+@findex sepia-complete-symbol
+Complete the symbol before point as either a module, function, or global
+variable.  Note that this does @emph{not} consider lexical scope.
+
+@item TAB
+@itemx M-x sepia-indent-or-complete
+@findex sepia-indent-or-complete
+First try to indent the current line.  If the indentation does not
+change, then try to expand an abbrev at point (unless
+@code{sepia-indent-expand-abbrev} is @code{NIL}).  If no abbrev is
+expanded, then call @code{sepia-complete-symbol}.
+
+@end table
+
+@node Mutilation,  , Completion, Editing
+@section Mutilation
+
+Sepia contains several functions to operate on regions of text using the
+interactive Perl process.  These functions can be used like standard
+one-liners (e.g. @samp{perl -pe ...}), with the advantage that all of
+the functions and variables in the interactive session are available.
+
+@table @kbd
+@item M-x sepia-perl-pe-region @key{RET} @var{code} @key{RET}
+@findex sepia-perl-pe-region
+Evaluate @var{code} on each line in the region with @code{$_} bound to
+the line text, collecting the resulting values of @code{$_}.  With a
+prefix argument, replace the region with the result.
+
+@item M-x sepia-perl-ne-region @key{RET} @var{code} @key{RET}
+@findex sepia-perl-ne-region
+Evaluate @var{code} as above, but collect the @emph{results} of code.
+
+@item M-x sepia-perlize-region @key{RET} @var{code} @key{RET}
+@findex sepia-perlize-region
+Evaluate @var{code} once with @code{$_} bound to the entire region,
+collecting the final value of @code{$_}.  With a prefix argument,
+replace the region.
+
+@end table
+
+@node Scratchpad,  , The Debugger, Interactive Perl
+@section Scratchpad
+
+@findex sepia-scratch
+Sepia also supports a scratchpad, another form of interaction inspired
+by Emacs' @code{*scratch*} buffer.  To create or switch to the
+scratchpad, type @kbd{M-x sepia-scratch}.  Scratchpad mode is exactly
+like Sepia mode, except @key{C-j} evaluates the current line and prints
+the result on the next line.
+
+@c ============================================================
+@node Customization, Internals, Interactive Perl, Top
+@chapter Customization
+
+While Sepia can be customized in both the Perl and Emacs Lisp, most of
+the user-accessible configuration is in the latter.  The two variables
+most likely to need customization are @kbd{sepia-program-name} and
+@kbd{sepia-perl5lib}.  Since Sepia tries where possible to reuse
+existing Emacs functionality, its behavior should already be covered by
+existing customizations.
+
+@menu
+* Emacs Variables::             
+* Perl Variables::              
+@end menu
+
+@node Emacs Variables, Perl Variables, Customization, Customization
+@section Emacs Variables
+
+@table @kbd
+
+@item sepia-complete-methods
+If non-@code{NIL}, @code{sepia-complete-symbol} will complete
+simple method calls of the form @code{$x->} or @code{Module->}.  Since
+the former requires evaluation of @code{$x}, this can be disabled.
+Default: @code{T}.
+
+@item sepia-eval-defun-include-decls
+If non-@code{NIL}, attempt to generate a declaration list for
+@code{sepia-eval-defun}.  This is necessary when evaluating some code,
+such as that calling functions without paretheses, because the presence
+of declarations affects the parsing of barewords.  Default: @code{T}.
+
+@item sepia-indent-expand-abbrev
+If non-@code{NIL}, @code{sepia-indent-or-complete} will, if
+reindentation does not change the current line, expand an abbreviation
+before point rather than performing completion.  Only if no abbreviation
+is found will it perform completion.  Default: @code{T}.
+
+@item sepia-module-list-function
+The function to view a tree of installed modules.  Default:
+@code{w3m-find-file} if Emacs-w3m is installed, or
+@code{browse-url-of-buffer} otherwise.
+
+@item sepia-perldoc-function
+The function called to view installed modules' documentation.  Default:
+@code{w3m-perldoc} if Emacs-w3m is installed, or @code{cperl-perldoc}
+otherwise.
+
+@item sepia-perl5lib
+A list of directories to include in @code{PERL5LIB} when starting
+interactive Perl.  Default: @code{NIL}.
+
+@item sepia-prefix-key
+The prefix to use for for functions in @code{sepia-keymap}.  Default:
+@key{M-.}.
+
+@item sepia-program-name
+The Perl program name for interactive Perl.  Default: ``perl''.
+
+@item sepia-use-completion
+If non-@code{NIL}, various Sepia functions will generate completion
+candidates from interactive Perl when called interactively.  This may be
+slow or undesirable in some situations.  Default: @code{T}.
+
+@item sepia-view-pod-function
+The function called to view the current buffer's documentation.
+Default: @code{sepia-w3m-view-pod} if Emacs-w3m is available, or
+@code{sepia-perldoc-buffer} otherwise.
+
+@end table
+
+@node Perl Variables,  , Emacs Variables, Customization
+@section Perl Variables
+
+The following variables in the Sepia package control various aspects of
+interactive evaluation.
+
+@table @code
+
+@item $PACKAGE
+The package in which user input is evaluated, determined automatically
+when code is evaluated from a buffer.  Default: @code{main}.
+
+@item $PRINTER
+The function called to format interactive output, normally set with the
+@code{printer} shortcut.
+
+@item $PRINT_PRETTY
+If true, format some values nicely independent of the value of
+@code{$PRINTER}.  Currently, this means columnating lists of simple
+scalars.  Default: true.
+
+@item $PS1
+The trailing end of the prompt string, which should end with ``> ''.
+Default: @code{"> "}.
+
+@item $STOPDIE
+If true, calls to @code{die} from interactive code will invoke the Sepia
+debugger.  Default: true.
+
+@item $STOPWARN
+If true, calls to @code{warn} from interactive code will invoke the
+Sepia debugger.  Default: false.
+
+@item $WANTARRAY
+If true, evaluate interactive expressions in list context.  Default: true.
+
+@end table
+
+@c ============================================================
+@node Internals, Credits, Customization, Top
+@chapter Internals
+
+@xxx{Many things remain unexplained except by the code itself, and some
+details mentioned above should probably be given less prominence.}
+
+@node Credits, Function Index, Internals, Top
+@unnumbered Credits
+
+I would like to thank Hilko Bengen for finding and motivating me to fix
+a bunch of bugs, and for doing the Debian packaging.
+
+I would also like to thank the authors of Emacs-w3m, SLIME, ido, and
+B::Xref for the code I stole.
+
+@c ============================================================
+@node Function Index,  , Credits, Top
+@unnumbered Function Index
+@printindex fn
+
+@bye
