@@ -1,0 +1,15 @@
+MANIFEST
+ChangeLog
+Makefile.PL
+README
+Sepia.jpg
+lib/Sepia.pm
+lib/Sepia/Xref.pm
+sepia-ido.el
+sepia-tree.el
+sepia-w3m.el
+sepia.el
+sepia.texi
+test.pl
+ChangeLog
+# BEGIN HTML DOCUMENTATION
