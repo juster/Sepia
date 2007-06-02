@@ -1,3 +1,18 @@
+2007-06-02  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-eval-defun): detect errors, jump to first.
+	(sepia-comint-setup): don't set comint-use-prompt-regexp
+
+2007-06-01  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-perldoc-this): don't mess up window
+	  configuration when the page isn't found.
+	(sepia-location): use sepia-interactive-arg.
+	(sepia-perl-[np]e-region): fix.
+
+	* lib/Sepia.pm: fix.
+	(print_dumper): switch format based on size.
+
 2007-05-30  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 	* sepia.texi: shiny new manual.
 	* lib/Sepia.pm (completions): add special 'VARIABLE' type.

@@ -71,8 +71,9 @@ To install Sepia, its Emacs Lisp files must be in Emacs'
 
 @example
 (add-to-list 'load-path "~/sepia")
-(setq sepia-perl5lib (expand-file-name "~/sepia/lib"))
+(setq sepia-perl5lib (list (expand-file-name "~/sepia/lib")))
 (defalias 'perl-mode 'sepia-mode)
+(require 'sepia)
 @end example
 
 Then to bring up the interactive Perl prompt, type @kbd{M-x sepia-repl}.
@@ -109,9 +110,9 @@ provide keyword-based syntax highlighting and an unadorned comint buffer
 as an interpreter.  Others provide their own specialized equivalents of
 comint, eldoc, completion, and other Emacs features.  Sepia takes a
 third approach by trying to do as much as possible with existing Emacs
-features, even when they are not optimal for Perl.  It uses comint to
-communicate with the subprocess, eldoc to display documentation, and
-grep to list source locations.
+features, even when they are not optimal for Perl.  For example, it uses
+comint to communicate with the subprocess, eldoc to display
+documentation, and grep to list source locations.
 
 This approach has three advantages: First, it maximizes the number of
 features that can be supported with limited development time.  Second,
@@ -131,6 +132,7 @@ once you are accustomed to it, you may find it very effective.
 @c ============================================================
 @node Editing, Interactive Perl, Introduction, Top
 @chapter Editing
+@findex sepia-mode
 
 Sepia's first contribution is a set of commands to explore a Perl
 codebase.  These include commands to browse and display documentation,
@@ -376,8 +378,8 @@ REPL, Sepia provides a number of other ways to evaluate pieces of code
 in Perl, and commands to process buffer regions with Perl.
 
 @findex sepia-repl
-To start or switch to the repl, type @kbd{M-x sepia-repl}.  As
-sepia-mode, @key{TAB} in the REPL performs partial-word completion with
+To start or switch to the repl, type @kbd{M-x sepia-repl}.  As in Sepia
+mode, @key{TAB} in the REPL performs partial-word completion with
 @code{sepia-complete-symbol}.  However, it also supports filename
 completion like standard comint mode.
 
@@ -487,7 +489,8 @@ process has already been started by calling @code{sepia-repl}.
 @item C-M-x
 @itemx M-x sepia-eval-defun
 @findex sepia-eval-defun
-Evaluate the function around point in the inferior Perl process.
+Evaluate the function around point in the inferior Perl process.  If it
+contains errors, jump to the location of the first.
 
 @item C-c C-l
 @itemx M-x sepia-load-file
@@ -523,7 +526,7 @@ prefix argument, replace the region with the result.
 
 @item M-x sepia-perl-ne-region @key{RET} @var{code} @key{RET}
 @findex sepia-perl-ne-region
-Evaluate @var{code} as above, but collect the @emph{results} of code.
+Evaluate @var{code} as above, but collect the results instead.
 
 @item M-x sepia-perlize-region @key{RET} @var{code} @key{RET}
 @findex sepia-perlize-region

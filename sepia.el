@@ -7,7 +7,13 @@
 
 ;;; Commentary:
 
-;; See the README file that comes with the distribution.
+;; Sepia is a set of tools for Perl development in Emacs.  Its goal is
+;; to extend CPerl mode with two contributions: fast code navigation
+;; and interactive development.  It is inspired by Emacs' current
+;; support for a number of other languages, including Lisp, Python,
+;; Ruby, and Emacs Lisp.
+;;
+;; See sepia.texi, which comes with the distribution.
 
 ;;; Code:
 
@@ -46,6 +52,31 @@ Useful values include `sepia-w3m-view-pod' and `sepia-perldoc-buffer'.")
 
 Useful values include `w3m-find-file' and `browse-url-of-buffer'.")
 
+(defvar sepia-complete-methods t
+"* Non-nil if Sepia should try to complete methods for \"$x->\".
+
+NOTE: this feature can be problematic, since it evaluates the
+object in order to find its type.  Currently completion is only
+attempted for objects that are simple scalars.")
+
+(defvar sepia-indent-expand-abbrev t
+"* If non-NIL, `sepia-indent-or-complete' tries `expand-abbrev'.")
+
+(defvar sepia-use-completion t
+  "* Use completion based on Xref database.  Turning this off may
+speed up some operations, if you don't mind losing completion.")
+
+(defvar sepia-eval-defun-include-decls t
+  "* Generate and use a declaration list for ``sepia-eval-defun''.
+Without this, code often will not parse; with it, evaluation may
+be a bit less responsive.  Note that since this only includes
+subs from the evaluation package, it may not always work.")
+
+(defvar sepia-prefix-key "\M-."
+  "* Prefix for functions in ``sepia-keymap''.")
+
+;;; User options end here.
+
 (defvar sepia-process nil
 "The perl process with which we're interacting.")
 (defvar sepia-output nil
@@ -64,41 +95,44 @@ look for \";;;###\" lisp evaluation markers.")
   "")
 
 (defun sepia-eval-raw (str)
-"Evaluate perl code STR, returning a pair (RESULT-STRING . OUTPUT)."
-  (let (ocpof)
-    (unwind-protect
-         (let ((sepia-output "")
-               (start 0))
-           (with-current-buffer (process-buffer sepia-process)
-             (setq ocpof comint-preoutput-filter-functions
-                   comint-preoutput-filter-functions '(sepia-collect-output)))
-           (setq str (concat "local $Sepia::STOPDIE=0;"
-                             "local $Sepia::STOPWARN=0;"
-                             "{ package " (sepia-buffer-package) ";"
-                             str " }\n"))
-           (comint-send-string sepia-process
-                               (concat (format "<<%d\n" (length str)) str))
-           (while (not (and sepia-output
-                            (string-match "> $" sepia-output)))
-             (accept-process-output sepia-process))
-           (if (string-match "^;;;[0-9]+\n" sepia-output)
-               (cons
-                (let* ((x (read-from-string sepia-output
-                                            (+ (match-beginning 0) 3)))
-                       (len (car x))
-                       (pos (cdr x)))
-                  (prog1 (substring sepia-output (1+ pos) (+ len pos 1))
-                    (setq start (+ pos len 1))))
-                (and (string-match ";;;[0-9]+\n" sepia-output start)
-                     (let* ((x (read-from-string
-                                sepia-output
-                                (+ (match-beginning 0) 3)))
-                            (len (car x))
-                            (pos (cdr x)))
-                       (substring sepia-output (1+ pos) (+ len pos 1)))))
-               (cons sepia-output nil)))
-      (with-current-buffer (process-buffer sepia-process)
-        (setq comint-preoutput-filter-functions ocpof)))))
+  "Evaluate perl code STR, returning a pair (RESULT-STRING . OUTPUT)."
+  (if (sepia-live-p)
+      (let (ocpof)
+        (unwind-protect
+             (let ((sepia-output "")
+                   (start 0))
+               (with-current-buffer (process-buffer sepia-process)
+                 (setq ocpof comint-preoutput-filter-functions
+                       comint-preoutput-filter-functions
+                       '(sepia-collect-output)))
+               (setq str (concat "local $Sepia::STOPDIE=0;"
+                                 "local $Sepia::STOPWARN=0;"
+                                 "{ package " (sepia-buffer-package) ";"
+                                 str " }\n"))
+               (comint-send-string sepia-process
+                                   (concat (format "<<%d\n" (length str)) str))
+               (while (not (and sepia-output
+                                (string-match "> $" sepia-output)))
+                 (accept-process-output sepia-process))
+               (if (string-match "^;;;[0-9]+\n" sepia-output)
+                   (cons
+                    (let* ((x (read-from-string sepia-output
+                                                (+ (match-beginning 0) 3)))
+                           (len (car x))
+                           (pos (cdr x)))
+                      (prog1 (substring sepia-output (1+ pos) (+ len pos 1))
+                        (setq start (+ pos len 1))))
+                    (and (string-match ";;;[0-9]+\n" sepia-output start)
+                         (let* ((x (read-from-string
+                                    sepia-output
+                                    (+ (match-beginning 0) 3)))
+                                (len (car x))
+                                (pos (cdr x)))
+                           (substring sepia-output (1+ pos) (+ len pos 1)))))
+                   (cons sepia-output nil)))
+          (with-current-buffer (process-buffer sepia-process)
+            (setq comint-preoutput-filter-functions ocpof))))
+      '("")))
 
 (defun sepia-eval (str &optional context detailed)
 "Evaluate STR in CONTEXT (void by default), and return its result
@@ -162,6 +196,8 @@ each inferior Perl prompt."
     (define-key map "\C-\M-x" 'sepia-eval-defun)
     (define-key map "\C-c\C-l" 'sepia-load-file)
     (define-key map "\C-c\C-d" 'sepia-view-pod)
+    (define-key map "\C-c\C-r" 'sepia-repl)
+    (define-key map "\C-c\C-s" 'sepia-scratch)
     (define-key map (kbd "TAB") 'sepia-indent-or-complete)))
 
 (defun sepia-comint-setup ()
@@ -171,7 +207,7 @@ each inferior Perl prompt."
        '(sepia-complete-symbol comint-dynamic-complete-filename))
   (set (make-local-variable 'comint-preoutput-filter-functions)
        '(sepia-watch-for-eval))
-  (set (make-local-variable 'comint-use-prompt-regexp) t)
+  ;; (set (make-local-variable 'comint-use-prompt-regexp) t)
   (modify-syntax-entry ?: "_")
   (modify-syntax-entry ?> ".")
   (use-local-map (copy-keymap (current-local-map)))
@@ -182,27 +218,22 @@ each inferior Perl prompt."
        "^[^>\n]*> *")
   )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Keymaps, user variables, setup.
-
-(defvar sepia-use-completion t
-  "* Use completion based on Xref database.  Turning this off may
-speed up some operations, if you don't mind losing completion.")
-
-(defvar sepia-eval-defun-include-decls t
-  "* Generate and use a declaration list for ``sepia-eval-defun''.
-Without this, code often will not parse; with it, evaluation may
-be a bit less responsive.  Note that since this only includes
-subs from the evaluation package, it may not always work.")
-
-(defvar sepia-prefix-key "\M-."
-  "* Prefix for functions in ``sepia-keymap''.")
-
 ;;;###autoload
 (defun sepia-perldoc-this (name)
   "View perldoc for module at point."
   (interactive (list (sepia-interactive-arg 'module)))
-  (funcall sepia-perldoc-function name))
+  (let ((wc (current-window-configuration))
+        (old-pd (symbol-function 'w3m-about-perldoc))
+        (old-pdb (symbol-function 'w3m-about-perldoc-buffer)))
+    (flet ((w3m-about-perldoc (&rest args)
+             (let ((res (apply old-pd args)))
+               (or res (error "lose: %s" args))))
+           (w3m-about-perldoc-buffer (&rest args)
+             (let ((res (apply old-pdb args)))
+               (or res (error "lose: %s" args)))))
+      (condition-case stuff
+          (funcall sepia-perldoc-function name)
+        (error (set-window-configuration wc))))))
 
 (defun sepia-view-pod ()
   "View POD for the current buffer."
@@ -250,13 +281,16 @@ For modules within packages, see `sepia-module-list'."
       (concat mod "::" sym)
       sym))
 
+(defun sepia-live-p ()
+  (and (processp sepia-process)
+       (eq (process-status sepia-process) 'run)))
+
 ;;;###autoload
 (defun sepia-repl ()
   "Start the Sepia REPL."
   (interactive)
   (sepia-init) ;; set up keymaps, etc.
-  (unless (and (processp sepia-process)
-               (eq (process-status sepia-process) 'run))
+  (unless (sepia-live-p)
     (setq sepia-process
           (get-buffer-process
            (comint-exec (get-buffer-create "*sepia-repl*")
@@ -305,7 +339,6 @@ module in question be loaded.")))
 
 (defvar sepia-sub-re "^\\s *sub\\s +\\(.+\\_>\\)")
 
-
 (defvar sepia-history nil)
 
 (defun sepia-interactive-arg (&optional type)
@@ -323,12 +356,13 @@ symbol at point."
 			(function (xref-apropos str))
 			(module (xref-mod-apropos str))
 			(t nil)))))
+         (prompt (if default
+                     (format "%s [%s]: " text default)
+                     (format "%s: " text)))
 	 (ret (if sepia-use-completion
-		  (completing-read (format "%s [%s]: " text default)
-				   choices nil nil nil 'sepia-history
+		  (completing-read prompt choices nil nil nil 'sepia-history
 				   default)
-		  (read-string (format "%s [%s]: " text default)
-			       nil 'sepia-history default))))
+		  (read-string prompt nil 'sepia-history default))))
     (push ret sepia-history)
     ret))
 
@@ -429,7 +463,6 @@ buffer.
 	   (sepia-set-found ret ',(or prompt 'function))
 	   (sepia-next)))))
 
-
 (define-sepia-query sepia-defs
     "Find all definitions of sub."
   xref-apropos
@@ -488,9 +521,7 @@ buffer.
 
 When called interactively (or with JUMP-TO true), go directly
 to this location."
-  (interactive (list (or (thing-at-point 'symbol)
-                         (completing-read "Function: " 'xref-completions))
-                     t))
+  (interactive (list (sepia-interactive-arg 'function) t))
   (let* ((fl (or (car (xref-location name))
                  (car (remove-if #'null
                                  (apply #'xref-location (xref-apropos name)))))))
@@ -713,25 +744,15 @@ also rebuild the xref database."
 (defun sepia-ident-before-point ()
   "Find the Perl identifier at or preceding point."
   (save-excursion
-    (when (looking-at "[%$@*&]")
-      (forward-char 1))
     (let* ((end (point))
            (beg (progn
-                 (when (re-search-backward "[^A-Za-z_0-9:]" nil 'mu)
-                   (forward-char 1))
-                 (point)))
+                  (skip-chars-backward "a-zA-Z0-9_:")
+                  (point)))
            (sigil (if (= beg (point-min))
                       nil
                       (char-before (point)))))
       (list (when (member sigil '(?$ ?@ ?% ?* ?&)) sigil)
             (buffer-substring-no-properties beg end)))))
-
-(defvar sepia-complete-methods t
-"* Non-nil if Sepia should try to complete methods for \"$x->\".
-
-NOTE: this feature can be problematic, since it evaluates the
-object in order to find its type.  Currently completion is only
-attempted for objects that are simple scalars.")
 
 (defun sepia-simple-method-before-point ()
   "Find the \"simple\" method call before point.
@@ -757,7 +778,9 @@ expressions would lead to disaster."
             ((char-equal (char-before (point)) ?$)
              (setq beg (1- (point))))
             ;; X::Class->method
-            ((sepia-looks-like-module (thing-at-point 'symbol))
+            ((multiple-value-bind (type obj) (sepia-ident-at-point)
+               (and (not type)
+                    (sepia-looks-like-module obj)))
              (setq beg (point))))
           (when beg
             (list (buffer-substring-no-properties beg arrow)
@@ -866,8 +889,6 @@ The function is intended to be bound to \\M-TAB, like
           (case (length completions)
             (0 (message "No completions for %s." name) nil)
             (1 ;; XXX - skip sigil to match s-i-before-point
-             (when (looking-at "[%$@*&]")
-               (forward-char 1))
              (delete-region (- (point) len) (point))
              (insert (or type "") (car completions))
              ;; Hide stale completions buffer (stolen from lisp.el).
@@ -883,9 +904,6 @@ The function is intended to be bound to \\M-TAB, like
                      (insert (or type "") new))))))
         t)))
 
-(defvar sepia-indent-expand-abbrev t
-"* If non-NIL, `sepia-indent-or-complete' tries `expand-abbrev'.")
-
 (defun sepia-indent-or-complete ()
 "Indent the current line or complete the symbol around point.
 
@@ -900,8 +918,8 @@ This function is intended to be bound to TAB."
                (not (bolp))
                (or (eq last-command 'sepia-indent-or-complete)
                    (looking-at "\\_>")))
-      (when (or (not sepia-indent-expand-abbrev)
-               (expand-abbrev))
+      (unless (and sepia-indent-expand-abbrev
+                   (expand-abbrev))
         (sepia-complete-symbol)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1038,18 +1056,32 @@ Does not require loading.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Miscellany
 
+(defun sepia-string-count-matches (reg str)
+  (let ((n 0)
+        (pos -1))
+    (while (setq pos (string-match reg str (1+ pos)))
+      (incf n))
+    n))
+
 (defun sepia-perlize-region-internal (pre post beg end replace-p)
   "Pass buffer text from BEG to END through a Perl command."
   (let* ((exp (concat pre "<<'SEPIA_END_REGION';\n"
                       (buffer-substring-no-properties beg end)
                       (if (= (char-before end) ?\n) "" "\n")
 		      "SEPIA_END_REGION\n" post))
-	 (new-str (sepia-eval-raw exp)))
+	 (new-str (car (sepia-eval-raw exp))))
     (if replace-p
 	(progn (delete-region beg end)
 	       (goto-char beg)
 	       (insert new-str))
-	(message new-str))))
+        (if (> (sepia-string-count-matches "\n" new-str) 2)
+            (with-current-buffer (get-buffer-create "*sepia-filter*")
+              (let ((inhibit-read-only t))
+                (erase-buffer)
+                (insert new-str)
+                (goto-char (point-min))
+                (pop-to-buffer (current-buffer))))
+            (message "%s" new-str)))))
 
 (defun sepia-eol-from (pt &optional n)
   (save-excursion
@@ -1070,9 +1102,9 @@ Does not require loading.")
 prefix arg, replace the region with the result."
   (interactive "MExpression: \nr\nP")
   (sepia-perlize-region-internal
-   "do { my $ret='';my $region = "
-   (concat "; for (split /\n/, $region) { do { " expr
-	   ";}; $ret.=\"$_\\n\"}; $ret}")
+   "do { my $ret=''; local $_; local $/ = \"\\n\"; my $region = "
+   (concat "; for (split /(?<=\\n)/, $region, -1) { " expr
+	   "} continue { $ret.=$_}; $ret}")
    (sepia-bol-from beg) (sepia-eol-from end) replace-p))
 
 (defun sepia-perl-ne-region (expr beg end &optional replace-p)
@@ -1083,7 +1115,7 @@ prefix arg, replace the region with the result."
   (interactive "MExpression:\nr\nP")
   (sepia-perlize-region-internal
    "do { my $ret='';my $region = "
-   (concat "; for (split /\n/, $region) { $ret .= do { " expr
+   (concat "; for (split /(?<=\\n)/, $region, -1) { $ret .= do { " expr
 	   ";} }; ''.$ret}")
    (sepia-bol-from beg) (sepia-eol-from end) replace-p))
   
@@ -1097,9 +1129,7 @@ With prefix arg, replace the region with the result."
 
 (defun sepia-core-version (module &optional message)
   "Report the first version of Perl shipping with MODULE."
-  (interactive (list (read-string "Module: "
-                                  nil nil (sepia-thing-at-point 'symbol))
-                     t))
+  (interactive (list (sepia-interactive-arg 'module) t))
   (let* ((version
           (sepia-eval
            (format "eval { Sepia::core_version('%s') }" module)
@@ -1125,25 +1155,36 @@ With prefix arg, replace the region with the result."
 (defun sepia-eval-defun ()
   "Re-evaluate the current function and rebuild its Xrefs."
   (interactive)
-  (save-excursion
-    (let* ((pt (point))
-           (end (progn (end-of-defun) (point)))
-           (beg (progn (goto-char pt) (beginning-of-defun) (point))))
+  (let (pt end beg sub res)
+    (save-excursion
+      (setq pt (point)
+            end (progn (end-of-defun) (point))
+            beg (progn (goto-char pt) (beginning-of-defun) (point)))
       (goto-char beg)
       (when (looking-at "^sub\\s +\\(.+\\_>\\)")
-	(let* ((sub (match-string 1))
-	       (sepia-eval-package
-		(sepia-guess-package sub (buffer-file-name)))
-	       (body (buffer-substring-no-properties beg end))
-	       (sepia-eval-file (buffer-file-name))
-	       (sepia-eval-line (line-number-at-pos beg)))
-	  (sepia-eval (if sepia-eval-defun-include-decls
-			  (concat
-			   (apply #'concat (xref-mod-decls sepia-eval-package))
-			   body)
-			  body))
-	  (xref-redefined sub sepia-eval-package)
-	  (message "Defined %s" sub))))))
+        (let ((sepia-eval-package (sepia-guess-package sub (buffer-file-name)))
+              (body (buffer-substring-no-properties beg end))
+              (sepia-eval-file (buffer-file-name))
+              (sepia-eval-line (line-number-at-pos beg)))
+          (setq sub (match-string 1)
+                res
+                (sepia-eval-raw
+                 (if sepia-eval-defun-include-decls
+                     (concat
+                      (apply #'concat (xref-mod-decls sepia-eval-package))
+                      body)
+                     body))))))
+    (if (cdr res)
+        (progn
+          (when (string-match " line \\([0-9]+\\), near \"\\([^\"]*\\)\""
+                              (cdr res))
+            (goto-char beg)
+            (beginning-of-line (parse-integer (match-string 1 (cdr res))))
+            (search-forward (match-string 2 (cdr res))
+                            (sepia-eol-from (point)) t))
+          (message "Error: %s" (cdr res)))
+        (xref-redefined sub sepia-eval-package)
+        (message "Defined %s" sub))))
 
 ;;;###autoload
 (defun sepia-eval-expression (expr &optional list-p message-p)
@@ -1248,7 +1289,7 @@ used for eldoc feedback."
 
 (defun sepia-looks-like-module (obj)
   (let (case-fold-search)
-    (or (string-match "^\\([A-Z].*::\\)?[A-Z]+[a-z]+\\sw*$" obj)
+    (or (string-match "^\\([A-Z].*::\\)?[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
         (string-match
          (eval-when-compile (regexp-opt '("strict" "vars" "warnings" "lib")))
          obj))))
@@ -1266,7 +1307,9 @@ calling ``cperl-describe-perl-symbol''."
       (or (gethash obj (ecase (or type ?&)
                          (?& sepia-doc-map)
                          ((?$ ?@ ?%) sepia-var-doc-map)
-                         (nil sepia-module-doc-map)))
+                         (nil sepia-module-doc-map)
+                         (?* sepia-module-doc-map)
+                         (t (error "sepia-symbol-info: %s" type))))
           ;; Loathe cperl a bit.
           (flet ((message (&rest blah) (apply #'format blah)))
             (let* (case-fold-search

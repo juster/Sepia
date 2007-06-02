@@ -19,7 +19,7 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.76_01';
+$VERSION = '0.76_02';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -207,24 +207,19 @@ sub completions
 
 sub method_completions
 {
-    my ($expr, $fn, $eval) = @_;
-    $expr =~ s/^\s+//;
-    $expr =~ s/\s+$//;
-    $eval ||= 'eval';
+    my ($x, $fn, $eval) = @_;
+    $x =~ s/^\s+//;
+    $x =~ s/\s+$//;
+    $eval ||= 'CORE::eval';
     no strict;
-    my $x;
-    if ($x =~ /^\$/) {
-        $x = $eval->("ref($expr)");
-    } elsif ($eval->('defined(%{'.$expr.'::})')) {
-        $x = $expr;
-    } else {
-        return;
-    }
+    return unless ($x =~ /^\$/ && ($x = $eval->("ref($x)")))
+        || $eval->('defined(%{'.$x.'::})');
     unless ($@) {
         my $re = _apropos_re $fn;
-        print STDERR "$x / $re\n";
+        ## Filter out overload methods "(..."
         return sort { $a cmp $b } map { s/.*:://; $_ }
-            grep { defined *{$_}{CODE} && /::$re/ } methods($x, 1);
+            grep { defined *{$_}{CODE} && /::$re/ && !/\(/ }
+                methods($x, 1);
     }
 }
 
@@ -365,7 +360,7 @@ sub mod_decls
 	my $sn = $_;
 	my $proto = prototype(\&{"$pack\::$sn"});
 	$proto = defined($proto) ? "($proto)" : '';
-	"sub $sn $proto;\n";
+	"sub $sn $proto;";
     } mod_subs($pack);
     return wantarray ? @ret : join '', @ret;
 }
@@ -539,13 +534,24 @@ sub print_dumper
 {
     local $Data::Dumper::Deparse = 1;
     local $Data::Dumper::Indent = 0;
+    local $_;
     no strict;
     eval {
-        local $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+        $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
         s/^\$VAR1 = //;
         s/;$//;
-        $_;
     };
+    if (length $_ > ($ENV{COLUMNS} || 80)) {
+        $Data::Dumper::Indent = 2;
+        eval {
+            $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+            s/\A\$VAR1 = //;
+            s/;\Z//;
+        };
+        s/\A\$VAR1 = //;
+        s/;\Z//;
+    }
+    $_;
 }
 
 sub print_plain
@@ -572,7 +578,7 @@ sub print_dump
     if ($@) {
         print_dumper;
     } else {
-        Data::Dump::dump;
+        Data::Dump::dump(\@res);
     }
 }
 
@@ -586,7 +592,8 @@ sub printer
     my $str;
     if ($iseval) {
         $res = "@res";
-    } elsif (@res == 1 && (ref $res[0]) =~ /^PDL/) {
+    } elsif (@res == 1 && UNIVERSAL::can($res[0], '()')) {
+        # overloaded?
         $res = $res[0];
     } elsif (!$iseval && $PRINT_PRETTY && @res > 1 && !grep ref, @res) {
         $res = columnate(sort @res);
