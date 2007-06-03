@@ -19,28 +19,24 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.76_03';
+$VERSION = '0.90_01';
 @ISA = qw(Exporter);
 
 require Exporter;
 use strict;
+use B;
+use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
 use Cwd 'abs_path';
 use Scalar::Util 'looks_like_number';
 use Module::Info;
 use Text::Abbrev;
-use Carp;
-use B;
-use Sepia::Debug;
 
-use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK %REPL_DOC
+use vars qw($PS1 %REPL %RK %REPL_DOC
+            $REPL_LEVEL $REPL_IN $REPL_OUT
             $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
             $ISEVAL);
 
 BEGIN {
-    eval { require PadWalker; import PadWalker qw(peek_my) };
-    if ($@) {
-        *peek_my = sub { +{ } };
-    }
     eval { require Lexical::Persistence; import Lexical::Persistence };
     if ($@) {
         *repl_strict = sub {
@@ -636,10 +632,6 @@ Behavior is controlled in part through the following package-globals:
 
 =item C<$PS1> -- the default prompt
 
-=item C<$STOPDIE> -- true to enter the inspector on C<die()>
-
-=item C<$STOPWARN> -- true to enter the inspector on C<warn()>
-
 =item C<$STRICT> -- whether 'use strict' is applied to input
 
 =item C<$WANTARRAY> -- evaluation context
@@ -660,9 +652,6 @@ displays arrays of scalars as columns.
 BEGIN {
     no strict;
     $PS1 = "> ";
-    $dies = 0;
-    $STOPDIE = 1;
-    $STOPWARN = 0;
     $PACKAGE = 'main';
     $WANTARRAY = 1;
     $PRINTER = \&Sepia::print_dumper;
@@ -722,42 +711,6 @@ sub Dump {
     eval {
         Data::Dumper->Dump([$_[0]], [$_[1]]);
     };
-}
-
-sub eval_in_env
-{
-    my ($expr, $env) = @_;
-    local $::ENV = $env;
-    my $str = '';
-    for (keys %$env) {
-        next unless /^([\$\@%])(.+)/;
-        $str .= "local *$2 = \$::ENV->{'$_'}; ";
-    }
-    eval "do { no strict; $str $expr }";
-}
-
-sub debug_upeval
-{
-    my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
-    print " <= $exp\n";
-    (0, eval_in_env($exp, peek_my(0+$lev)));
-}
-
-sub debug_inspect
-{
-    local $_ = shift;
-    for my $i (split) {
-        my $sub = (caller $i)[3];
-        next unless $sub;
-        my $h = peek_my($i);
-        print "[$i] $sub:\n";
-        no strict;
-        for (sort keys %$h) {
-            local @res = $h->{$_};
-            print "\t$_ = ", $PRINTER->(), "\n";
-        }
-    }
-    0;
 }
 
 sub repl_help
@@ -922,21 +875,6 @@ sub repl_shell
     return 0;
 }
 
-sub debug_backtrace
-{
-    for (my $i = 0; ; ++$i) {
-        my ($pack, $file, $line, $sub) = caller($i);
-        last unless $pack;
-        print "[".($i+1)."]\t$sub ($file:$line)\n";
-    }
-    0
-}
-
-sub debug_return
-{
-    (1, repl_eval(@_));
-}
-
 sub repl_eval
 {
     my ($buf, $wantarray, $pkg) = @_;
@@ -987,31 +925,17 @@ sub print_warnings
     }
 }
 
-my %dhooks = (
-    backtrace => \&Sepia::debug_backtrace,
-    inspect => \&Sepia::debug_inspect,
-    eval => \&Sepia::debug_upeval,
-    return => \&Sepia::debug_return,
-    # help => \&Sepia::debug_help,
-);
-my %debug_doc = (
-    backtrace =>
-        'backtrace       show backtrace',
-    inspect =>
-        'inspect N ...   inspect lexicals in frame(s) N ...',
-    eval =>
-        'eval N EXPR     evaluate EXPR in lexical environment of frame N',
-    return =>
-        'return EXPR     return EXPR',
-    quit =>
-        'quit            keep on dying/warning',
-);
-
 sub repl
 {
-    my ($fh, $level) = @_;
-    $level ||= 0;
-    select((select($fh), $|=1)[0]);
+    if (@_ > 0) {
+        $REPL_IN = $_[0];
+        $REPL_OUT = $_[1];
+    }
+    select $REPL_OUT;
+    $| = 1;
+
+    local $REPL_LEVEL = $REPL_LEVEL + 1;
+
     my $in;
     my $buf = '';
     my $sigged = 0;
@@ -1019,50 +943,10 @@ sub repl
     my $nextrepl = sub { $sigged = 1; };
 
     local *__;
-    my $MSG = "('\\C-c' to exit, ',h' for help)";
-    local *CORE::GLOBAL::die = sub {
-        ## Protect us against people doing weird things.
-        if ($STOPDIE && !$SIG{__DIE__}) {
-            my @dieargs = @_;
-            local $dies = $dies+1;
-            local $PS1 = "*$dies*> ";
-            no strict;
-            local %Sepia::REPL = (
-                %Sepia::REPL,
-                %dhooks,
-                die => sub { local $Sepia::STOPDIE=0; die @dieargs },
-                quit => sub { local $Sepia::STOPDIE=0; die @dieargs },
-            );
-            local %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %debug_doc);
-            local %Sepia::RK = abbrev keys %Sepia::REPL;
-            print "@_\n\tin ".caller()."\nDied $MSG\n";
-            return Sepia::repl($fh, 1);
-        }
-        CORE::die(Carp::shortmess @_);
-    };
+    local *CORE::GLOBAL::die = \&Sepia::Debug::die;
 
-    local *CORE::GLOBAL::warn = sub {
-        ## Again, this is above our pay grade:
-        if ($STOPWARN && $SIG{__WARN__} eq 'Sepia::sig_warn') {
-            my @dieargs = @_;
-            local $dies = $dies+1;
-            local $PS1 = "*$dies*> ";
-            no strict;
-            local %Sepia::REPL = (
-                %Sepia::REPL,
-                %dhooks,
-                warn => sub { local $Sepia::STOPWARN=0; warn @dieargs },
-                quit => sub { local $Sepia::STOPWARN=0; warn @dieargs }
-            );
-            local %Sepia::RK = abbrev keys %Sepia::REPL;
-            local %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %debug_doc);
-            print "@_\nWarned $MSG\n";
-            return Sepia::repl($fh, 1);
-        }
-        ## Avoid showing up in location information.
-        CORE::warn(Carp::shortmess @_);
-    };
-    print <<EOS if $level == 0;
+    local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
+    print <<EOS if $REPL_LEVEL == 1;
 Sepia version $Sepia::VERSION.
 Press ",h" for help, or "^D" or ",q" to exit.
 EOS
@@ -1070,7 +954,7 @@ EOS
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
     $SIG{$_} = $nextrepl for @sigs;
- repl: while (defined(my $in = <$fh>)) {
+ repl: while (defined(my $in = <$REPL_IN>)) {
             if ($sigged) {
                 $buf = '';
                 $sigged = 0;
@@ -1085,7 +969,7 @@ EOS
                 my $len = $1;
                 my $tmp;
                 $buf = $2;
-                while ($len && defined($tmp = read $fh, $buf, $len, length $buf)) {
+                while ($len && defined($tmp = read $REPL_IN, $buf, $len, length $buf)) {
                     $len -= $tmp;
                 }
             }

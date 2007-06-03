@@ -5,6 +5,7 @@ README
 Sepia.jpg
 lib/Sepia.pm
 lib/Sepia/Xref.pm
+lib/Sepia/Debug.pm
 sepia-ido.el
 sepia-tree.el
 sepia-w3m.el

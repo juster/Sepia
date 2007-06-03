@@ -374,7 +374,7 @@ external dependencies.
 
 @findex sepia-repl
 Sepia's second main contribution is an interactive interface (REPL) to
-an inferior Perl process.  The interface is based on comint mode, and
+an inferior Perl process.  The interface is based on GUD mode, and
 inherits many of its bindings; this chapter discusses only the Sepia
 extensions.  To start or switch to the repl, type @kbd{M-x sepia-repl}.
 As in Sepia mode, @key{TAB} in the REPL performs partial-word completion
@@ -448,13 +448,13 @@ optional pattern @var{regexp}.
 @node Debugger, Evaluation, Shortcuts, Interactive Perl
 @section Debugger
 
-Sepia uses Perl's debugger hooks and GUD mode to support a true debugger
-with breakpoints, single-stepping, etc.  However, the REPL overrides the
-@code{die()} and @code{warn()} operators, allowing it to intercept
-failures while their context is still available.  This makes it possible
-to produce a backtrace, inspect and modify global variables, and even
-continue execution.  If the PadWalker module is available, Sepia also
-provides functions to inspect and modify lexical variables.
+Sepia uses Perl's debugger hooks and GUD mode to support conditional
+breakpoints and single-stepping, and overrides Perl's @code{die()} to
+invoke the debugger rather than unwinding the stack.  This makes it
+possible to produce a backtrace, inspect and modify global variables,
+and even continue execution when a program tries to kill itself.  If the
+PadWalker module is available, Sepia also provides functions to inspect
+and modify lexical variables.
 
 The debugger has its own set of shortcuts, also prefixed by a comma.
 
@@ -462,23 +462,37 @@ The debugger has its own set of shortcuts, also prefixed by a comma.
 @item backtrace
 Show a backtrace.
 
-@item inspect @var{n}
-Inspect lexicals in frame @var{n}, counting upward (requires PadWalker).
+@item break @var{file}:@var{line} [@var{expr}]
+Set a breakpoint in @var{file} at @var{line}.  If @var{expr} is
+supplied, stop only if it evaluates to true.
+
+@item down @var{n}
+@itemx up @var{n}
+Move the current stack frame up or down by @var{n} (or one) frames.
 
 @item eval @var{n} @var{expr}
 Evaluate @var{expr} in the lexical environment of frame @var{n}
 (requires PadWalker).  @var{expr} should not transfer control out of
 this environment, but is free to modify its lexicals.
 
-@item return @var{expr}
-Continue execution as if @code{die()} or @code{warn()} had returned the
-value of @var{expr}, which is evaluated in the global environment.
+@item inspect @var{n}
+Inspect lexicals in frame @var{n}, counting upward from 1.
 
-@item die
+@item next [@var{n}]
+Advance @var{n} (or one) lines, skipping subroutine calls.
+
+@item quit
+@itemx die
 @itemx warn
-@itemx quit
-Continue dying or warning as the program would have done without
-debugger intervention.
+Continue as the program would have executed without debugger
+intervention, dying if the debugger was called from @code{die()}.
+
+@item return @var{expr}
+Continue execution as if @code{die()} had returned the value of
+@var{expr}, which is evaluated in the global environment.
+
+@item step [@var{n}]
+Step forward @var{n} (or one) lines, descending into subroutines.
 
 @end table
 

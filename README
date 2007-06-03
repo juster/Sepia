@@ -243,6 +243,11 @@ some operations, if you don't mind losing completion.
 ** (Hard) Use module, file, line to filter results (Emacs side)
 ** (Medium) Let sepia-next go backward
    Need to use a ring instead of a list for sepia-found.
+** (Medium) Use lexical environment more
+   ",eval" should use lexical evaluation whenever PadWalker's available.
+** (Hard) return from anything in the debugger
+   Make it possible to return from intermediate calls in the
+   debugger.  Returning from die() is not often useful.
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

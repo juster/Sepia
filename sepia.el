@@ -18,7 +18,7 @@
 ;;; Code:
 
 (require 'cperl-mode)
-(require 'comint)
+(require 'gud)
 (require 'cl)
 ;; try optional modules, but don't bitch if we fail:
 (require 'sepia-w3m nil t)
@@ -201,24 +201,6 @@ each inferior Perl prompt."
     (define-key map "\C-c!" 'sepia-set-cwd)
     (define-key map (kbd "TAB") 'sepia-indent-or-complete)))
 
-(defun sepia-comint-setup ()
-"Set up the inferior Perl process buffer."
-  (comint-mode)
-  (set (make-local-variable 'comint-dynamic-complete-functions)
-       '(sepia-complete-symbol comint-dynamic-complete-filename))
-  (set (make-local-variable 'comint-preoutput-filter-functions)
-       '(sepia-watch-for-eval))
-  ;; (set (make-local-variable 'comint-use-prompt-regexp) t)
-  (modify-syntax-entry ?: "_")
-  (modify-syntax-entry ?> ".")
-  (use-local-map (copy-keymap (current-local-map)))
-  (sepia-install-keys)
-  (local-set-key (kbd "TAB") 'comint-dynamic-complete)
-  (local-set-key "\C-a" 'comint-bol)
-  (set (make-local-variable 'comint-prompt-regexp)
-       "^[^>\n]*> *")
-  )
-
 ;;;###autoload
 (defun sepia-perldoc-this (name)
   "View perldoc for module at point."
@@ -299,11 +281,68 @@ For modules within packages, see `sepia-module-list'."
                         (append (mapcar (lambda (x) (concat "-I" x))
                                         sepia-perl5lib)
                                 '("-MSepia" "-MSepia::Xref"
-                                  "-e" "Sepia::repl(*STDIN)")))))
-      (with-current-buffer "*sepia-repl*"
-        (sepia-comint-setup))
-      (accept-process-output sepia-process 0 1))
+                                  "-e" "Sepia::repl(*STDIN, *STDOUT)")))))
+    (with-current-buffer "*sepia-repl*"
+      (sepia-repl-mode))
+    (accept-process-output sepia-process 0 1)
+    ;; Steal a bit from gud-common-init:
+    (setq gud-running t)
+    (setq gud-last-last-frame nil)
+    (set-process-filter sepia-process 'gud-filter)
+    (set-process-sentinel sepia-process 'gud-sentinel)
+    )
   (pop-to-buffer (get-buffer "*sepia-repl*")))
+
+(define-derived-mode sepia-repl-mode gud-mode "Sepia REPL"
+  "Major mode for the Sepia REPL."
+    (set (make-local-variable 'comint-dynamic-complete-functions)
+         '(sepia-complete-symbol comint-dynamic-complete-filename))
+    (set (make-local-variable 'comint-preoutput-filter-functions)
+         '(sepia-watch-for-eval))
+    ;; (set (make-local-variable 'comint-use-prompt-regexp) t)
+    (modify-syntax-entry ?: "_")
+    (modify-syntax-entry ?> ".")
+    ;; (use-local-map (copy-keymap (current-local-map)))
+    (sepia-install-keys sepia-repl-mode-map)
+    (define-key sepia-repl-mode-map
+        (kbd "<tab>") 'comint-dynamic-complete)
+    (define-key sepia-repl-mode-map "\C-a" 'comint-bol)
+    (set (make-local-variable 'comint-prompt-regexp) "^[^>\n]*> *")
+    (set (make-local-variable 'gud-target-name) "sepia")
+    (set (make-local-variable 'gud-marker-filter) 'sepia-gud-marker-filter)
+    (set (make-local-variable 'gud-minor-mode) 'sepia)
+
+    (setq gud-comint-buffer (current-buffer))
+    (setq gud-last-last-frame nil)
+    (setq gud-sepia-acc nil)
+
+    (gud-def gud-break ",break %f:%l" "\C-b" "Set breakpoint at current line.")
+    (gud-def gud-step ",step %p" "\C-s" "Step one line.")
+    (gud-def gud-next ",next %p" "\C-n" "Step one line, skipping calls.")
+    (gud-def gud-cont ",continue" "\C-c" "Continue.")
+    (gud-def gud-print "%e" "\C-p" "Evaluate something.")
+    (gud-def gud-remove ",delete %l %f" "\C-d" "Delete current breakpoint.")
+    (run-hooks 'sepia-repl-mode-hook))
+
+(defvar gud-sepia-acc nil
+  "Accumulator for `sepia-gud-marker-filter'.")
+
+(defun sepia-gud-marker-filter (str)
+  (setq gud-sepia-acc
+        (if gud-sepia-acc
+            (concat gud-sepia-acc str)
+            str))
+  (while (string-match "_<\\([^:>]+\\):\\([0-9]+\\)>\\(.*\\)" gud-sepia-acc)
+    (setq gud-last-last-frame gud-last-frame
+          gud-last-frame (cons
+                          (match-string 1 gud-sepia-acc)
+                          (string-to-number (match-string 2 gud-sepia-acc)))
+          gud-sepia-acc (match-string 3 gud-sepia-acc)))
+  (setq gud-sepia-acc
+        (if (string-match "_<\\(.*\\)" gud-sepia-acc)
+            (match-string 1 gud-sepia-acc)
+            nil))
+  str)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Xref
@@ -896,8 +935,8 @@ The function is intended to be bound to \\M-TAB, like
                                  (?& "CODE")
                                  (?* "IO")
                                  (t ""))
-                               (unless (eq major-mode 'comint-mode)
-                                 (sepia-function-at-point)))))
+                               (and (eq major-mode 'sepia-mode)
+                                    (sepia-function-at-point)))))
           ;; 3 - try a Perl built-in
           (when (and (not completions)
                      (or (not type) (eq type ?&)))

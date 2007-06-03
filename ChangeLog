@@ -1,7 +1,7 @@
 2007-06-02  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
+	* Major: replaced comint- with gud-based REPL, use real debugger.
 	* lib/Sepia/Debug.pm: "perl -d" support.
-	* sepia-gud.el: gud.el "support".
 	* lib/Sepia.pm (repl_shell): new command.
 	* sepia.el (sepia-eval-defun): detect errors, jump to first.
 	(sepia-comint-setup): don't set comint-use-prompt-regexp

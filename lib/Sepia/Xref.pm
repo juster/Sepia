@@ -29,6 +29,8 @@ most of its code.
 
 =cut
 
+# use Sepia '_apropos_re';
+require Sepia;
 BEGIN { *_apropos_re = *Sepia::_apropos_re; }
 $VERSION = '0.65';
 
@@ -38,8 +40,6 @@ use Cwd 'abs_path';
 use B qw(peekop class comppadlist main_start svref_2object walksymtable
          OPpLVAL_INTRO SVf_POK OPpOUR_INTRO OPf_MOD OPpDEREF_HV OPpDEREF_AV
 	 cstring);
-# use Sepia '_apropos_re';
-require Sepia;
 
 =head2 Variables
 
