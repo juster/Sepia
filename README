@@ -241,6 +241,8 @@ some operations, if you don't mind losing completion.
 ** (Medium) Support user-defined abbrevs in REPL
 ** (Easy) Clean up Perl side a bit more.
 ** (Hard) Use module, file, line to filter results (Emacs side)
+** (Medium) Let sepia-next go backward
+   Need to use a ring instead of a list for sepia-found.
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

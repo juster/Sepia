@@ -30,6 +30,7 @@ use Module::Info;
 use Text::Abbrev;
 use Carp;
 use B;
+use Sepia::Debug;
 
 use vars qw($PS1 $dies $STOPDIE $STOPWARN %REPL %RK %REPL_DOC
             $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY);
@@ -502,7 +503,7 @@ sub tolisp($)
         } else {
             ## XXX Elisp and perl have slightly different
             ## escaping conventions, so we do this crap instead.
-            $thing =~ s/["\\]/\\\1/g;
+            $thing =~ s/["\\]/\\$1/g;
             qq{"$thing"};
         }
     } elsif ($t eq 'GLOB') {
@@ -532,19 +533,21 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
 
 sub print_dumper
 {
+    eval { require Data::Dumper };
     local $Data::Dumper::Deparse = 1;
     local $Data::Dumper::Indent = 0;
     local $_;
     no strict;
+    my $thing = @res > 1 ? \@res : $res[0];
     eval {
-        $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+        $_ = Data::Dumper::Dumper($thing);
         s/^\$VAR1 = //;
         s/;$//;
     };
     if (length $_ > ($ENV{COLUMNS} || 80)) {
         $Data::Dumper::Indent = 2;
         eval {
-            $_ = Data::Dumper::Dumper(@res > 1 ? \@res : $res[0]);
+            $_ = Data::Dumper::Dumper($thing);
             s/\A\$VAR1 = //;
             s/;\Z//;
         };
@@ -673,6 +676,9 @@ BEGIN {
              strict => \&Sepia::repl_strict,
              quit => \&Sepia::repl_quit,
              reload => \&Sepia::repl_reload,
+             shell => \&Sepia::repl_shell,
+             debug => \&Sepia::Debug::repl_debug,
+             break => \&Sepia::Debug::repl_break,
          );
     %REPL_DOC = (
         cd =>
@@ -690,6 +696,8 @@ EOS
     'package PACKAGE    Set evaluation package to PACKAGE',
         quit =>
     'quit               Quit the REPL',
+        shell =>
+    'shell CMD ...      Run CMD in the shell.',
         strict =>
     'strict [0|1]       Turn \'use strict\' mode on or off',
         wantarray =>
@@ -906,6 +914,13 @@ sub repl_reload
     }
 }
 
+sub repl_shell
+{
+    my $cmd = shift;
+    print `$cmd 2>& 1`;
+    return 0;
+}
+
 sub debug_help
 {
     print <<EOS;
@@ -922,7 +937,12 @@ EOS
 
 sub debug_backtrace
 {
-    Carp::cluck;0
+    for (my $i = 0; ; ++$i) {
+        my ($pack, $file, $line, $sub) = caller($i);
+        last unless $pack;
+        print "[$i]\t$sub ($file:$line)\n";
+    }
+    0
 }
 
 sub debug_return
@@ -984,6 +1004,7 @@ sub print_warnings
 sub repl
 {
     my ($fh, $level) = @_;
+    $level ||= 0;
     select((select($fh), $|=1)[0]);
     my $in;
     my $buf = '';
@@ -1008,7 +1029,10 @@ sub repl
             local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, die => sub { local $Sepia::STOPDIE=0; die @dieargs });
+                %dhooks,
+                die => sub { local $Sepia::STOPDIE=0; die @dieargs },
+                quit => sub { local $Sepia::STOPDIE=0; die @dieargs },
+            );
             local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\n\tin ".caller()."\nDied $MSG\n";
             return Sepia::repl($fh, 1);
@@ -1024,7 +1048,10 @@ sub repl
             local $PS1 = "*$dies*> ";
             no strict;
             local %Sepia::REPL = (
-                %dhooks, warn => sub { local $Sepia::STOPWARN=0; warn @dieargs });
+                %dhooks,
+                warn => sub { local $Sepia::STOPWARN=0; warn @dieargs },
+                quit => sub { local $Sepia::STOPWARN=0; warn @dieargs }
+            );
             local %Sepia::RK = abbrev keys %Sepia::REPL;
             print "@_\nWarned $MSG\n";
             return Sepia::repl($fh, 1);
@@ -1032,7 +1059,7 @@ sub repl
         ## Avoid showing up in location information.
         CORE::warn(Carp::shortmess @_);
     };
-    print <<EOS if $dies == 0;
+    print <<EOS if $level == 0;
 Sepia version $Sepia::VERSION.
 Press ",h" for help, or "^D" or ",q" to exit.
 EOS

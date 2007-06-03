@@ -198,6 +198,7 @@ each inferior Perl prompt."
     (define-key map "\C-c\C-d" 'sepia-view-pod)
     (define-key map "\C-c\C-r" 'sepia-repl)
     (define-key map "\C-c\C-s" 'sepia-scratch)
+    (define-key map "\C-c!" 'sepia-set-cwd)
     (define-key map (kbd "TAB") 'sepia-indent-or-complete)))
 
 (defun sepia-comint-setup ()
@@ -297,7 +298,7 @@ For modules within packages, see `sepia-module-list'."
                         "perl" sepia-program-name nil
                         (append (mapcar (lambda (x) (concat "-I" x))
                                         sepia-perl5lib)
-                                '("-MData::Dumper" "-MSepia" "-MSepia::Xref"
+                                '("-MSepia" "-MSepia::Xref"
                                   "-e" "Sepia::repl(*STDIN)")))))
       (with-current-buffer "*sepia-repl*"
         (sepia-comint-setup))
@@ -337,7 +338,7 @@ module in question be loaded.")))
   (let ((th (thing-at-point what)))
     (and th (not (string-match "[ >]$" th)) th)))
 
-(defvar sepia-sub-re "^\\s *sub\\s +\\(.+\\_>\\)")
+(defvar sepia-sub-re "^ *sub\\s +\\(.+\\_>\\)")
 
 (defvar sepia-history nil)
 
@@ -390,9 +391,11 @@ symbol at point."
 "Find the file defining module MOD."
   (interactive (list (sepia-interactive-arg 'module)))
   (let ((fn (sepia-find-module-file mod)))
-    (when fn
-      (message "Module %s in %s." mod fn)
-      (pop-to-buffer (find-file-noselect (expand-file-name fn))))))
+    (if fn
+        (progn
+          (message "Module %s in %s." mod fn)
+          (pop-to-buffer (find-file-noselect (expand-file-name fn))))
+        (message "Can't find module %s." mod))))
 
 (defmacro ifa (test then &rest else)
   `(let ((it ,test))
@@ -595,32 +598,47 @@ to this location."
 (defun sepia-beginning-of-defun (&optional n)
 "Move to beginning of current function.
 
-If prefix argument given, move N functions backward."
+The prefix argument is the same as for `beginning-of-defun'."
   (interactive "p")
-  (let ((here (point)))
-    (beginning-of-line)
-    (if (and (not (= here (point)))
-             (looking-at sepia-sub-re))
-        (point)
-        (sepia-safe-bodf n)
-        (let* ((end (point))
-               (beg (progn (forward-line -3) (point))))
-          (goto-char end)
-          (re-search-backward sepia-sub-re beg t)))))
+  (setq n (or n 1))
+  (ignore-errors
+    (when (< n 0)
+      (sepia-end-of-defun (- n))
+      (setq n 1))
+    (re-search-backward sepia-sub-re nil nil n)))
+
+(defun sepia-inside-defun ()
+  "True if point is inside a sub."
+  (condition-case nil
+      (save-excursion
+        (let ((cur (point)))
+          (re-search-backward sepia-sub-re)
+          (when (< (point) cur)
+            (search-forward "{")
+            (backward-char 1)
+            (forward-sexp)
+            (> (point) cur))))
+    (error nil)))
 
 (defun sepia-end-of-defun (&optional n)
   "Move to end of current function.
 
-If prefix argument given, move N functions forward."
+The prefix argument is the same as for `end-of-defun'."
   (interactive "p")
-  (let ((here (point)))
-    ;; (sepia-safe-bodf)
-    (when (looking-at sepia-sub-re)
-      (forward-line 1))
-    (sepia-safe-eodf n)
-    (when (and (>= here (point))
-               (re-search-forward sepia-sub-re nil t))
-      (sepia-safe-eodf))
+  (setq n (or n 1))
+  (when (< n 0)
+    (sepia-beginning-of-defun (- n))
+    (setq n 1))
+  ;; If we're outside a defun, skip to the next
+  (ignore-errors
+    (unless (sepia-inside-defun)
+      (re-search-forward sepia-sub-re)
+      (forward-char 1))
+    (dotimes (i n)
+      (re-search-backward sepia-sub-re)
+      (search-forward "{")
+      (backward-char 1)
+      (forward-sexp))
     (point)))
 
 (defun sepia-defun-around-point (&optional where)
@@ -1155,18 +1173,22 @@ With prefix arg, replace the region with the result."
 (defun sepia-eval-defun ()
   "Re-evaluate the current function and rebuild its Xrefs."
   (interactive)
-  (let (pt end beg sub res)
+  (let (pt end beg sub res
+           sepia-eval-package
+           sepia-eval-file
+           sepia-eval-line)
     (save-excursion
       (setq pt (point)
             end (progn (end-of-defun) (point))
-            beg (progn (goto-char pt) (beginning-of-defun) (point)))
+            beg (progn (beginning-of-defun) (point)))
       (goto-char beg)
       (when (looking-at "^sub\\s +\\(.+\\_>\\)")
-        (let ((sepia-eval-package (sepia-guess-package sub (buffer-file-name)))
-              (body (buffer-substring-no-properties beg end))
-              (sepia-eval-file (buffer-file-name))
-              (sepia-eval-line (line-number-at-pos beg)))
-          (setq sub (match-string 1)
+        (setq sub (match-string 1))
+        (let ((body (buffer-substring-no-properties beg end)))
+          
+          (setq sepia-eval-package (sepia-guess-package sub (buffer-file-name))
+                sepia-eval-file (buffer-file-name)
+                sepia-eval-line (line-number-at-pos beg)
                 res
                 (sepia-eval-raw
                  (if sepia-eval-defun-include-decls
@@ -1221,6 +1243,10 @@ With prefix arg, replace the region with the result."
   "Line at which ``sepia-eval'' evaluates perl expressions.")
 
 (defun sepia-set-cwd (dir)
+  "Set the inferior Perl process's working directory to DIR.
+
+When called interactively, the current buffer's
+`default-directory' is used."
   (interactive (list default-directory))
   (sepia-call "Cwd::chdir" dir))
 
@@ -1234,37 +1260,48 @@ With prefix arg, replace the region with the result."
 (defun sepia-doc-scan-buffer ()
   (save-excursion
     (goto-char (point-min))
-    (loop while (re-search-forward
+    (loop
+       while (re-search-forward
 		 "^=\\(item\\|head[2-9]\\)\\s +\\([%$&@A-Za-z_].*\\)" nil t)
-       if (ignore-errors
-            (let* ((s1 (match-string 2))
-                   (s2 (let ((case-fold-search nil))
-                         (replace-regexp-in-string
-                          "[A-Z]<\\([^>]+\\)>" "\\1" s1)))
-                   (longdoc
+       if
+         (ignore-errors
+           (let ((short (match-string 2)) longdoc)
+              (setq short
+                    (let ((case-fold-search nil))
+                      (replace-regexp-in-string
+                       "E<lt>" "<"
+                       (replace-regexp-in-string
+                        "E<gt>" ">"
+                        (replace-regexp-in-string
+                         "[A-DF-Z]<\\([^<>]+\\)>" "\\1" short)))))
+              (while (string-match "^\\s *[A-Z]<\\(.*\\)>\\s *$" short)
+                (setq short (match-string 1 short)))
+              (setq longdoc
                     (let ((beg (progn (forward-line 2) (point)))
                           (end (1- (re-search-forward "^=" nil t))))
                       (forward-line -1)
                       (goto-char beg)
                       (if (re-search-forward "^\\(.+\\)$" end t)
-                          (concat s2 ": "
+                          (concat short ": "
                                   (substring-no-properties
                                    (match-string 1)
                                    0 (position ?. (match-string 1))))
-                          s2))))
+                          short)))
               (cond
                 ;; e.g. "$x -- this is x"
                 ((string-match "^[%$@]\\([A-Za-z0-9_:]+\\)\\s *--\\s *\\(.*\\)"
-                               s2)
-                 (list 'variable (match-string-no-properties 1 s2)
-                       (or (and (equal s2 (match-string 1 s2)) longdoc) s2)))
+                               short)
+                 (list 'variable (match-string-no-properties 1 short)
+                       (or (and (equal short (match-string 1 short)) longdoc)
+                           short)))
                 ;; e.g. "C<foo(BLAH)>" or "$x = $y->foo()"
-                ((string-match "\\([A-Za-z0-9_:]+\\)\\s *\\(\\$\\|(\\)" s2)
-                 (list 'function (match-string-no-properties 1 s2)
-                       (or (and (equal s2 (match-string 1 s2)) longdoc) s2)))
+                ((string-match "\\([A-Za-z0-9_:]+\\)\\s *\\(\\$\\|(\\)" short)
+                 (list 'function (match-string-no-properties 1 short)
+                       (or (and (equal short (match-string 1 short)) longdoc)
+                           short)))
                 ;; e.g. "$x this is x" (note: this has to come last)
-                ((string-match "^[%$@]\\([^( ]+\\)" s2)
-                 (list 'variable (match-string-no-properties 1 s2) longdoc)))))
+                ((string-match "^[%$@]\\([^( ]+\\)" short)
+                 (list 'variable (match-string-no-properties 1 short) longdoc)))))
        collect it)))
 
 (defun sepia-buffer-package ()
