@@ -448,20 +448,19 @@ optional pattern @var{regexp}.
 @node Debugger, Evaluation, Shortcuts, Interactive Perl
 @section Debugger
 
-Unfortunately Sepia does @emph{not} use Perl's debugger hooks, so it
-does not support a true debugger with breakpoints, single-stepping, etc.
-However, the REPL overrides the @code{die()} and @code{warn()}
-operators, allowing it to intercept failures while their context is
-still available.  This makes it possible to produce a backtrace, inspect
-and modify global variables, and even continue execution.  If the PadWalker
-module is available, Sepia also provides functions to inspect and modify
-lexical variables.
+Sepia uses Perl's debugger hooks and GUD mode to support a true debugger
+with breakpoints, single-stepping, etc.  However, the REPL overrides the
+@code{die()} and @code{warn()} operators, allowing it to intercept
+failures while their context is still available.  This makes it possible
+to produce a backtrace, inspect and modify global variables, and even
+continue execution.  If the PadWalker module is available, Sepia also
+provides functions to inspect and modify lexical variables.
 
 The debugger has its own set of shortcuts, also prefixed by a comma.
 
 @table @kbd
 @item backtrace
-Show a backtrace with @code{Carp::cluck}.
+Show a backtrace.
 
 @item inspect @var{n}
 Inspect lexicals in frame @var{n}, counting upward (requires PadWalker).

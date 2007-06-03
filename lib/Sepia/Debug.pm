@@ -2,6 +2,10 @@ package Sepia::Debug;
 # use Sepia;
 use Text::Abbrev;
 
+## Just leave it on -- with $DB::trace = 0, there doesn't seem
+## to be a perforamnce penalty!
+BEGIN { $^P = 0x303 }
+
 sub repl_debug
 {
     debug(@_);
@@ -14,13 +18,14 @@ sub debug
     return if $new == $DB::trace;
     $DB::trace = $new;
     if ($DB::trace) {
-        $^P = 0x2 | 0x10 | 0x100 | 0x200;
-        *DB::DB = \&db_db;
+        # $^P = 0x2 | 0x10 | 0x100 | 0x200;
+        # *DB::DB = \&db_db;
         $DB::trace = 1;
         print "debug ON\n";
     } else {
-        *DB::DB = sub {};
-        $^P = 0;
+        # *DB::DB = sub {};
+
+        # $^P = 0;
         print "debug OFF\n";
         $DB::trace = 0;
     }
@@ -29,8 +34,13 @@ sub debug
 sub breakpoint
 {
     my ($file, $line, $cond) = @_;
-    print "break $file:$line\n";
+    if (!defined $main::{"_<$file"} && $file !~ /^\//) {
+        ($file) = grep /^_<.*\/\Q$file\E$/, keys %main::;
+        return unless $file;
+        $file =~ s/^_<//;
+    }
     $main::{"_<$file"}{$line} = $cond || 1;
+    $file;
 }
 
 sub repl_break
@@ -39,7 +49,9 @@ sub repl_break
     $arg =~ s/^\s+//;
     $arg =~ s/\s+$//;
     my ($f, $l) = split /:/, $arg;
-    breakpoint $f, $l;
+    $f ||= $file;
+    $l ||= $line;
+    print "break ", breakpoint($f, $l), "\n";
     0;
 }
 
@@ -72,13 +84,7 @@ my %REPL = (
         $DB::single = 1; 1
     },
 
-    break => sub {
-        my ($f, $l) = split /:/, shift;
-        $f ||= $file;
-        $l ||= $line;
-        breakpoint $f, $l;
-        0
-    },
+    break => \&repl_break,
 
     list => sub {
         my @lines = eval shift;
@@ -112,9 +118,12 @@ my %REPL_DOC = (
     # die => 'die/warn        keep on dying/warning',
  );
 
-sub db_db
+sub DB::DB
 {
+    return if $Sepia::ISEVAL;
     local ($pack, $file, $line) = caller($level);
+    ## Don't do anything if we're inside an eval request, even if in
+    ## single-step mode.
     return unless $DB::single || exists $main::{"_<$file"}{$line};
 
     delete $main::{"_<$file"}{$line} if $main::{"_<$file"}{$line} eq 'next';
