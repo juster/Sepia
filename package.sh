@@ -1,6 +1,6 @@
 #!/bin/sh
 
-makeinfo --html sepia.texi -o doc
-cat MANIFEST.in > MANIFEST
-ls doc/*.html >> MANIFEST
+makeinfo --no-split --no-headers --html sepia.texi -o Sepia.html
+# cat MANIFEST.in > MANIFEST
+# ls doc/*.html >> MANIFEST
 perl Makefile.PL && make && make test && make dist

@@ -1,7 +1,7 @@
 \input texinfo   @c -*-texinfo-*-
 @c %**start of header
 @setfilename sepia.info
-@settitle Simple Emacs Perl Integration
+@settitle SEPIA: Simple Emacs Perl Integration
 @dircategory Emacs
 @direntry
 * Sepia: (sepia).    Simple Emacs Perl Integration.
@@ -32,6 +32,10 @@
 @ifinfo
 @top SEPIA
 @end ifinfo
+
+@ifhtml
+@image{Sepia,,,,jpg}
+@end ifhtml
 
 Sepia is a set of Perl development tools for Emacs supporting code
 navigation and interactive evaluation.

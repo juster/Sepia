@@ -137,6 +137,10 @@ BEGIN {
     %sigil = qw(ARRAY @ SCALAR $ HASH %);
 }
 
+## XXX: autovivification gives us problems here sometimes.  Specifically:
+##     defined *FOO{HASH} # => ''
+##     defined %FOO       # => ''
+##     defined *FOO{HASH} # => 1
 sub completions
 {
     no strict;
@@ -885,7 +889,7 @@ sub repl_eval
         $ctx = $ctx ? "my ($ctx);" : '';
         $buf = eval "sub { package $PACKAGE; use strict; $ctx $buf }";
         if ($@) {
-            print STDERR "ERROR\n$@\n";
+            print "ERROR\n$@\n";
             return;
         }
         $STRICT->call($buf);

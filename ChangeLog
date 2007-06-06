@@ -1,5 +1,6 @@
 2007-06-05  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
+	* Sepia.html: generate single-page manual instead of split.
 	* VERSION: 0.90
 	* sepia.el: docstring cleanup.
 	* lib/sepia/Debug.pm: misc usability improvements

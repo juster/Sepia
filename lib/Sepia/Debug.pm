@@ -129,16 +129,26 @@ sub debug
     }
 }
 
+sub breakpoint_file
+{
+    my ($file) = @_;
+    return \%{$main::{"_<$file"}} if exists $main::{"_<$file"};
+    if ($file !~ /^\//) {
+        ($file) = grep /^_<.*\/\Q$file\E$/, keys %main::;
+        return \%{$main::{$file}} if $file;
+    }
+    return undef;
+}
+
 sub breakpoint
 {
     my ($file, $line, $cond) = @_;
-    if (!defined $main::{"_<$file"} && $file !~ /^\//) {
-        ($file) = grep /^_<.*\/\Q$file\E$/, keys %main::;
-        return unless $file;
-        $file =~ s/^_<//;
+    my $h = breakpoint_file $file;
+    if (defined $h) {
+        $h->{$line} = $cond || 1;
+        return "$file\:$line $h->{$line}";
     }
-    $main::{"_<$file"}{$line} = $cond || 1;
-    $file;
+    return undef;
 }
 
 sub repl_break
@@ -178,7 +188,8 @@ sub repl_delete
     my ($f, $l) = split /:/, shift;
     $f ||= $file;
     $l ||= $line;
-    delete $main::{"_<$f"}{$l};
+    my $h = breakpoint_file $f;
+    delete $h->{$l} if defined $h;
     0
 }
 
@@ -197,7 +208,7 @@ my %parent_doc = (
         'delete             Delete current breakpoint.',
     debug =>
         'debug [0|1]        Enable or disable debugging.',
-    lsbream =>
+    lsbreak =>
         'lsbreak            List breakpoints.',
 );
 
@@ -282,8 +293,6 @@ my %REPL_DOC = (
 sub repl
 {
     show_location;
-    # print STDERR $main::{'_<'.$file}[$line]
-    #     if defined $main::{'_<'.$file}[$line];
 
     local %Sepia::REPL = (%Sepia::REPL, %REPL, @_);
     local %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %REPL_DOC);
@@ -327,8 +336,8 @@ sub die
         my $trace = $DB::trace;
         $DB::trace = 1;
         repl(
-            die => sub { local $STOPDIE=0; die @dieargs },
-            quit => sub { local $STOPDIE=0; die @dieargs });
+            die => sub { local $STOPDIE=0; CORE::die @dieargs },
+            quit => sub { local $STOPDIE=0; CORE::die @dieargs });
         $DB::trace = $trace;
     } else {
         CORE::die(Carp::shortmess @_);
@@ -346,8 +355,8 @@ sub warn
         local ($pack, $file, $line, $sub) = caller($level);
         print "@_\n\tin $sub\nWarned $MSG\n";
         repl(
-            warn => sub { local $STOPWARN=0; warn @dieargs },
-            quit => sub { local $STOPWARN=0; warn @dieargs });
+            warn => sub { local $STOPWARN=0; CORE::warn @dieargs },
+            quit => sub { local $STOPWARN=0; CORE::warn @dieargs });
         $DB::trace = $trace;
     } else {
         ## Avoid showing up in location information.
