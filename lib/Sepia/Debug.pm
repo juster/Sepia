@@ -6,9 +6,9 @@ use strict;
 use vars qw($pack $file $line $sub $level
             $STOPDIE $STOPWARN);
 
-## Just leave it on -- with $DB::trace = 0, there doesn't seem
-## to be a perforamnce penalty!
 BEGIN {
+    ## Just leave it on -- with $DB::trace = 0, there doesn't seem
+    ## to be a perforamnce penalty!
     $^P = 0x303;
     $STOPDIE = 1;
     $STOPWARN = 0;
@@ -19,6 +19,7 @@ BEGIN {
     }
 }
 
+# set debugging level
 sub repl_debug
 {
     debug(@_);
@@ -35,30 +36,69 @@ sub repl_backtrace
     0
 }
 
+# return value from die
 sub repl_return
 {
     (1, Sepia::repl_eval(@_));
 }
 
+sub repl_lsbreak
+{
+    no strict 'refs';
+    for my $file (sort grep /^_</ && defined %{"::$_"}, keys %::) {
+        my ($name) = $file =~ /^_<(.*)/;
+        my @pts = keys %{"::$file"};
+        next unless @pts;
+        print "$name:\n";
+        for (sort { $a <=> $b } @pts) {
+            print "\t$_\t${$file}{$_}\n"
+        }
+    }
+}
+
+# evaluate EXPR in environment ENV
 sub eval_in_env
 {
     my ($expr, $env) = @_;
-    local $::ENV = $env;
+    local $::SEPIA_ENV = $env;
     my $str = '';
     for (keys %$env) {
         next unless /^([\$\@%])(.+)/;
-        $str .= "local *$2 = \$::ENV->{'$_'}; ";
+        $str .= "local *$2 = \$::SEPIA_ENV->{'$_'}; ";
     }
     eval "do { no strict; $str $expr }";
 }
 
-sub repl_upeval
+## XXX: this is a better approach (the local business above is vile),
+## but it segfaults and I'm not sure why.
+sub eval_in_env2
 {
-    my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
-    print " <= $exp\n";
-    (0, eval_in_env($exp, peek_my(0+$lev)));
+    my ($expr, $lev) = @_;
+    my $env = peek_my(2+$lev);
+    $lev += 4;
+    local $::SEPIA_ENV = $env;
+    my @vars = grep /^([\$\@%])(.+)/, keys %$env;
+    my $body = 'sub { my ('.join(',', @vars).');';
+    for (@vars) {
+        $body .= "Devel::LexAlias::lexalias($lev, '$_', \\$_);"
+    }
+    $body .= "$expr }";
+    print STDERR "---\n$body\n---\n";
+    $body = eval $body;
+    $@ || $body->();
 }
 
+# evaluate EXP LEV levels up the stack
+sub repl_upeval
+{
+    my $exp = shift;
+    # my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
+    print " <= $exp\n";
+    # (0, eval_in_env2($exp, $level));
+    (0, eval_in_env($exp, peek_my(0+$level)));
+}
+
+# inspect lexicals at level N, or current level
 sub repl_inspect
 {
     my $i = shift || $level;
@@ -125,14 +165,50 @@ sub show_location
     print "_<$file:$line>\n" if defined $file && defined $line;
 }
 
-my %REPL = (
-    delete => sub {
-        my ($f, $l) = split /:/, shift;
-        $f ||= $file;
-        $l ||= $line;
-        delete $main::{"_<$f"}{$l}; 0
-    },
+sub repl_list
+{
+    my @lines = eval shift;
+    @lines = $line - 5 .. $line + 5 unless @lines;
+    printf '%-6d%s', $_, ${"::_<$file"}[$_-1] for @lines;
+    0
+}
 
+sub repl_delete
+{
+    my ($f, $l) = split /:/, shift;
+    $f ||= $file;
+    $l ||= $line;
+    delete $main::{"_<$f"}{$l};
+    0
+}
+
+my %parent_repl = (
+    delete => \&repl_delete,
+    debug => \&repl_debug,
+    break => \&repl_break,
+    lsbreak => \&repl_lsbreak,
+);
+
+my %parent_doc = (
+    break =>
+        'break [F:N [E]]    Set a breakpoint in F at line N (or at current
+                       position), enabled if E evalutes to true.',
+    delete =>
+        'delete             Delete current breakpoint.',
+    debug =>
+        'debug [0|1]        Enable or disable debugging.',
+    lsbream =>
+        'lsbreak            List breakpoints.',
+);
+
+sub add_repl_commands
+{
+    %Sepia::REPL = (%Sepia::REPL, %parent_repl);
+    %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %parent_doc);
+    %Sepia::RK = abbrev keys %Sepia::REPL;
+}
+
+my %REPL = (
     up => sub {
         $level += shift || 1;
         update_location(4);
@@ -164,11 +240,7 @@ my %REPL = (
 
     break => \&repl_break,
 
-    list => sub {
-        my @lines = eval shift;
-        print join('', @{$main::{"_<$file"}}[@lines]);
-        0
-    },
+    list => \&repl_list,
 
     # quit => sub {
     #     debug(0);
@@ -177,24 +249,30 @@ my %REPL = (
     inspect => \&repl_inspect,
     eval => \&repl_upeval,
     return => \&repl_return,
+    lsbreak => \&repl_lsbreak,
 );
 
 my %REPL_DOC = (
-    break => 'break',
-    continue => 'continue',
-    delete => 'delete',
-     next => 'next',
-     list => 'list',
-     step => 'step',
-     quit => 'quit',
-    up => 'up',
-    down => 'down',
+    continue =>
+        'continue        Yep.',
+    next =>
+        'next [N]        Advance N lines, skipping subroutines.',
+    list =>
+        'list EXPR       List source lines of current file.',
+    step =>
+        'step [N]        Step N lines forward, entering subroutines.',
+    quit =>
+        'quit            Exit the current prompt level.',
+    up =>
+        'up [N]          Move up N stack frames.',
+    down =>
+        'down [N]        Move down N stack frames.',
     backtrace =>
         'backtrace       show backtrace',
     inspect =>
-        'inspect N ...   inspect lexicals in frame(s) N ...',
+        'inspect [N]     inspect lexicals in frame N (or current)',
     eval =>
-        'eval N EXPR     evaluate EXPR in lexical environment of frame N',
+        'eval EXPR       evaluate EXPR in current frame',
     return =>
         'return EXPR     return EXPR',
     quit =>

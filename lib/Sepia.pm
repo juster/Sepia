@@ -19,7 +19,7 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.90_01';
+$VERSION = '0.90';
 @ISA = qw(Exporter);
 
 require Exporter;
@@ -667,8 +667,6 @@ BEGIN {
              quit => \&Sepia::repl_quit,
              reload => \&Sepia::repl_reload,
              shell => \&Sepia::repl_shell,
-             debug => \&Sepia::Debug::repl_debug,
-             break => \&Sepia::Debug::repl_break,
          );
     %REPL_DOC = (
         cd =>
@@ -699,7 +697,6 @@ EOS
         reload =>
     'reload             Reload Sepia.pm and relaunch the REPL.',
     );
-    %RK = abbrev keys %REPL;
 }
 
 sub prompt()
@@ -944,8 +941,8 @@ sub repl
 
     local *__;
     local *CORE::GLOBAL::die = \&Sepia::Debug::die;
-
     local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
+    Sepia::Debug::add_repl_commands;
     print <<EOS if $REPL_LEVEL == 1;
 Sepia version $Sepia::VERSION.
 Press ",h" for help, or "^D" or ",q" to exit.

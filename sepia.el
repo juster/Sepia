@@ -29,7 +29,7 @@
 ;;; Comint communication
 
 (defvar sepia-perl5lib nil
-"* Extra PERL5LIB directory for Sepia.pm")
+"* List of extra PERL5LIB directories for `sepia-repl'.")
 
 (defvar sepia-program-name "perl"
 "* Perl program name.")
@@ -42,7 +42,7 @@ Useful values include `w3m-perldoc' and `cperl-perldoc'.")
 
 (defvar sepia-view-pod-function
   (if (featurep 'w3m) 'sepia-w3m-view-pod 'sepia-perldoc-buffer)
-"* Function to view modules' documentation.
+"* Function to view current buffer's documentation.
 
 Useful values include `sepia-w3m-view-pod' and `sepia-perldoc-buffer'.")
 
@@ -63,17 +63,19 @@ attempted for objects that are simple scalars.")
 "* If non-NIL, `sepia-indent-or-complete' tries `expand-abbrev'.")
 
 (defvar sepia-use-completion t
-  "* Use completion based on Xref database.  Turning this off may
-speed up some operations, if you don't mind losing completion.")
+  "* Use completion based on Xref database.
+
+Turning this off may speed up some operations, if you don't mind
+losing completion.")
 
 (defvar sepia-eval-defun-include-decls t
-  "* Generate and use a declaration list for ``sepia-eval-defun''.
+  "* Generate and use a declaration list for `sepia-eval-defun'.
 Without this, code often will not parse; with it, evaluation may
 be a bit less responsive.  Note that since this only includes
 subs from the evaluation package, it may not always work.")
 
 (defvar sepia-prefix-key "\M-."
-  "* Prefix for functions in ``sepia-keymap''.")
+  "* Prefix for functions in `sepia-keymap'.")
 
 ;;; User options end here.
 
@@ -208,15 +210,15 @@ each inferior Perl prompt."
   (let ((wc (current-window-configuration))
         (old-pd (symbol-function 'w3m-about-perldoc))
         (old-pdb (symbol-function 'w3m-about-perldoc-buffer)))
-    (flet ((w3m-about-perldoc (&rest args)
-             (let ((res (apply old-pd args)))
-               (or res (error "lose: %s" args))))
-           (w3m-about-perldoc-buffer (&rest args)
-             (let ((res (apply old-pdb args)))
-               (or res (error "lose: %s" args)))))
-      (condition-case stuff
-          (funcall sepia-perldoc-function name)
-        (error (set-window-configuration wc))))))
+    (condition-case stuff
+        (flet ((w3m-about-perldoc (&rest args)
+                 (let ((res (apply old-pd args)))
+                   (or res (error "lose: %s" args))))
+               (w3m-about-perldoc-buffer (&rest args)
+                 (let ((res (apply old-pdb args)))
+                   (or res (error "lose: %s" args)))))
+          (funcall sepia-perldoc-function name))
+      (error (set-window-configuration wc)))))
 
 (defun sepia-view-pod ()
   "View POD for the current buffer."
@@ -319,7 +321,7 @@ For modules within packages, see `sepia-module-list'."
     (gud-def gud-break ",break %f:%l" "\C-b" "Set breakpoint at current line.")
     (gud-def gud-step ",step %p" "\C-s" "Step one line.")
     (gud-def gud-next ",next %p" "\C-n" "Step one line, skipping calls.")
-    (gud-def gud-cont ",continue" "\C-c" "Continue.")
+    (gud-def gud-cont ",continue" "\C-r" "Continue.")
     (gud-def gud-print "%e" "\C-p" "Evaluate something.")
     (gud-def gud-remove ",delete %l %f" "\C-d" "Delete current breakpoint.")
     (run-hooks 'sepia-repl-mode-hook))
@@ -339,7 +341,7 @@ For modules within packages, see `sepia-module-list'."
                           (string-to-number (match-string 2 gud-sepia-acc)))
           gud-sepia-acc (match-string 3 gud-sepia-acc)))
   (setq gud-sepia-acc
-        (if (string-match "_<\\(.*\\)" gud-sepia-acc)
+        (if (string-match "\\(_<.*\\)" gud-sepia-acc)
             (match-string 1 gud-sepia-acc)
             nil))
   str)
@@ -373,7 +375,7 @@ module in question be loaded.")))
                          mod ,pl-func))))))
 
 (defun sepia-thing-at-point (what)
-  "Like ``thing-at-point'', but hacked to avoid REPL prompt."
+  "Like `thing-at-point', but hacked to avoid REPL prompt."
   (let ((th (thing-at-point what)))
     (and th (not (string-match "[ >]$" th)) th)))
 
@@ -477,9 +479,9 @@ symbol at point."
   `(defun ,name (ident &optional module file line display-p)
      ,(concat doc "
 
-With prefix arg, list occurences in a ``grep-mode'' buffer.
-Without, place the occurrences on ``sepia-found'', so that
-calling ``sepia-next'' will cycle through them.
+With prefix arg, list occurences in a `grep-mode' buffer.
+Without, place the occurrences on `sepia-found', so that
+calling `sepia-next' will cycle through them.
 
 Depending on the query, MODULE, FILE, and LINE may be used to
 narrow the results, as long as doing so leaves some matches.
@@ -890,7 +892,7 @@ function currently ignores module qualifiers, which may be
 annoying in larger programs.
 
 The function is intended to be bound to \\M-TAB, like
-``lisp-complete-symbol''."
+`lisp-complete-symbol'."
   (interactive)
   (let ((win (get-buffer-window "*Completions*" 0))
         len
@@ -982,7 +984,7 @@ This function is intended to be bound to TAB."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; scratchpad code
 
-(defvar sepia-mode-map nil "Keymap for Sepia mode.")
+;; (defvar sepia-mode-map nil "Keymap for Sepia mode.")
 
 (defvar sepia-metapoint-map nil
   "Keymap for Sepia functions.  This is just an example of how you
@@ -999,8 +1001,7 @@ might want to bind your keys, which works best when bound to
   (set (make-local-variable 'beginning-of-defun-function)
        'sepia-beginning-of-defun)
   (set (make-local-variable 'end-of-defun-function)
-       'sepia-end-of-defun)
-  (sepia-init))
+       'sepia-end-of-defun))
 
 (defun sepia-init ()
   "Perform the initialization necessary to start Sepia."
@@ -1277,9 +1278,9 @@ With prefix arg, replace the region with the result."
 ;; REPL
 
 (defvar sepia-eval-file nil
-  "File in which ``sepia-eval'' evaluates perl expressions.")
+  "File in which `sepia-eval' evaluates perl expressions.")
 (defvar sepia-eval-line nil
-  "Line at which ``sepia-eval'' evaluates perl expressions.")
+  "Line at which `sepia-eval' evaluates perl expressions.")
 
 (defun sepia-set-cwd (dir)
   "Set the inferior Perl process's working directory to DIR.
@@ -1373,8 +1374,8 @@ used for eldoc feedback."
 (defun sepia-symbol-info (&optional obj type)
   "Eldoc function for Sepia-mode.
 
-Looks in ``sepia-doc-map'' and ``sepia-var-doc-map'', then tries
-calling ``cperl-describe-perl-symbol''."
+Looks in `sepia-doc-map' and `sepia-var-doc-map', then tries
+calling `cperl-describe-perl-symbol'."
   (unless obj
     (multiple-value-bind (ty ob) (sepia-ident-at-point)
       (setq obj (if (consp ob) (car ob) ob)

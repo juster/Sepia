@@ -478,6 +478,9 @@ this environment, but is free to modify its lexicals.
 @item inspect @var{n}
 Inspect lexicals in frame @var{n}, counting upward from 1.
 
+@item lsbreak
+List breakpoints.
+
 @item next [@var{n}]
 Advance @var{n} (or one) lines, skipping subroutine calls.
 

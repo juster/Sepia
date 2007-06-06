@@ -1,5 +1,17 @@
+2007-06-05  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.90
+	* sepia.el: docstring cleanup.
+	* lib/sepia/Debug.pm: misc usability improvements
+
+2007-06-04  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION 0.90_02
+	* test.pl: disable Module::Info tests to avoid Module::Info bug.
+
 2007-06-02  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
+	* VERSION 0.90_01
 	* Major: replaced comint- with gud-based REPL, use real debugger.
 	* lib/Sepia/Debug.pm: "perl -d" support.
 	* lib/Sepia.pm (repl_shell): new command.
