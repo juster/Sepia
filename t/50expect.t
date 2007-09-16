@@ -3,13 +3,13 @@
 BEGIN {
     eval 'use Test::Expect';
     if ($@) {
-        print STDERR "All skipped -- requires Test::Expect.\n$@\n";
-        print "0..0\n";
+        print "# requires Test::Expect\n1..1\nok 1\n";
         exit 0;
+    } else {
+        eval 'use Test::Simple tests => 34';
     }
 }
 
-use Test::Simple tests => 32;
 use FindBin '$Bin';
 use Sepia;
 use Sepia::Xref;
@@ -18,7 +18,7 @@ expect_run
     command => "$^X -Mblib -MSepia -MSepia::Xref -e 'Sepia::repl(\\*STDIN, \\*STDOUT)'",
     prompt => [-re => 'main @[^>]*> '],
     quit => ',quit';
-expect_handle()->log_file('/tmp/b');
+expect_handle()->log_file('/tmp/b') if $ENV{USER} eq 'seano';
 
 expect ",help",
 q!REPL commands (prefixed with ','):
@@ -41,7 +41,8 @@ q!REPL commands (prefixed with ','):
     strict [0|1]       Turn 'use strict' mode on or off
     wantarray [0|1]    Set or toggle evaluation context
     who PACKAGE [RE]   List variables and subs in PACKAGE matching optional
-                       pattern RE.!;
+                       pattern RE.!
+    if 0;
 
 expect ",wh Sepia::Xref xref",
 'xref             xref_definitions xref_main
@@ -61,12 +62,17 @@ expect_send ',debug 1';
 expect_send "do '$Bin/testy.pl';", 'get testy';
 
 expect 'fib1 10', '=> 55', 'plain fib';
-expect ',br testy.pl:6', "break testy.pl:6 1", 'break?';
+expect ',br testy.pl:6', "break testy.pl:6 if 1", 'break?';
 expect_send 'fib1 10';
 expect_like qr|_<$Bin/testy.pl:6>|, 'break in fib';
+# XXX AGAIN STUPID EXPECT!
+expect '$n = 3', "\$n = 3\n=> 3", 'munge lexicals';
+expect ',in',
+'[3] DB::DB:
+	$n = \3', 'munged';
 expect ',del', '';
-expect ',con', '=> 55', 'return from fib';
+expect ',con', '=> 2', 'return from fib';
 expect_send 'fib2 10', 'bad fib';
 expect_like qr/_<$Bin\/testy.pl:12>/;
-expect_send ',q';
-expect_like qr/error: asdf/;
+expect_send ',q', 'quit';
+expect_like qr/error: asdf/, 'saw die message';

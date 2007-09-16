@@ -40,6 +40,8 @@ use Cwd 'abs_path';
 use B qw(peekop class comppadlist main_start svref_2object walksymtable
          OPpLVAL_INTRO SVf_POK OPpOUR_INTRO OPf_MOD OPpDEREF_HV OPpDEREF_AV
 	 cstring);
+# stupid warnings...
+no warnings 'uninitialized';
 
 =head2 Variables
 
@@ -130,6 +132,7 @@ sub guess_module_file {
     return undef if $ofile =~ /Exporter\.pm$/;
     # Try for standard translation in %INC:
     (my $fn = $pack) =~ s/::/\//g;
+    return unless $fn;          # stupid warnings...
     if (exists $INC{"$fn.pm"}) {
 	return $INC{"$fn.pm"};
     }
@@ -201,7 +204,6 @@ sub process {
 	my ($spack, $sname) = split_name($subname);
 
 	$call{$name}{$pack}{$subname} = 1;
-
 	$callby{$sname}{$spack}{"$pack\::$name"} = 1;
     } elsif ($type eq 's' || $subname eq '(definitions)') {
 	# definition
@@ -672,10 +674,13 @@ List the modules defined in file C<$file>.
 
 sub file_modules {
     my $file = shift;
-    eval "use Module::Include;" and do {
-        my $mod = Module::Include->new_from_file(abs_path($file));
-        return ($mod && $mod->packages_inside) || undef;
-    };
+    eval {
+        require Module::Info;
+        my $mod = Module::Info->new_from_file(abs_path($file));
+        if ( $mod ) {
+            return $mod->packages_inside();
+        }
+    }
 }
 
 =item C<var_apropos($expr)>

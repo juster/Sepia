@@ -39,7 +39,7 @@ sub repl_backtrace
 # return value from die
 sub repl_return
 {
-    (1, Sepia::repl_eval(@_));
+    (1, $Sepia::REPL{eval}->(@_));
 }
 
 sub repl_lsbreak
@@ -60,27 +60,63 @@ sub repl_lsbreak
 sub eval_in_env
 {
     my ($expr, $env) = @_;
-    local $::SEPIA_ENV = $env;
+    local $Sepia::ENV = $env;
     my $str = '';
     for (keys %$env) {
         next unless /^([\$\@%])(.+)/;
-        $str .= "local *$2 = \$::SEPIA_ENV->{'$_'}; ";
+        $str .= "local *$2 = \$Sepia::ENV->{'$_'}; ";
     }
     eval "do { no strict; $str $expr }";
 }
 
-## XXX: this is a better approach (the local business above is vile),
+sub tie_class
+{
+    my $sig = substr shift, 0, 1;
+    return $sig eq '$' ? 'Tie::StdScalar'
+        : $sig eq '@' ? 'Tie::StdArray'
+            : $sig eq '%' ? 'Tie::StdHash'
+                : die "Sorry, can't tie $sig\n";
+}
+
+# {
+#     require Tie::Array;
+#     require Tie::Hash;
+#     require Tie::Scalar;
+#     package Sepia::Array;
+#     our @ISA = qw(Tie::StdArray);
+#     sub TIEARRAY { bless $_[1], $_[0] }
+#     package Sepia::Hash;
+#     our @ISA = qw(Tie::StdHash);
+#     sub TIEHASH { bless $_[1], $_[0] }
+#     package Sepia::Scalar;
+#     our @ISA = qw(Tie::StdScalar);
+#     sub TIESCALAR { bless $_[1], $_[0] }
+# }
+
+# sub eval_in_env3
+# {
+#     my ($expr, $env) = @_;
+#     my @vars = grep /^([\$\@%])(.+)/, keys %$env;
+#     my $body = 'sub { my ('.join(',', @vars).');';
+#     for my $i (0..$#vars) {
+#         $body .= "tie $vars[$i], ".tie_class($vars[$i]).', $_['.$i.'];';
+#     }
+#     $body .= "$expr }";
+#     print STDERR "---\n$body\n---\n";
+#     $body = eval $body;
+#     $@ || $body->(@{$env}{@vars});
+# }
+
+## XXX: this is a better approach (the local/tie business is vile),
 ## but it segfaults and I'm not sure why.
 sub eval_in_env2
 {
-    my ($expr, $lev) = @_;
-    my $env = peek_my(2+$lev);
-    $lev += 4;
-    local $::SEPIA_ENV = $env;
+    my ($expr, $env, $fn) = @_;
+    local $Sepia::ENV = $env;
     my @vars = grep /^([\$\@%])(.+)/, keys %$env;
     my $body = 'sub { my ('.join(',', @vars).');';
     for (@vars) {
-        $body .= "Devel::LexAlias::lexalias($lev, '$_', \\$_);"
+        $body .= "Devel::LexAlias::lexalias(\$Sepia::ENV, '$_', \\$_);"
     }
     $body .= "$expr }";
     print STDERR "---\n$body\n---\n";
@@ -93,15 +129,21 @@ sub repl_upeval
 {
     my $exp = shift;
     # my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
-    print " <= $exp\n";
+    # print " <= $exp\n";
     # (0, eval_in_env2($exp, $level));
-    (0, eval_in_env($exp, peek_my(0+$level)));
+    # (0, eval_in_env3($exp, peek_my(4 + $level)));
+    eval_in_env($exp, peek_my(4+$level));
 }
 
 # inspect lexicals at level N, or current level
 sub repl_inspect
 {
-    my $i = shift || $level;
+    my $i = shift;
+    if ($i =~ /\d/) {
+        $i = 0+$i;
+    } else {
+        $i = $level + 3;
+    }
     my $sub = (caller $i)[3];
     if ($sub) {
         my $h = peek_my($i+1);
@@ -146,7 +188,7 @@ sub breakpoint
     my $h = breakpoint_file $file;
     if (defined $h) {
         $h->{$line} = $cond || 1;
-        return "$file\:$line $h->{$line}";
+        return $cond ? "$file\:$line if $cond" : "$file\:$line";
     }
     return undef;
 }
@@ -156,7 +198,7 @@ sub repl_break
     my $arg = shift;
     $arg =~ s/^\s+//;
     $arg =~ s/\s+$//;
-    my ($f, $l, $cond) = $arg =~ /^(.+?):(\d+)\s*(.*)/, $arg;
+    my ($f, $l, $cond) = $arg =~ /^(.+?):(\d+)\s*(.*)/;
     $cond ||= 1;
     $f ||= $file;
     $l ||= $line;
@@ -258,9 +300,10 @@ my %REPL = (
     # },
     backtrace => \&repl_backtrace,
     inspect => \&repl_inspect,
-    eval => \&repl_upeval,
+    # eval => \&repl_upeval,
     return => \&repl_return,
     lsbreak => \&repl_lsbreak,
+    eval => \&repl_upeval,      # DANGER!
 );
 
 my %REPL_DOC = (

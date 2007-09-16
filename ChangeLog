@@ -1,3 +1,66 @@
+2007-07-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-interactive-arg): use xref-completions rather
+	than xref-apropos for working completion.
+
+2007-07-25  Ye Wenbin  <wenbinye@gmail.com>
+
+	* sepia.el (sepia-defun-around-point): change the command to a
+	function, because as a command it does nothing.
+	(define-modinfo-function, sepia-maybe-echo): the interactive-p
+	is not true when call as function.
+	(define-modinfo-function, sepia-init): some modinfo-function
+	should eval in a list-context.
+	(sepia-mode): use cperl-mode-abbrev-table as current local-abbrev-table
+
+2007-07-24  Ye Wenbin  <wenbinye@gmail.com>
+
+	* sepia.el (sepia-set-found): Use (OFFSET . LIST) to represent
+	things that found.
+	(sepia-next, sepia-previous): more generic move commands
+	(sepia-refiner): remove the test, because sometimes use the
+	same declaration, but found in difference place.
+
+	* sepia-tree.el (sepia-tree-button-cb): widget => pw and
+	xref-location return a list of posible locations.
+	(sepia-tree-tidy-buffer, sepia-tree-use-image): Let user
+	to choose whether use image or not. Set it to a buffer-local
+	variable, so that it didn't interference global values.
+
+	* sepia.el (sepia-extract-def): seem an argument is excessive
+
+	* sepia-tree.el (sepia-build-tree-buffer): In my emacs, it
+	doesn't work. The :dynargs didn't become the tree-widget
+	:expander. The tree-widget-convert-widget only receive the
+	'tree-widget, not the total list.
+	sepia-install-keys not defined.
+
+	* lib/Sepia/Xref.pm (file_modules): seem it is a typo error to use
+	Module::Include rather than Module::Info.
+	Module::Info::packages_inside return an array, the operator
+	|| will force in a scalar context.
+
+	* sepia.el (sepia-lisp-to-perl): use "'" to quote string is not
+	enough,	because the string may also contain "'" inside.
+	use (format "%S" string) instead.
+	(define-sepia-query): `sepia-set-found' accept a symbol as
+	argument, not (quote symbol).
+
+2007-06-09  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* VERSION: 0.92
+	* sepia.el (sepia-shared-map, etc.): fix keymap initialization.
+
+2007-06-06  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia/Debug.pm: eval in lexical env when in debugger.
+	* t/50expect.t: REPL tests if you have Test::Expect.
+	* lib/Sepia/Debug.pm: use correct level when none given.
+	* lib/Sepia.pm: No longer bring in exporter (why did we?).
+	* sepia.el (sepia-init): always reinitialize sepia-mode-map.
+	* Makefile.PL: require 5.006 for warnings to quiet stupid "make
+	  test".
+
 2007-06-05  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* Sepia.html: generate single-page manual instead of split.
@@ -149,7 +212,7 @@
 	* VERSION: 0.70
 	* README: add license.
 	* Makefile.PL: remove dependency on Sub::Uplevel, make PadWalker
-	  optional. 
+	  optional.
 	* lib/Sepia.pm (who): add optional regex filter.
 	(debug_inspect): fix non-scalar printing.
 	* sepia.el (sepia-dwim): fix staleness; change to find
@@ -346,7 +409,7 @@
 	* Xref.pm: Localize a bunch of things instead of stomping on
 	package lexicals.  This makes the module better handle repeated
 	use, for which it wasn't designed.
-	
+
 	* Xref.pm (mod_subs): Rename package_subs for consistency.
 	(mod_decls): New function to generate decls for evaluation.
 
@@ -378,7 +441,7 @@
 	* sepia.el (sepia-eval-defun,sepia-eval-buffer): new functions.
 
 	* test.pl: satisfy the cpants Fascists.
-	
+
 	* Xref.pm (use_type): try to be smarter about when something's
 	being assigned to, vs. merely used as a reference.
 
@@ -395,10 +458,10 @@
 2004-04-04  Sean O'Rourke  <seano@cs.ucsd.edu>
 
 	* Sepia.jpg: don't ask -- just look.
-	
+
 	* sepia.el (sepia-ident-at-point): fixed bug with sigils.
 	(sepia-complete-symbol): fixed bug with undefined function
-	sepia-end-of-word.  
+	sepia-end-of-word.
 	Always use Data::Dumper.
 
 	* any-repl.el: new file implementing REPL, basically stolen from
@@ -428,5 +491,5 @@
 	ignored for now); fix line number refinement to be a
 	little less over-eager; fix pscope-callees to go to sub
 	definitions instead of call sites.
-	
+
 	* README: added TODO section.

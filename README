@@ -236,6 +236,11 @@ Use completion based on Xref database.  Turning this off may speed up
 some operations, if you don't mind losing completion.
 
 * TODO
+** implement mod_apropos
+** use xref-completions in sepia-interactive-arg
+** remove sepia-module-describe
+** improve output for sepia-module-* (modinfo functions)
+** better intro for debugger
 ** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.
 ** (Medium) Support user-defined abbrevs in REPL
@@ -276,4 +281,5 @@ key components have been stolen and adapted from other packages:
 Copyright (C) 2004-2007 by Sean O'Rourke
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+it under the same terms as Perl itself, at the time at which this
+version of Sepia was released.

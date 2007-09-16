@@ -474,13 +474,9 @@ supplied, stop only if it evaluates to true.
 @itemx up @var{n}
 Move the current stack frame up or down by @var{n} (or one) frames.
 
-@item eval @var{n} @var{expr}
-Evaluate @var{expr} in the lexical environment of frame @var{n}
-(requires PadWalker).  @var{expr} should not transfer control out of
-this environment, but is free to modify its lexicals.
-
-@item inspect @var{n}
-Inspect lexicals in frame @var{n}, counting upward from 1.
+@item inspect [@var{n}]
+Inspect lexicals in the current frame or frame @var{n}, counting upward
+from 1.
 
 @item lsbreak
 List breakpoints.
@@ -695,11 +691,18 @@ developer documentation, please see the POD for @code{Sepia} and
 @node Credits, Function Index, Internals, Top
 @unnumbered Credits
 
-I would like to thank Hilko Bengen for finding and motivating me to fix
-a bunch of bugs, and for doing the Debian packaging.
+@table @asis
+@item Hilko Bengen
+Found and motivated me to fix a bunch of bugs, created Debian packages.
 
-I would also like to thank the authors of Emacs-w3m, SLIME, ido, and
-B::Xref for the code I stole.
+@item Ye Wenbin
+Found and fixed numerous bugs.
+
+@item Free Software
+Portions of the code were lifted from Emacs-w3m, SLIME, ido, and
+B::Xref, all of which are Free software.
+
+@end table
 
 @c ============================================================
 @node Function Index,  , Credits, Top

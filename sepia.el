@@ -98,43 +98,42 @@ look for \";;;###\" lisp evaluation markers.")
 
 (defun sepia-eval-raw (str)
   "Evaluate perl code STR, returning a pair (RESULT-STRING . OUTPUT)."
-  (if (sepia-live-p)
-      (let (ocpof)
-        (unwind-protect
-             (let ((sepia-output "")
-                   (start 0))
-               (with-current-buffer (process-buffer sepia-process)
-                 (setq ocpof comint-preoutput-filter-functions
-                       comint-preoutput-filter-functions
-                       '(sepia-collect-output)))
-               (setq str (concat "local $Sepia::STOPDIE=0;"
-                                 "local $Sepia::STOPWARN=0;"
-                                 "{ package " (sepia-buffer-package) ";"
-                                 str " }\n"))
-               (comint-send-string sepia-process
-                                   (concat (format "<<%d\n" (length str)) str))
-               (while (not (and sepia-output
-                                (string-match "> $" sepia-output)))
-                 (accept-process-output sepia-process))
-               (if (string-match "^;;;[0-9]+\n" sepia-output)
-                   (cons
-                    (let* ((x (read-from-string sepia-output
-                                                (+ (match-beginning 0) 3)))
-                           (len (car x))
-                           (pos (cdr x)))
-                      (prog1 (substring sepia-output (1+ pos) (+ len pos 1))
-                        (setq start (+ pos len 1))))
-                    (and (string-match ";;;[0-9]+\n" sepia-output start)
-                         (let* ((x (read-from-string
-                                    sepia-output
-                                    (+ (match-beginning 0) 3)))
-                                (len (car x))
-                                (pos (cdr x)))
-                           (substring sepia-output (1+ pos) (+ len pos 1)))))
-                   (cons sepia-output nil)))
-          (with-current-buffer (process-buffer sepia-process)
-            (setq comint-preoutput-filter-functions ocpof))))
-      '("")))
+  (sepia-ensure-process)
+  (let (ocpof)
+    (unwind-protect
+         (let ((sepia-output "")
+               (start 0))
+           (with-current-buffer (process-buffer sepia-process)
+             (setq ocpof comint-preoutput-filter-functions
+                   comint-preoutput-filter-functions
+                   '(sepia-collect-output)))
+           (setq str (concat "local $Sepia::STOPDIE=0;"
+                             "local $Sepia::STOPWARN=0;"
+                             "{ package " (sepia-buffer-package) ";"
+                             str " }\n"))
+           (comint-send-string sepia-process
+                               (concat (format "<<%d\n" (length str)) str))
+           (while (not (and sepia-output
+                            (string-match "> $" sepia-output)))
+             (accept-process-output sepia-process))
+           (if (string-match "^;;;[0-9]+\n" sepia-output)
+               (cons
+                (let* ((x (read-from-string sepia-output
+                                            (+ (match-beginning 0) 3)))
+                       (len (car x))
+                       (pos (cdr x)))
+                  (prog1 (substring sepia-output (1+ pos) (+ len pos 1))
+                    (setq start (+ pos len 1))))
+                (and (string-match ";;;[0-9]+\n" sepia-output start)
+                     (let* ((x (read-from-string
+                                sepia-output
+                                (+ (match-beginning 0) 3)))
+                            (len (car x))
+                            (pos (cdr x)))
+                       (substring sepia-output (1+ pos) (+ len pos 1)))))
+               (cons sepia-output nil)))
+      (with-current-buffer (process-buffer sepia-process)
+        (setq comint-preoutput-filter-functions ocpof)))))
 
 (defun sepia-eval (str &optional context detailed)
 "Evaluate STR in CONTEXT (void by default), and return its result
@@ -189,10 +188,35 @@ each inferior Perl prompt."
      "")
     (t (setq sepia-passive-output "") string)))
 
-(defun sepia-install-keys (&optional map)
-  "Install Sepia bindings in the current local keymap."
-  (interactive)
-  (let ((map (or map (current-local-map))))
+
+(defvar sepia-metapoint-map
+  (let ((map (make-sparse-keymap)))
+    (when (featurep 'ido)
+      (define-key map "j" 'sepia-jump-to-symbol))
+    (dolist (kv '(("c" . sepia-callers)
+                  ("C" . sepia-callees)
+                  ("a" . sepia-apropos)
+                  ("A" . sepia-var-apropos)
+                  ("v" . sepia-var-uses)
+                  ("V" . sepia-var-defs)
+                  ;;		  ("V" . sepia-var-assigns)
+                  ("\M-." . sepia-dwim)
+                  ;; ("\M-." . sepia-location)
+                  ("l" . sepia-location)
+                  ("f" . sepia-defs)
+                  ("r" . sepia-rebuild)
+                  ("m" . sepia-module-find)
+                  ("n" . sepia-next)
+                  ("t" . find-tag)
+                  ("d" . sepia-perldoc-this)))
+      (define-key map (car kv) (cdr kv)))
+    map)
+  "Keymap for Sepia functions.  This is just an example of how you
+might want to bind your keys, which works best when bound to
+`\\M-.'.")
+
+(defvar sepia-shared-map
+  (let ((map (make-sparse-keymap)))
     (define-key map sepia-prefix-key sepia-metapoint-map)
     (define-key map "\M-," 'sepia-next)
     (define-key map "\C-\M-x" 'sepia-eval-defun)
@@ -201,7 +225,9 @@ each inferior Perl prompt."
     (define-key map "\C-c\C-r" 'sepia-repl)
     (define-key map "\C-c\C-s" 'sepia-scratch)
     (define-key map "\C-c!" 'sepia-set-cwd)
-    (define-key map (kbd "TAB") 'sepia-indent-or-complete)))
+    (define-key map (kbd "TAB") 'sepia-indent-or-complete)
+    map)
+  "Sepia bindings common to all modes.")
 
 ;;;###autoload
 (defun sepia-perldoc-this (name)
@@ -270,11 +296,7 @@ For modules within packages, see `sepia-module-list'."
   (and (processp sepia-process)
        (eq (process-status sepia-process) 'run)))
 
-;;;###autoload
-(defun sepia-repl ()
-  "Start the Sepia REPL."
-  (interactive)
-  (sepia-init) ;; set up keymaps, etc.
+(defun sepia-ensure-process ()
   (unless (sepia-live-p)
     (setq sepia-process
           (get-buffer-process
@@ -291,12 +313,29 @@ For modules within packages, see `sepia-module-list'."
     (setq gud-running t)
     (setq gud-last-last-frame nil)
     (set-process-filter sepia-process 'gud-filter)
-    (set-process-sentinel sepia-process 'gud-sentinel)
-    )
+    (set-process-sentinel sepia-process 'gud-sentinel)))
+
+;;;###autoload
+(defun sepia-repl ()
+  "Start the Sepia REPL."
+  (interactive)
+  (sepia-init) ;; set up keymaps, etc.
+  (sepia-ensure-process)
   (pop-to-buffer (get-buffer "*sepia-repl*")))
 
+(defvar sepia-repl-mode-map
+  (let ((map (copy-keymap sepia-shared-map)))
+    (set-keymap-parent map gud-mode-map)
+    (define-key map (kbd "<tab>") 'comint-dynamic-complete)
+    (define-key map "\C-a" 'comint-bol)
+    map)
+
+"Keymap for Sepia interactive mode.")
+    
 (define-derived-mode sepia-repl-mode gud-mode "Sepia REPL"
-  "Major mode for the Sepia REPL."
+  "Major mode for the Sepia REPL.
+
+\\{sepia-repl-mode-map}"
     (set (make-local-variable 'comint-dynamic-complete-functions)
          '(sepia-complete-symbol comint-dynamic-complete-filename))
     (set (make-local-variable 'comint-preoutput-filter-functions)
@@ -304,11 +343,6 @@ For modules within packages, see `sepia-module-list'."
     ;; (set (make-local-variable 'comint-use-prompt-regexp) t)
     (modify-syntax-entry ?: "_")
     (modify-syntax-entry ?> ".")
-    ;; (use-local-map (copy-keymap (current-local-map)))
-    (sepia-install-keys sepia-repl-mode-map)
-    (define-key sepia-repl-mode-map
-        (kbd "<tab>") 'comint-dynamic-complete)
-    (define-key sepia-repl-mode-map "\C-a" 'comint-bol)
     (set (make-local-variable 'comint-prompt-regexp) "^[^>\n]*> *")
     (set (make-local-variable 'gud-target-name) "sepia")
     (set (make-local-variable 'gud-marker-filter) 'sepia-gud-marker-filter)
@@ -355,24 +389,25 @@ For modules within packages, see `sepia-module-list'."
 	(pl-name (sepia-perl-name name package)))
     (fmakunbound lisp-name)
     (eval `(defun ,lisp-name (&rest args)
-	     ,doc
-	     (apply #'sepia-call ,pl-name 'list-context args)))))
+             ,doc
+             (apply #'sepia-call ,pl-name 'list-context args)))))
 
-(defun define-modinfo-function (name &optional doc)
+(defun define-modinfo-function (name &optional doc context)
 "Define a lisp mirror for a function from Module::Info."
   (let ((name (intern (format "sepia-module-%s" name)))
-	(pl-func (sepia-perl-name name))
+        (pl-func (sepia-perl-name name))
 	(full-doc (concat (or doc "") "
 
 This function uses Module::Info, so it does not require that the
 module in question be loaded.")))
     (when (fboundp name) (fmakunbound name))
     (eval `(defun ,name (mod)
-	     ,full-doc
-	     (interactive (list (sepia-interactive-arg 'module)))
+             ,full-doc
+             (interactive (list (sepia-interactive-arg 'module)))
              (sepia-maybe-echo
-              (sepia-call "Sepia::module_info" 'scalar-context
-                         mod ,pl-func))))))
+              (sepia-call "Sepia::module_info" ',(or context 'scalar-context)
+                         mod ,pl-func)
+              (interactive-p))))))
 
 (defun sepia-thing-at-point (what)
   "Like `thing-at-point', but hacked to avoid REPL prompt."
@@ -383,27 +418,33 @@ module in question be loaded.")))
 
 (defvar sepia-history nil)
 
-(defun sepia-interactive-arg (&optional type)
+(defun sepia-interactive-arg (&optional sepia-arg-type)
 "Default argument for most Sepia functions.  TYPE is a symbol --
 either 'file to look for a file, or anything else to use the
 symbol at point."
-  (let* ((default (case type
+  (let* ((default (case sepia-arg-type
 		    (file (or (thing-at-point 'file) (buffer-file-name)))
-		    (t (sepia-thing-at-point 'symbol))))
-	 (text (capitalize (symbol-name type)))
-	 (choices (lambda (str &rest blah)
-		    (let ((str (concat "^" str)))
-		      (case type
-			(variable (xref-var-apropos str))
-			(function (xref-apropos str))
-			(module (xref-mod-apropos str))
-			(t nil)))))
+                    (t (sepia-thing-at-point 'symbol))))
+         (text (capitalize (symbol-name sepia-arg-type)))
+         (choices
+          (lambda (str &rest blah)
+            (let ((completions (xref-completions
+                                str
+                                (case sepia-arg-type
+                                  (module nil)
+                                  (variable "VARIABLE")
+                                  (function "CODE")
+                                  (t nil)))))
+              (when (eq sepia-arg-type 'module)
+                (setq completions
+                      (remove-if (lambda (x) (string-match "::$" x)) completions)))
+              completions)))
          (prompt (if default
                      (format "%s [%s]: " text default)
                      (format "%s: " text)))
 	 (ret (if sepia-use-completion
-		  (completing-read prompt choices nil nil nil 'sepia-history
-				   default)
+                  (completing-read prompt 'blah-choices nil nil nil 'sepia-history
+                                   default)
 		  (read-string prompt nil 'sepia-history default))))
     (push ret sepia-history)
     ret))
@@ -416,11 +457,11 @@ would be to choose the module based on what we know about the
 symbol at point."
   (let ((xs (xref-file-modules (buffer-file-name))))
     (if (= (length xs) 1)
-	(car xs)
-	nil)))
+        (car xs)
+        nil)))
 
-(defun sepia-maybe-echo (result)
-  (when (interactive-p)
+(defun sepia-maybe-echo (result &optional print-message)
+  (when print-message
     (message "%s" result))
   result)
 
@@ -498,14 +539,14 @@ buffer.
 	    ,(if test
 		 `(let ((tmp (,gen ident module file line)))
 		    (or (mapcan #',test tmp) tmp))
-		 `(,gen ident module file line))))
+                 `(,gen ident module file line))))
        ;; Always clear out the last found ring, because it's confusing
        ;; otherwise.
-       (sepia-set-found nil ',(or prompt 'function))
+       (sepia-set-found nil ,(or prompt ''function))
        (if display-p
-	   (sepia-show-locations ret)
-	   (sepia-set-found ret ',(or prompt 'function))
-	   (sepia-next)))))
+           (sepia-show-locations ret)
+           (sepia-set-found ret ,(or prompt ''function))
+           (sepia-next)))))
 
 (define-sepia-query sepia-defs
     "Find all definitions of sub."
@@ -684,7 +725,6 @@ The prefix argument is the same as for `end-of-defun'."
 
 (defun sepia-defun-around-point (&optional where)
   "Return the text of function around point."
-  (interactive "d")
   (unless where
     (setq where (point)))
   (save-excursion
@@ -728,16 +768,14 @@ also rebuild the xref database."
     (xref-rebuild)))
 
 (defvar sepia-found)
-(defvar sepia-found-head)
 
 (defun sepia-set-found (list &optional type)
   (setq list
 	(remove-if (lambda (x)
                      (or (not x)
                          (and (not (car x)) (string= (fourth x) "main"))))
-		   list))
-  (setq sepia-found list
-	sepia-found-head list)
+                   list))
+  (setq sepia-found (cons -1 list))
   (setq sepia-found-refiner (sepia-refiner type)))
 
 (defun sepia-refiner (type)
@@ -745,21 +783,20 @@ also rebuild the xref database."
     (function
      (lambda (line ident)
       (let ((sub-re (concat "^\\s *sub\\s +.*" ident "\\_>")))
-	;; Test this because sometimes we get lucky and get the line
-	;; just right, in which case beginning-of-defun goes to the
-	;; previous defun.
-	(unless (looking-at sub-re)
-	  (or (and line
-		   (progn
-		     (goto-line line)
+        ;; Test this because sometimes we get lucky and get the line
+        ;; just right, in which case beginning-of-defun goes to the
+        ;; previous defun.
+          (or (and line
+                   (progn
+                     (goto-line line)
 		     (beginning-of-defun)
-		     (looking-at sub-re)))
-	      (progn (goto-char (point-min))
-		     (re-search-forward sub-re nil t)))
-	  (beginning-of-line)))))
+                     (looking-at sub-re)))
+              (progn (goto-char (point-min))
+                     (re-search-forward sub-re nil t)))
+          (beginning-of-line))))
     ;; Old version -- this may actually work better if
     ;; beginning-of-defun goes flaky on us.
-;; 	   (or (re-search-backward sub-re
+;;         (or (re-search-backward sub-re
 ;; 				   (sepia-bol-from (point) -20) t)
 ;; 	       (re-search-forward sub-re
 ;; 				  (sepia-bol-from (point) 10) t))
@@ -772,30 +809,72 @@ also rebuild the xref database."
 		 (or (re-search-backward var-re (sepia-bol-from (point) -5) t)
 		     (re-search-forward var-re (sepia-bol-from (point) 5) t)))
 	   (t (goto-char (point-min))
-	      (re-search-forward var-re nil t))))))
+              (re-search-forward var-re nil t))))))
     (t (lambda (line ident) (and line (goto-line line))))))
 
-(defun sepia-next ()
-"Go to the next thing (e.g. def, use) found by sepia."
-  (interactive)
-  (if sepia-found
-      (destructuring-bind (file line short &optional mod &rest blah)
-	  (car sepia-found)
-	(unless file
-	  (setq file (and mod (sepia-find-module-file mod)))
-	  (if file
-	      (setf (caar sepia-found) file)
-	      (error "No file for %s." (car sepia-found))))
-	(message "%s at %s:%s" short file line)
+(defun sepia-next (&optional arg)
+  "Go to the next thing (e.g. def, use) found by sepia."
+  (interactive "p")
+  (or arg (setq arg 1))
+  (if (cdr sepia-found)
+      (let ((i (car sepia-found))
+            (list (cdr sepia-found))
+            (len (length (cdr sepia-found)))
+            (next (+ (car sepia-found) arg))
+            (prompt ""))
+        (if (and (= len 1) (>= i 0))
+            (message "No more definitions.")
+          ;; if stepwise found next or previous item, it can cycle
+          ;; around the `sepia-found'. When at first or last item, get
+          ;; a warning
+          (if (= (abs arg) 1)
+              (progn
+                (setq i next)
+                (if (< i 0)
+                    (setq i (1- len))
+                  (if (>= i len)
+                      (setq i 0)))
+                (if (= i (1- len))
+                    (setq prompt "Last one! ")
+                  (if (= i 0)
+                      (setq prompt "First one! "))))
+            ;; if we skip several item, when arrive the first or last
+            ;; item, we will stop at the one. But if we already at last
+            ;; item, then keep going
+            (if (< next 0)
+                (if (= i 0)
+                    (setq i (mod next len))
+                  (setq i 0
+                        prompt "First one!"))
+              (if (> next len)
+                  (if (= i (1- len))
+                      (setq i (mod next len))
+                    (setq i (1- len)
+                          prompt "Last one!")))))
+          (setcar sepia-found i)
+          (setq next (nth i list))
+          (let ((file (car next))
+                (line (cadr next))
+                (short (nth 2 next))
+                (mod (nth 3 next)))
+        (unless file
+          (setq file (and mod (sepia-find-module-file mod)))
+          (if file
+                  (setcar next file)
+                (error "No file for %s." (car next))))
+            (message "%s at %s:%s. %s" short file line prompt)
         (when (file-exists-p file)
           (find-file (or file (sepia-find-module-file mod)))
           (when sepia-found-refiner
             (funcall sepia-found-refiner line short))
           (beginning-of-line)
-          (recenter)
-          (setq sepia-found (or (cdr sepia-found)
-                                sepia-found-head))))
+              (recenter)))))
       (message "No more definitions.")))
+
+(defun sepia-previous (&optional arg)
+  (interactive "p")
+  (or arg (setq arg 1))
+  (sepia-next (- arg)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Completion
@@ -984,17 +1063,21 @@ This function is intended to be bound to TAB."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; scratchpad code
 
-;; (defvar sepia-mode-map nil "Keymap for Sepia mode.")
+(defvar sepia-mode-map
+  (let ((map (copy-keymap sepia-shared-map)))
+    (set-keymap-parent map cperl-mode-map)
+    (define-key map "\C-c\C-h" nil)
+    map)
+ "Keymap for Sepia mode.")
 
-(defvar sepia-metapoint-map nil
-  "Keymap for Sepia functions.  This is just an example of how you
-might want to bind your keys, which works best when bound to
-`\\M-.'.")
+(defvar sepia-mode-abbrev-table nil
+"Abbrevs for Sepia mode.")
 
 ;;;###autoload
 (define-derived-mode sepia-mode cperl-mode "Sepia"
   "Major mode for Perl editing, derived from cperl mode.
 \\{sepia-mode-map}"
+  :abbrev-table nil
   (sepia-init)
   (sepia-install-eldoc)
   (sepia-doc-update)
@@ -1005,53 +1088,19 @@ might want to bind your keys, which works best when bound to
 
 (defun sepia-init ()
   "Perform the initialization necessary to start Sepia."
-  (unless sepia-metapoint-map
-    ;; first time!
-    (setq sepia-metapoint-map (make-sparse-keymap))
-    (dolist (kv '(("c" . sepia-callers)
-                  ("C" . sepia-callees)
-                  ("a" . sepia-apropos)
-                  ("A" . sepia-var-apropos)
-                  ("v" . sepia-var-uses)
-                  ("V" . sepia-var-defs)
-                  ;;		  ("V" . sepia-var-assigns)
-                  ("\M-." . sepia-dwim)
-                  ;; ("\M-." . sepia-location)
-                  ("l" . sepia-location)
-                  ("f" . sepia-defs)
-                  ("r" . sepia-rebuild)
-                  ("m" . sepia-module-find)
-                  ("n" . sepia-next)
-                  ("t" . find-tag)
-                  ("d" . sepia-perldoc-this)))
-      (define-key sepia-metapoint-map (car kv) (cdr kv)))
-    (when (featurep 'ido)
-      (define-key sepia-metapoint-map "j" 'sepia-jump-to-symbol)))
-  (unless sepia-mode-map
-    (setq sepia-mode-map (make-sparse-keymap))
-    ;; Undo annoying binding of C-h, which breaks key help.  Move it
-    ;; elsewhere?
-    (define-key sepia-mode-map "\C-c\C-h" nil)
-    ;; (define-key sepia-mode-map "\C-chF" 'cperl-info-on-command)
-    ;; (define-key sepia-mode-map "\C-cha" 'cperl-toggle-autohelp)
-    ;; (define-key sepia-mode-map "\C-chf" 'cperl-info-on-current-command)
-    ;; (define-key sepia-mode-map "\C-chm" 'sepia-perldoc-this)
-    ;; (define-key sepia-mode-map "\C-chv" 'cperl-get-help)
-
-    (sepia-install-keys sepia-mode-map)
     ;; Load perl defs:
-    ;; Create glue wrappers for Module::Info funcs.
+  ;; Create glue wrappers for Module::Info funcs.
+  (unless (fboundp 'xref-completions)
     (dolist (x '((name "Find module name.\n\nDoes not require loading.")
                  (version "Find module version.\n\nDoes not require loading.")
                  (inc-dir "Find directory in which this module was found.\n\nDoes not require loading.")
                  (file "Absolute path of file defining this module.\n\nDoes not require loading.")
                  (is-core "Guess whether or not a module is part of the core distribution.
 Does not require loading.")
-                 (modules-used "List modules used by this module.\n\nRequires loading.")
-                 (packages-inside "List sub-packages in this module.\n\nRequires loading.")
-                 (superclasses "List module's superclasses.\n\nRequires loading.")))
+                 (modules-used "List modules used by this module.\n\nRequires loading." list-context)
+                 (packages-inside "List sub-packages in this module.\n\nRequires loading." list-context)
+                 (superclasses "List module's superclasses.\n\nRequires loading." list-context)))
       (apply #'define-modinfo-function x))
-
     ;; Create low-level wrappers for Sepia
     (dolist (x '((completions "Find completions in the symbol table.")
                  (method-completions "Complete on an object's methods.")
@@ -1082,14 +1131,19 @@ Does not require loading.")
                  (guess-module-file "Guess file corresponding to module.")
                  (file-modules "List the modules defined in a file.")))
       (apply #'define-xref-function "Sepia::Xref" x))
-
     ;; Initialize built hash
     (sepia-init-perl-builtins)))
+
+(defvar sepia-scratchpad-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map sepia-mode-map)
+    (define-key map "\C-j" 'sepia-scratch-send-line)
+    map))
 
 ;;;###autoload
 (define-derived-mode sepia-scratchpad-mode sepia-mode "Sepia-Scratch"
   "Major mode for the Perl scratchpad, derived from Sepia mode."
-  (define-key sepia-scratchpad-mode-map "\C-j" 'sepia-scratch-send-line))
+  (sepia-init))
 
 ;;;###autoload
 (defun sepia-scratch ()
@@ -1256,7 +1310,7 @@ With prefix arg, replace the region with the result."
     (when message-p (message "%s" res))
     res))
 
-(defun sepia-extract-def (file line obj mod)
+(defun sepia-extract-def (file line obj)
   (with-current-buffer (find-file-noselect (expand-file-name file))
     (save-excursion
       (funcall (sepia-refiner 'function) line obj)
@@ -1287,7 +1341,7 @@ With prefix arg, replace the region with the result."
 
 When called interactively, the current buffer's
 `default-directory' is used."
-  (interactive (list default-directory))
+  (interactive (list (expand-file-name default-directory)))
   (sepia-call "Cwd::chdir" dir))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1462,7 +1516,7 @@ calling `cperl-describe-perl-symbol'."
        (if (member type '(?% ?$ ?@ ?*))
            pname
            (concat "\\*" pname))))
-    ((stringp thing) (format "\'%s\'" thing))
+    ((stringp thing) (format "%S" (substring-no-properties thing 0)))
     ((integerp thing) (format "%d" thing))
     ((numberp thing) (format "%g" thing))
     ;; Perl expression

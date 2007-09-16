@@ -1,4 +1,5 @@
 use ExtUtils::MakeMaker;
+use 5.006;                      # for "no warnings" -- sorry!
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 
@@ -9,11 +10,9 @@ WriteMakefile(
 			     'B::Module::Info' => 0,
                              'Scalar::Util'    => 0,
                          },
-    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-     (AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",
-      ABSTRACT => 'Simple Emacs-Perl InterAction')
-     : ()),
-    LICENSE => 'perl'
+    AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",
+    ABSTRACT => 'Simple Emacs-Perl InterAction',
+    LICENSE => 'perl',
 );
 
 print <<EOS;

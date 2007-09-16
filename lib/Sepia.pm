@@ -19,10 +19,7 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.90';
-@ISA = qw(Exporter);
-
-require Exporter;
+$VERSION = '0.92';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -671,6 +668,7 @@ BEGIN {
              quit => \&Sepia::repl_quit,
              reload => \&Sepia::repl_reload,
              shell => \&Sepia::repl_shell,
+             eval => \&Sepia::repl_eval,
          );
     %REPL_DOC = (
         cd =>
@@ -718,8 +716,8 @@ sub repl_help
 {
     print "REPL commands (prefixed with ','):\n";
     for (sort keys %REPL) {
-        print "    ",
-            exists $REPL_DOC{$_} ? "$REPL_DOC{$_}\n": "$_    (undocumented)\n";
+        print "    ", exists $REPL_DOC{$_} ? "$REPL_DOC{$_}\n":
+            sprintf("%-18s (undocumented)\n", $_);
     }
     0;
 }
@@ -817,7 +815,7 @@ sub repl_methods
     $x =~ s/^\s+//;
     $x =~ s/\s+$//;
     if ($x =~ /^\$/) {
-        $x = repl_eval("ref $x");
+        $x = $REPL{eval}->("ref $x");
         return 0 if $@;
     }
     $re ||= '.?';
@@ -878,9 +876,9 @@ sub repl_shell
 
 sub repl_eval
 {
-    my ($buf, $wantarray, $pkg) = @_;
+    my ($buf) = @_;
     no strict;
-    local $PACKAGE = $pkg || $PACKAGE;
+    # local $PACKAGE = $pkg || $PACKAGE;
     if ($STRICT) {
         if (!$WANTARRAY) {
             $buf = 'scalar($buf)';
@@ -1006,7 +1004,7 @@ EOS
                 }
             } else {
                 ## Ordinary eval
-                @res = repl_eval $buf, wantarray;
+                @res = $REPL{eval}->($buf);
                 if ($@) {
                     if ($ISEVAL) {
                         ## Always return results for an eval request
@@ -1015,7 +1013,7 @@ EOS
                         # print_warnings $ISEVAL;
                         $buf = '';
                         print prompt;
-                    } elsif ($@ =~ /at EOF$/m) {
+                    } elsif ($@ =~ /(?:at|before) EOF$/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
                             print "Error:\n$@\n*** cancel ***\n", prompt;
@@ -1046,7 +1044,7 @@ EOS
 
 sub perl_eval
 {
-    tolisp(repl_eval(shift));
+    tolisp($REPL{eval}->(shift));
 }
 
 =head2 C<$status = html_module_list($file [, $prefix])>

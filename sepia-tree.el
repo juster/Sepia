@@ -10,12 +10,16 @@
 
 ;;; Code:
 
+
 (require 'tree-widget nil t)
+
+(defvar sepia-tree-use-image nil
+  "*If non-nil, show tree-widget with icons.")
 
 (defun sepia-tree-button-cb (widget &rest blah)
   (let* ((pw (widget-get widget :parent))
-         (wid-name (widget-get widget :sepia-name))
-	 (location (and wid-name (xref-location wid-name))))
+         (wid-name (widget-get pw :sepia-name))
+         (location (and wid-name (car (xref-location wid-name)))))
     (cond
       ((not location) (error "Can't find %s." wid-name))
       (current-prefix-arg
@@ -67,7 +71,8 @@ will, given a widget, generate its children."
   "Get/create a new, tidy buffer for the tree widget."
   (switch-to-buffer name)
   (kill-all-local-variables)
-  (setq widget-image-enable nil);; because the widget images are ugly.
+  ;; because the widget images are ugly.
+  (set (make-local-variable 'widget-image-enable) sepia-tree-use-image)
   (let ((inhibit-read-only t))
     (erase-buffer))
   (let ((all (overlay-lists)))
@@ -79,20 +84,20 @@ will, given a widget, generate its children."
 (defun sepia-build-tree-buffer (func defs bufname)
   (if defs
       (lexical-let ((func func))
-	(sepia-tree-tidy-buffer bufname)
-	(with-current-buffer bufname
-	  (dolist (x defs)
-	    (apply #'widget-create
-		   (sepia-tree-node
+        (sepia-tree-tidy-buffer bufname)
+        (with-current-buffer bufname
+          (dolist (x defs)
+            (widget-create
+                   (sepia-tree-node
                     (lambda (widget)
                       (funcall func (widget-get widget :sepia-name)))
                     x)))
-	  (use-local-map (copy-keymap widget-keymap))
-;;	  (local-set-key "\M-." sepia-keymap)
-	  (sepia-install-keys)
-	  (let ((view-read-only nil))
-	    (toggle-read-only 1))
-	  (goto-char (point-min))
+          (use-local-map (copy-keymap widget-keymap))
+;;        (local-set-key "\M-." sepia-keymap)
+;;        (sepia-install-keys)
+          (let ((view-read-only nil))
+            (toggle-read-only 1))
+          (goto-char (point-min))
 	  (message "Type C-h m for usage information")))
       (message "No items for %s" bufname)))
 
