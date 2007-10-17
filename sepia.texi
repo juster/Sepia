@@ -408,6 +408,12 @@ abbreviated to the shortest unique prefix.
 @item cd @var{dir}
 Change Perl's current directory to @var{dir}.
 
+@item debug [@var{val}]
+Turn Sepia debugger hook on or off, or toggle if @var{val} is missing.
+
+@item delete
+Delete the current breakpoint.
+
 @item format @var{type}
 Set the output format to @var{type}, either ``dumper'' (using
 @code{Data::Dumper}), ``dump'' (@code{Data::Dump}), ``yaml''
@@ -416,12 +422,18 @@ Set the output format to @var{type}, either ``dumper'' (using
 @item help
 Display a list of shortcuts.
 
+@item lsbreak
+List breakpoints.
+
 @item methods @var{name} [@var{regexp}]
 Display a list of functions defined in package @var{name} and its
 @code{ISA}-ancestors matching optional pattern @var{regexp}.
 
 @item package @var{name}
 Set the default evaluation package to @var{name}.
+
+@item pwd
+Show the process's current working directory.
 
 @item quit
 Exit the inferior Perl process.
@@ -454,7 +466,7 @@ optional pattern @var{regexp}.
 
 Sepia uses Perl's debugger hooks and GUD mode to support conditional
 breakpoints and single-stepping, and overrides Perl's @code{die()} to
-invoke the debugger rather than unwinding the stack.  This makes it
+invoke the debugger rather than unwind the stack.  This makes it
 possible to produce a backtrace, inspect and modify global variables,
 and even continue execution when a program tries to kill itself.  If the
 PadWalker module is available, Sepia also provides functions to inspect

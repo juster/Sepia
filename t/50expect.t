@@ -61,17 +61,17 @@ expect ',lsb', '';
 expect_send ',debug 1';
 expect_send "do '$Bin/testy.pl';", 'get testy';
 
-expect 'fib1 10', '=> 55', 'plain fib';
+expect 'fib1 10', '55', 'plain fib';
 expect ',br testy.pl:6', "break testy.pl:6 if 1", 'break?';
 expect_send 'fib1 10';
 expect_like qr|_<$Bin/testy.pl:6>|, 'break in fib';
 # XXX AGAIN STUPID EXPECT!
-expect '$n = 3', "\$n = 3\n=> 3", 'munge lexicals';
+expect '$n = 3', "\$n = 3\n3", 'munge lexicals';
 expect ',in',
 '[3] DB::DB:
 	$n = \3', 'munged';
 expect ',del', '';
-expect ',con', '=> 2', 'return from fib';
+expect ',con', '2', 'return from fib';
 expect_send 'fib2 10', 'bad fib';
 expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_send ',q', 'quit';

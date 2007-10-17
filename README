@@ -238,7 +238,6 @@ some operations, if you don't mind losing completion.
 * TODO
 ** implement mod_apropos
 ** use xref-completions in sepia-interactive-arg
-** remove sepia-module-describe
 ** improve output for sepia-module-* (modinfo functions)
 ** better intro for debugger
 ** (Easy) Use module, file, line to refine queries (Perl side)
@@ -247,12 +246,15 @@ some operations, if you don't mind losing completion.
 ** (Easy) Clean up Perl side a bit more.
 ** (Hard) Use module, file, line to filter results (Emacs side)
 ** (Medium) Let sepia-next go backward
-   Need to use a ring instead of a list for sepia-found.
+   Need to use a vector plus current index instead of a list for
+   sepia-found.
 ** (Medium) Use lexical environment more
    ",eval" should use lexical evaluation whenever PadWalker's available.
 ** (Hard) return from anything in the debugger
    Make it possible to return from intermediate calls in the
    debugger.  Returning from die() is not often useful.
+** (Easy) Fix sepia-indent-or-complete abbrev expansion
+   Currently "else<TAB>" both expands and completes.
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

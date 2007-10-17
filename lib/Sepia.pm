@@ -19,7 +19,7 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.92';
+$VERSION = '0.93';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -606,7 +606,7 @@ sub printer
     if ($ISEVAL) {
         print ';;;', length $res, "\n$res\n";
     } else {
-        print "=> $res\n";
+        print "$res\n";
     }
 }
 
@@ -659,6 +659,7 @@ BEGIN {
     $PRINT_PRETTY = 1;
     %REPL = (help => \&Sepia::repl_help,
              cd => \&Sepia::repl_chdir,
+             pwd => \&Sepia::repl_pwd,
              methods => \&Sepia::repl_methods,
              package => \&Sepia::repl_package,
              who => \&Sepia::repl_who,
@@ -670,9 +671,11 @@ BEGIN {
              shell => \&Sepia::repl_shell,
              eval => \&Sepia::repl_eval,
          );
-    %REPL_DOC = (
+    %Sepia::REPL_DOC = (
         cd =>
     'cd DIR             Change directory to DIR',
+        pwd =>
+    'pwd                Show current working directory',
         format =>
     'format [dumper|dump|yaml|plain]
                        Set output formatter (default: dumper)',
@@ -743,13 +746,18 @@ sub repl_chdir
     $dir =~ s/^~\//$ENV{HOME}\//;
     $dir =~ s/\$HOME/$ENV{HOME}/;
     if (-d $dir) {
-
         chdir $dir;
         my $ecmd = '(cd "'.Cwd::getcwd().'")';
         print ";;;###".length($ecmd)."\n$ecmd\n";
     } else {
         warn "Can't chdir\n";
     }
+    0;
+}
+
+sub repl_pwd
+{
+    print Cwd::getcwd(), "\n";
     0;
 }
 
@@ -791,6 +799,13 @@ sub columnate
 sub repl_who
 {
     my ($pkg, $re) = split ' ', shift;
+    if ($pkg =~ /^\/(.*)\/?$/) {
+        $pkg = $PACKAGE;
+        $re = $1;
+    } elsif (!$re && !defined %{$pkg.'::'}) {
+        $re = $pkg;
+        $pkg = $PACKAGE;
+    }
     print columnate who($pkg || $PACKAGE, $re);
     0;
 }
@@ -929,6 +944,9 @@ sub repl
     if (@_ > 0) {
         $REPL_IN = $_[0];
         $REPL_OUT = $_[1];
+    } else {
+        $REPL_IN = \*STDIN;
+        $REPL_OUT = \*STDOUT;
     }
     select $REPL_OUT;
     $| = 1;
@@ -1013,7 +1031,7 @@ EOS
                         # print_warnings $ISEVAL;
                         $buf = '';
                         print prompt;
-                    } elsif ($@ =~ /(?:at|before) EOF$/m) {
+                    } elsif ($@ =~ /(?:at|before) EOF(?:$| at)/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
                             print "Error:\n$@\n*** cancel ***\n", prompt;
@@ -1031,7 +1049,7 @@ EOS
                     next repl;
                 }
             }
-            if ($buf !~ /;$/ && $buf !~ /^,/) {
+            if ($buf !~ /;\s*$/ && $buf !~ /^,/) {
                 ## Be quiet if it ends with a semicolon, or if we
                 ## executed a shortcut.
                 Sepia::printer \@res, wantarray;

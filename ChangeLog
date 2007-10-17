@@ -1,3 +1,33 @@
+2007-10-16  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* VERSION: 0.93
+
+	* lib/Sepia.pm (repl_pwd): add ",pwd" shortcut.
+	(repl_who): use current package when only regex given.
+
+	* sepia.el (sepia-repl,sepia-ensure-process): add remote
+	  connection with attachtty.
+	(sepia-shared-map): bind \C-c\C-e to eval-expression.
+	(sepia-symbol-info): be more selective about "core version".
+
+2007-09-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (printer): remove "=>" -- it's annoying.
+
+2007-09-21  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-load-file): disable debugger.
+	(sepia-symbol-info): be pickier about module core versions.
+
+2007-09-20  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* lib/Sepia.pm (repl_who): use current package if only one arg
+	  given, and it's not an existing package.
+
+2007-09-18  Sean O'Rourke  <sorourke@cs.ucsd.edu>
+
+	* sepia.el (sepia-watch-for-eval): fix hang with recursive sepia-eval.
+
 2007-07-25  Sean O'Rourke  <sorourke@cs.ucsd.edu>
 
 	* sepia.el (sepia-interactive-arg): use xref-completions rather

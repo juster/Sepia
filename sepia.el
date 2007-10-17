@@ -169,7 +169,7 @@ each inferior Perl prompt."
   (setq sepia-passive-output (concat sepia-passive-output string))
   (cond
     ((string-match "^;;;###[0-9]+" sepia-passive-output)
-     (when (string-match "^;;;###\\([0-9]+\\)\n\\(?:.\\|\n\\)*\\(\n.*> \\)"
+     (if (string-match "^;;;###\\([0-9]+\\)\n\\(?:.\\|\n\\)*\n\\(.*> \\)"
                          sepia-passive-output)
        (let* ((len (car (read-from-string
                          (match-string 1 sepia-passive-output))))
@@ -177,15 +177,14 @@ each inferior Perl prompt."
               (res (ignore-errors (eval (car (read-from-string
                                               sepia-passive-output pos
                                               (+ pos len)))))))
-         (insert (format "%s => %s\n"
-                         (substring sepia-passive-output pos (+ pos len)) res))
+         (message "%s => %s"
+                  (substring sepia-passive-output pos (+ pos len)) res)
          (goto-char (point-max))
-         (comint-set-process-mark)
-         (sepia-eval "''" 'scalar-context)
-         (message "%s => %s" (substring sepia-passive-output pos (+ pos len))
-                  res)
-         (setq sepia-passive-output "")))
-     "")
+         (insert (substring sepia-passive-output (+ 1 pos len)))
+         (set-marker (process-mark (get-buffer-process (current-buffer)))
+                     (point))
+         (setq sepia-passive-output ""))
+       ""))
     (t (setq sepia-passive-output "") string)))
 
 
@@ -224,6 +223,7 @@ might want to bind your keys, which works best when bound to
     (define-key map "\C-c\C-d" 'sepia-view-pod)
     (define-key map "\C-c\C-r" 'sepia-repl)
     (define-key map "\C-c\C-s" 'sepia-scratch)
+    (define-key map "\C-c\C-e" 'sepia-eval-expression)
     (define-key map "\C-c!" 'sepia-set-cwd)
     (define-key map (kbd "TAB") 'sepia-indent-or-complete)
     map)
@@ -296,16 +296,22 @@ For modules within packages, see `sepia-module-list'."
   (and (processp sepia-process)
        (eq (process-status sepia-process) 'run)))
 
-(defun sepia-ensure-process ()
+(defun sepia-ensure-process (&optional remote-host)
   (unless (sepia-live-p)
-    (setq sepia-process
-          (get-buffer-process
-           (comint-exec (get-buffer-create "*sepia-repl*")
-                        "perl" sepia-program-name nil
-                        (append (mapcar (lambda (x) (concat "-I" x))
-                                        sepia-perl5lib)
-                                '("-MSepia" "-MSepia::Xref"
-                                  "-e" "Sepia::repl(*STDIN, *STDOUT)")))))
+    (let ((stuff (split-string sepia-program-name nil t)))
+      (setq sepia-process
+            (get-buffer-process
+             (if remote-host
+                 (comint-exec (get-buffer-create "*sepia-repl*")
+                              "attachtty" "attachtty" nil
+                              (list remote-host))
+                 (comint-exec (get-buffer-create "*sepia-repl*")
+                              "perl" (car stuff) nil
+                              (append
+                               (cdr stuff)
+                               (mapcar (lambda (x) (concat "-I" x)) sepia-perl5lib)
+                               '("-MSepia" "-MSepia::Xref"
+                                 "-e" "'Sepia::repl(*STDIN, *STDOUT)'")))))))
     (with-current-buffer "*sepia-repl*"
       (sepia-repl-mode))
     (accept-process-output sepia-process 0 1)
@@ -316,11 +322,12 @@ For modules within packages, see `sepia-module-list'."
     (set-process-sentinel sepia-process 'gud-sentinel)))
 
 ;;;###autoload
-(defun sepia-repl ()
+(defun sepia-repl (&optional remote-host)
   "Start the Sepia REPL."
-  (interactive)
+  (interactive (list (and current-prefix-arg
+                          (read-string "Host: "))))
   (sepia-init) ;; set up keymaps, etc.
-  (sepia-ensure-process)
+  (sepia-ensure-process remote-host)
   (pop-to-buffer (get-buffer "*sepia-repl*")))
 
 (defvar sepia-repl-mode-map
@@ -581,12 +588,6 @@ buffer.
   (lambda (x) (setf (third x) ident) (list x))
   'variable)
 
-(define-sepia-query sepia-module-describe
-    "Find all subroutines in a package."
-  xref-mod-subs
-  nil
-  'module)
-
 (defalias 'sepia-package-defs 'sepia-module-describe)
 
 (define-sepia-query sepia-apropos
@@ -610,7 +611,7 @@ to this location."
   (let* ((fl (or (car (xref-location name))
                  (car (remove-if #'null
                                  (apply #'xref-location (xref-apropos name)))))))
-    (when (and fl (string-match "^(eval " (car fl)))
+    (when (and (car fl) (string-match "^(eval " (car fl)))
       (message "Can't find definition of %s in %s." name (car fl))
       (setq fl nil))
     (if jump-to
@@ -751,7 +752,7 @@ also rebuild the xref database."
                      prefix-arg
                      (format "*%s errors*" (buffer-file-name))))
   (save-buffer)
-  (let* ((tmp (sepia-eval (format "do '%s' || ($@ && die $@)" file)
+  (let* ((tmp (sepia-eval (format "do '%s' || ($@ && do { local $Sepia::Debug::STOPDIE; die $@ })" file)
                           'scalar-context t))
          (res (car tmp))
          (errs (cdr tmp)))
@@ -1420,7 +1421,7 @@ used for eldoc feedback."
 
 (defun sepia-looks-like-module (obj)
   (let (case-fold-search)
-    (or (string-match "^\\([A-Z].*::\\)?[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
+    (or (string-match "^\\([A-Z][A-Za-z0-9]+::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
         (string-match
          (eval-when-compile (regexp-opt '("strict" "vars" "warnings" "lib")))
          obj))))
@@ -1445,7 +1446,7 @@ calling `cperl-describe-perl-symbol'."
           (flet ((message (&rest blah) (apply #'format blah)))
             (let* (case-fold-search
                    (cperl-message-on-help-error nil)
-                   (hlp (car (cperl-describe-perl-symbol obj))))
+                   (hlp (car (save-excursion (cperl-describe-perl-symbol obj)))))
               (if hlp
                   (progn
                     ;; cperl's docstrings are too long.
@@ -1454,7 +1455,10 @@ calling `cperl-describe-perl-symbol'."
                         (concat (substring hlp 0 72) "...")
                         hlp))
                   ;; Try to see if it's a module
-                  (if (sepia-looks-like-module obj)
+                  (if (and (save-excursion
+                             (beginning-of-line)
+                             (looking-at " *\\(?:use\\|require\\)"))
+                           (sepia-looks-like-module obj))
                       (sepia-core-version obj)
                       ""))))
       "")))
