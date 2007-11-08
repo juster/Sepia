@@ -116,6 +116,8 @@ my %code = (intro => "i", used => "",
 	    formdef => "f", meth => "->");
 
 
+=head2 Functions
+
 =item C<guess_module_file($pack, $ofile)>
 
 XXX: it turns out that rooting around trying to figure out the file
@@ -490,10 +492,6 @@ sub xref_definitions {
     no strict qw(vars refs);
     walksymtable(\%{"main::"}, "xref", sub { !xref_exclude($_[0]) });
 }
-
-=head2 Functions
-
-=over
 
 =item C<rebuild()>
 

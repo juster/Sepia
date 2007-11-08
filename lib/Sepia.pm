@@ -19,7 +19,7 @@ For more information, please see F<sepia/index.html>.
 
 =cut
 
-$VERSION = '0.93';
+$VERSION = '0.94_01';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -56,6 +56,45 @@ BEGIN {
         *Sepia::core_version = sub { '???' };
     } else {
         *Sepia::core_version = sub { Module::CoreList->first_release(@_) };
+    }
+    eval { use List::Util 'max' };
+    if ($@) {
+        *Sepia::max = sub {
+            my $ret = shift;
+            for (@_) {
+                $ret = $_ if $_ > $ret;
+            }
+            $ret;
+        };
+    }
+    eval { require Devel::Size };
+    if ($@) {
+        *Sepia::repl_size = sub {
+            print STDERR "Size requires Devel::Size.\n";
+            0;
+        };
+    } else {
+        *Sepia::repl_size = sub {
+            ## XXX: C&P from repl_who:
+            my ($pkg, $re) = split ' ', shift || '';
+            if ($pkg =~ /^\/(.*)\/?$/) {
+                $pkg = $PACKAGE;
+                $re = $1;
+            } elsif (!$re && !defined %{$pkg.'::'}) {
+                $re = $pkg;
+                $pkg = $PACKAGE;
+            }
+            my @who = who($pkg, $re);
+            my $len = max(map { length } @who) + 4;
+            my $fmt = '%-'.$len."s%10d\n";
+            print 'Var', ' ' x ($len + 2), "Bytes\n";
+            print '-' x ($len-4), ' ' x (9+$len), '-' x 5, "\n";
+            for (@who) {
+                my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
+                printf $fmt, $_, $res || 0;
+            }
+            0;
+        };
     }
 }
 
@@ -670,6 +709,7 @@ BEGIN {
              reload => \&Sepia::repl_reload,
              shell => \&Sepia::repl_shell,
              eval => \&Sepia::repl_eval,
+             size => \&Sepia::repl_size,
          );
     %Sepia::REPL_DOC = (
         cd =>
@@ -691,6 +731,10 @@ EOS
     'quit               Quit the REPL',
         shell =>
     'shell CMD ...      Run CMD in the shell.',
+        size => <<EOS,
+size PACKAGE [RE]   List total sizes of objects in PACKAGE matching optional
+                       pattern RE.
+EOS
         strict =>
     'strict [0|1]       Turn \'use strict\' mode on or off',
         wantarray =>
@@ -709,10 +753,19 @@ sub prompt()
     "$PACKAGE ".($WANTARRAY ? '@' : '$').$PS1
 }
 
-sub Dump {
+sub Dump
+{
     eval {
         Data::Dumper->Dump([$_[0]], [$_[1]]);
     };
+}
+
+sub flow
+{
+    my $n = shift;
+    local $_ = shift;
+    s/(.{$n,})? /$1\n/g;
+    $_
 }
 
 sub repl_help
@@ -965,7 +1018,7 @@ sub repl
     Sepia::Debug::add_repl_commands;
     print <<EOS if $REPL_LEVEL == 1;
 Sepia version $Sepia::VERSION.
-Press ",h" for help, or "^D" or ",q" to exit.
+Type ",h" for help, or ",q" to quit.
 EOS
     print prompt;
     my @sigs = qw(INT TERM PIPE ALRM);

@@ -32,5 +32,5 @@ sub test_for
 
 test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0.';
 test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence.';
-test_for 'Module::CoreList',
-    'sepia-core-version requires Module::CoreList.';
+test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList.';
+test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size.';

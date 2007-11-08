@@ -298,22 +298,21 @@ For modules within packages, see `sepia-module-list'."
 
 (defun sepia-ensure-process (&optional remote-host)
   (unless (sepia-live-p)
-    (let ((stuff (split-string sepia-program-name nil t)))
-      (setq sepia-process
-            (get-buffer-process
-             (if remote-host
-                 (comint-exec (get-buffer-create "*sepia-repl*")
-                              "attachtty" "attachtty" nil
-                              (list remote-host))
-                 (comint-exec (get-buffer-create "*sepia-repl*")
-                              "perl" (car stuff) nil
-                              (append
-                               (cdr stuff)
-                               (mapcar (lambda (x) (concat "-I" x)) sepia-perl5lib)
-                               '("-MSepia" "-MSepia::Xref"
-                                 "-e" "'Sepia::repl(*STDIN, *STDOUT)'")))))))
-    (with-current-buffer "*sepia-repl*"
-      (sepia-repl-mode))
+    (with-current-buffer (get-buffer-create "*sepia-repl*")
+      (sepia-repl-mode)
+      (set (make-local-variable 'sepia-passive-output) ""))
+    (if remote-host
+        (comint-exec "*sepia-repl*" "attachtty" "attachtty" nil
+                     (list remote-host))
+        (let ((stuff (split-string sepia-program-name nil t)))
+          (comint-exec (get-buffer-create "*sepia-repl*")
+                       "perl" (car stuff) nil
+                       (append
+                        (cdr stuff)
+                        (mapcar (lambda (x) (concat "-I" x)) sepia-perl5lib)
+                        '("-MSepia" "-MSepia::Xref"
+                          "-e" "Sepia::repl(*STDIN, *STDOUT)")))))
+    (setq sepia-process (get-buffer-process "*sepia-repl*"))
     (accept-process-output sepia-process 0 1)
     ;; Steal a bit from gud-common-init:
     (setq gud-running t)
@@ -964,6 +963,14 @@ expressions would lead to disaster."
                     (cadr (sepia-ident-at-point))))))
     (error nil)))
 
+(defun sepia-repl-complete ()
+  "Try to complete the word at point in the REPL.
+Just like `sepia-complete-symbol', except that it also completes
+REPL shortcuts."
+  (interactive)
+  (error "TODO")
+  )
+
 (defun sepia-complete-symbol ()
   "Try to complete the word at point.
 The word may be either a global variable if it has a
@@ -1261,7 +1268,7 @@ With prefix arg, replace the region with the result."
 	     (fourth (car defs)))
 	(and file
 	     (fourth (find-if (lambda (x) (equal (car x) file)) defs)))
-	(car (xref-file-modules file))
+	;; (car (xref-file-modules file))
 	(sepia-buffer-package))))
 
 ;;;###autoload

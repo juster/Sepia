@@ -199,7 +199,7 @@ sub repl_break
     $arg =~ s/^\s+//;
     $arg =~ s/\s+$//;
     my ($f, $l, $cond) = $arg =~ /^(.+?):(\d+)\s*(.*)/;
-    $cond ||= 1;
+    $cond = 1 unless $cond =~ /\S/;
     $f ||= $file;
     $l ||= $line;
     print "break ", breakpoint($f, $l, $cond), "\n";

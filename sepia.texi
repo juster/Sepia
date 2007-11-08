@@ -455,9 +455,10 @@ lexical environment.
 Set the evaluation context to @var{val}, or toggle between scalar and
 array context.
 
-@item who [@var{name} [@var{regexp}]]
-List identifiers in package @var{name} (main by default) matching
-optional pattern @var{regexp}.
+@item who @var{package} [@var{regexp}]
+@itemx who [@var{regexp}]
+List identifiers in @var{package} (main by default) matching
+optional @var{regexp}.
 
 @end table
 

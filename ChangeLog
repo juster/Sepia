@@ -1,3 +1,18 @@
+2007-11-08  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* VERSION: 0.94_01
+	* lib/Sepia/Xref.pm: POD fixup.
+	* sepia.el (sepia-ensure-process): fix stupid attachtty mistake.
+
+2007-11-05  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/sepia/Debug.pm (repl_break): allow "0" as a break condition.
+
+2007-10-31  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/Sepia.pm (repl_size): ",size" command to list variable sizes,
+	like Matlab's "whos".
+
 2007-10-16  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* VERSION: 0.93
