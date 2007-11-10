@@ -88,7 +88,7 @@ BEGIN {
             my $len = max(map { length } @who) + 4;
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
-            print '-' x ($len-4), ' ' x (9+$len), '-' x 5, "\n";
+            print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
             for (@who) {
                 my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
                 printf $fmt, $_, $res || 0;
