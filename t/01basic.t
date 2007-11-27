@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use Test::Simple tests => 18;
+use Test::Simple tests => 15;
 
 require Data::Dumper;
 require Sepia;
@@ -39,30 +39,13 @@ apply_to_loc(\&Sepia::Xref::callees);
 
 my @subs = Sepia::mod_subs('Sepia');
 ok(all(map { defined &{"Sepia::$_"} } @subs), 'mod_subs');
-ok(Sepia::module_info('Sepia', 'name') eq 'Sepia');
-ok(Sepia::module_info('Sepia', 'version') eq $Sepia::VERSION);
-ok(Sepia::module_info('Sepia', 'file') =~ /Sepia\.pm$/);
-ok(Sepia::module_info('Sepia', 'is_core') == 0);
-
-    ## Weird Module::Info bug: works with
-    ##     PERL5LIB=$PWD/blib/lib perl test.pl
-    ## but fails with
-    ##     perl -Iblib/lib test.pl
-if (0 && exists $INC{'Module/Info.pm'}) {
-    my %mu;
-    undef @mu{Sepia::module_info('Sepia', 'modules_used')};
-
-    my @mu_exp = qw(B Cwd Exporter Module::Info Scalar::Util
-                    Sepia::Debug Text::Abbrev strict vars);
-
-    ok(all(map { exists $mu{$_} } @mu_exp), "uses (@mu_exp) (@{[sort keys %mu]}");
-    ok((Sepia::module_info('Sepia', 'packages_inside'))[0] eq 'Sepia');
-    ok((Sepia::module_info('Sepia', 'superclasses'))[0] eq 'Exporter');
+if (exists $INC{'Module/Info.pm'}) {
+    ok(Sepia::module_info('Sepia', 'name') eq 'Sepia');
+    ok(Sepia::module_info('Sepia', 'version') eq $Sepia::VERSION);
+    ok(Sepia::module_info('Sepia', 'file') =~ /Sepia\.pm$/);
+    ok(Sepia::module_info('Sepia', 'is_core') == 0);
 } else {
-    ok(1, "no module info");
-    ok(1, "no module info");
-    ok(1, "no module info");
+    ok(1, 'skipped -- no Module::Info') for 1..4;
 }
-# 18 to here.
 
 exit;

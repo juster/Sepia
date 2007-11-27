@@ -1,3 +1,25 @@
+2007-11-27  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* VERSION: 0.95_01
+	* t/01basic.t (Sepia): fix tests w/o Module::Info.
+
+2007-11-26  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* VERSION: 0.95
+	* lib/sepia/Debug.pm (add_repl_commands): use define_shortcut.
+	(warn,die): same.
+	(add_debug_repl_commands): new function.
+	(repl): use it.
+
+	* lib/Sepia.pm (define_shortcut): new function.
+	(define_shortcut): new function.
+	(repl_help): auto-format help text; add arg.
+	(repl_reload): decrement $REPL_LEVEL.
+	(completions): fix abbrev completion.
+	(repl): read ~/.sepiarc; use define_shortcuts.
+	(repl_format): show current if no argument.
+	(module_info): optional dependency.
+
 2007-11-08  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* VERSION: 0.94_01

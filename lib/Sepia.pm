@@ -15,29 +15,28 @@ At the prompt in the C<*sepia-repl*> buffer:
 
    main @> ,help
 
-For more information, please see F<sepia/index.html>.
+For more information, please see F<Sepia.html> or F<sepia.info>, which
+come with the distribution.
 
 =cut
 
-$VERSION = '0.94_01';
+$VERSION = '0.95_01';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
 use Cwd 'abs_path';
 use Scalar::Util 'looks_like_number';
-use Module::Info;
 use Text::Abbrev;
 
-use vars qw($PS1 %REPL %RK %REPL_DOC
-            $REPL_LEVEL $REPL_IN $REPL_OUT
-            $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
+use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
+            $REPL_LEVEL $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
             $ISEVAL);
 
 BEGIN {
     eval { require Lexical::Persistence; import Lexical::Persistence };
     if ($@) {
         *repl_strict = sub {
-            print STDERR "Strict mode requires Lexical::Persistence.\n";
+            print "Strict mode requires Lexical::Persistence.\n";
             0;
         };
     } else {
@@ -70,7 +69,7 @@ BEGIN {
     eval { require Devel::Size };
     if ($@) {
         *Sepia::repl_size = sub {
-            print STDERR "Size requires Devel::Size.\n";
+            print "Size requires Devel::Size.\n";
             0;
         };
     } else {
@@ -89,8 +88,10 @@ BEGIN {
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
+            local $SIG{WARN} = sub {};
             for (@who) {
                 my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
+                next if $res == 0;
                 printf $fmt, $_, $res || 0;
             }
             0;
@@ -173,10 +174,30 @@ BEGIN {
     %sigil = qw(ARRAY @ SCALAR $ HASH %);
 }
 
+sub filter_untyped
+{
+    no strict;
+    defined *{$_}{CODE} || defined *{$_}{IO} || (/::$/ && defined *{$_}{HASH});
+}
+
+sub filter_typed
+{
+    no strict;
+    my $type = shift;
+    if ($type eq 'SCALAR') {
+        defined ${$_};
+    } elsif ($type eq 'VARIABLE') {
+        defined ${$_} || defined *{$_}{HASH} || defined *{$_}{ARRAY};
+    } else {
+        defined *{$_}{$type}
+    }
+}
+
 ## XXX: autovivification gives us problems here sometimes.  Specifically:
 ##     defined *FOO{HASH} # => ''
 ##     defined %FOO       # => ''
 ##     defined *FOO{HASH} # => 1
+
 sub completions
 {
     no strict;
@@ -184,20 +205,9 @@ sub completions
     my @ret;
 
     if (!$type) {
-        @ret = grep {
-            defined *{$_}{CODE} || defined *{$_}{IO}
-                || (/::$/ && defined *{$_}{HASH});
-        } _completions $str;
+        @ret = grep { filter_untyped } _completions $str;
     } else {
-        @ret = grep {
-            if ($type eq 'SCALAR') {
-                defined ${$_};
-            } elsif ($type eq 'VARIABLE') {
-                defined ${$_} || defined *{$_}{HASH} || defined *{$_}{ARRAY};
-            } else {
-                defined *{$_}{$type}
-            }
-        } _completions $str;
+        @ret = grep { filter_typed $type } _completions $str;
         if (defined $infunc && defined *{$infunc}{CODE}) {
             my ($apre) = _apropos_re($str);
             my $st = $sigil{$type};
@@ -211,17 +221,13 @@ sub completions
     ## Complete "simple" sequences as abbreviations, e.g.:
     ##   wtci -> Want_To_Complete_It, NOT
     ##        -> WaTCh_trIpe
-    if (!@ret && $str !~ /[^\w\d]/) {
-        my $broad = join '.*', map "\\b$_", split '', $str;
+    if (!@ret && $str =~ /^\w+$/) {
+        my $broad = _apropos_re join '_', split '', $str;
+        # print "abbrev completion on '$str': broad = /$broad/\n";
         if ($type) {
-            @ret = grep {
-                defined *{$_}{CODE} || defined *{$_}{IO}
-                    || (/::$/ && defined *{$_}{HASH});
-            } _completions1 '::', qr/$broad/;
+            @ret = grep { filter_typed $type } _completions1 '::', qr/$broad/;
         } else {
-            @ret = grep {
-                $type eq 'SCALAR' ? defined ${$_} : defined *{$_}{$type}
-            } _completions1 '::', qr/$broad/;
+            @ret = grep { filter_untyped } _completions1 '::', qr/$broad/;
         }
         if (defined $infunc && defined *{$infunc}{CODE}) {
             my $st = $sigil{$type};
@@ -409,23 +415,31 @@ Emacs-called function to get module information.
 
 =cut
 
-sub module_info($$)
-{
-    my ($m, $func) = @_;
-    my $info;
-    if (-f $m) {
-	$info = Module::Info->new_from_file($m);
+sub module_info($$);
+
+BEGIN {
+    eval { require Module::Info; import Module::Info };
+    if ($@) {
+        *module_info = sub ($$) { undef };
     } else {
-	(my $file = $m) =~ s|::|/|g;
-	$file .= '.pm';
-	if (exists $INC{$file}) {
-	    $info = Module::Info->new_from_loaded($m);
-	} else {
-	    $info = Module::Info->new_from_module($m);
-	}
-    }
-    if ($info) {
-        return $info->$func;
+        *module_info = sub ($$) {
+            my ($m, $func) = @_;
+            my $info;
+            if (-f $m) {
+                $info = Module::Info->new_from_file($m);
+            } else {
+                (my $file = $m) =~ s|::|/|g;
+                $file .= '.pm';
+                if (exists $INC{$file}) {
+                    $info = Module::Info->new_from_loaded($m);
+                } else {
+                    $info = Module::Info->new_from_module($m);
+                }
+            }
+            if ($info) {
+                return $info->$func;
+            }
+        };
     }
 }
 
@@ -568,59 +582,54 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
 
 =cut
 
-sub print_dumper
-{
-    eval { require Data::Dumper };
-    local $Data::Dumper::Deparse = 1;
-    local $Data::Dumper::Indent = 0;
-    local $_;
-    no strict;
-    my $thing = @res > 1 ? \@res : $res[0];
-    eval {
-        $_ = Data::Dumper::Dumper($thing);
-        s/^\$VAR1 = //;
-        s/;$//;
-    };
-    if (length $_ > ($ENV{COLUMNS} || 80)) {
-        $Data::Dumper::Indent = 2;
+%PRINTER = (
+    dumper => sub {
+        eval { require Data::Dumper };
+        local $Data::Dumper::Deparse = 1;
+        local $Data::Dumper::Indent = 0;
+        local $_;
+        no strict;
+        my $thing = @res > 1 ? \@res : $res[0];
         eval {
             $_ = Data::Dumper::Dumper($thing);
+            s/^\$VAR1 = //;
+            s/;$//;
+        };
+        if (length $_ > ($ENV{COLUMNS} || 80)) {
+            $Data::Dumper::Indent = 2;
+            eval {
+                $_ = Data::Dumper::Dumper($thing);
+                s/\A\$VAR1 = //;
+                s/;\Z//;
+            };
             s/\A\$VAR1 = //;
             s/;\Z//;
-        };
-        s/\A\$VAR1 = //;
-        s/;\Z//;
+        }
+        $_;
+    },
+    plain => sub {
+        no strict;
+        "@res";
+    },
+    yaml => sub {
+        no strict;
+        eval { require YAML };
+        if ($@) {
+            $PRINTER{dumper}->();
+        } else {
+            YAML::Dump(\@res);
+        }
+    },
+    dump => sub {
+        no strict;
+        eval { require Data::Dump };
+        if ($@) {
+            $PRINTER{dumper}->();
+        } else {
+            Data::Dump::dump(\@res);
+        }
     }
-    $_;
-}
-
-sub print_plain
-{
-    no strict;
-    "@res";
-}
-
-sub print_yaml
-{
-    no strict;
-    eval { require YAML };
-    if ($@) {
-        print_dumper;
-    } else {
-        YAML::Dump(\@res);
-    }
-}
-
-sub print_dump
-{
-    no strict;
-    eval { require Data::Dump };
-    if ($@) {
-        print_dumper;
-    } else {
-        Data::Dump::dump(\@res);
-    }
-}
+);
 
 sub printer
 {
@@ -640,7 +649,7 @@ sub printer
         print $res;
         return;
     } else {
-        $res = $PRINTER->();
+        $res = $PRINTER{$PRINTER}->();
     }
     if ($ISEVAL) {
         print ';;;', length $res, "\n$res\n";
@@ -649,103 +658,13 @@ sub printer
     }
 }
 
-=head2 C<repl(\*FH)>
-
-Execute a command interpreter on FH.  The prompt has a few bells and
-whistles, including:
-
-  * Obviously-incomplete lines are treated as multiline input (press
-    'return' twice or 'C-c' to discard).
-
-  * C<die> is overridden to enter a recursive interpreter at the point
-    C<die> is called.  From within this interpreter, you can examine a
-    backtrace by calling "bt", return from C<die> with "r EXPR", or
-    go ahead and die by pressing Control-c.
-
-Behavior is controlled in part through the following package-globals:
-
-=over 4
-
-=item C<$PACKAGE> -- evaluation package
-
-=item C<$PRINTER> -- result printer (default: print_dumper)
-
-=item C<$PS1> -- the default prompt
-
-=item C<$STRICT> -- whether 'use strict' is applied to input
-
-=item C<$WANTARRAY> -- evaluation context
-
-=item C<$PRINT_PRETTY> -- format some output nicely (default = 1)
-
-Format some values nicely, independent of $PRINTER.  Currently, this
-displays arrays of scalars as columns.
-
-=item C<%REPL> -- maps shortcut names to handlers
-
-=item C<%REPL_DOC> -- maps shortcut names to documentation
-
-=back
-
-=cut
-
 BEGIN {
     no strict;
     $PS1 = "> ";
     $PACKAGE = 'main';
     $WANTARRAY = 1;
-    $PRINTER = \&Sepia::print_dumper;
+    $PRINTER = 'dumper';
     $PRINT_PRETTY = 1;
-    %REPL = (help => \&Sepia::repl_help,
-             cd => \&Sepia::repl_chdir,
-             pwd => \&Sepia::repl_pwd,
-             methods => \&Sepia::repl_methods,
-             package => \&Sepia::repl_package,
-             who => \&Sepia::repl_who,
-             wantarray => \&Sepia::repl_wantarray,
-             format => \&Sepia::repl_format,
-             strict => \&Sepia::repl_strict,
-             quit => \&Sepia::repl_quit,
-             reload => \&Sepia::repl_reload,
-             shell => \&Sepia::repl_shell,
-             eval => \&Sepia::repl_eval,
-             size => \&Sepia::repl_size,
-         );
-    %Sepia::REPL_DOC = (
-        cd =>
-    'cd DIR             Change directory to DIR',
-        pwd =>
-    'pwd                Show current working directory',
-        format =>
-    'format [dumper|dump|yaml|plain]
-                       Set output formatter (default: dumper)',
-        help =>
-    'help               Display this message',
-        methods => <<EOS,
-methods X [RE]     List methods for reference or package X,
-                       matching optional pattern RE.
-EOS
-        package =>
-    'package PACKAGE    Set evaluation package to PACKAGE',
-        quit =>
-    'quit               Quit the REPL',
-        shell =>
-    'shell CMD ...      Run CMD in the shell.',
-        size => <<EOS,
-size PACKAGE [RE]   List total sizes of objects in PACKAGE matching optional
-                       pattern RE.
-EOS
-        strict =>
-    'strict [0|1]       Turn \'use strict\' mode on or off',
-        wantarray =>
-    'wantarray [0|1]    Set or toggle evaluation context',
-        who => <<EOS,
-who PACKAGE [RE]   List variables and subs in PACKAGE matching optional
-                       pattern RE.
-EOS
-        reload =>
-    'reload             Reload Sepia.pm and relaunch the REPL.',
-    );
 }
 
 sub prompt()
@@ -763,17 +682,139 @@ sub Dump
 sub flow
 {
     my $n = shift;
+    my $n1 = int($n/2);
     local $_ = shift;
-    s/(.{$n,})? /$1\n/g;
+    s/(.{$n1,$n}) /$1\n/g;
     $_
+}
+
+=head2 C<define_shortcut $name, $sub [, $doc [, $shortdoc]]>
+
+Define $name as a shortcut for function $sub.
+
+=cut
+
+    sub define_shortcut
+{
+    my ($name, $doc, $short, $fn);
+    if (@_ == 2) {
+        ($name, $fn) = @_;
+        $short = $name;
+        $doc = '';
+    } elsif (@_ == 3) {
+        ($name, $fn, $doc) = @_;
+        $short = $name;
+    } else {
+        ($name, $fn, $short, $doc) = @_;
+    }
+    $REPL{$name} = $fn;
+    $REPL_DOC{$name} = $doc;
+    $REPL_SHORT{$name} = $short;
+}
+
+sub define_shortcuts
+{
+    define_shortcut 'help', \&Sepia::repl_help,
+        'help [CMD]',
+            'Display help on all commands, or just CMD.';
+    define_shortcut 'cd', \&Sepia::repl_chdir,
+        'cd DIR', 'Change directory to DIR';
+    define_shortcut 'pwd', \&Sepia::repl_pwd,
+        'Show current working directory';
+    define_shortcut 'methods', \&Sepia::repl_methods,
+        'methods X [RE]',
+            'List methods for reference or package X, matching optional pattern RE';
+    define_shortcut 'package', \&Sepia::repl_package,
+        'package PKG', 'Set evaluation package to PKG';
+    define_shortcut 'who', \&Sepia::repl_who,
+        'who PKG [RE]',
+            'List variables and subs in PKG matching optional pattern RE.';
+    define_shortcut 'wantarray', \&Sepia::repl_wantarray,
+        'wantarray [0|1]', 'Set or toggle evaluation context';
+    define_shortcut 'format', \&Sepia::repl_format,
+        'format [TYPE]', "Set output formatter to TYPE (one of 'dumper', 'dump', 'yaml', 'plain'; default: 'dumper'), or show current type.";
+    define_shortcut 'strict', \&Sepia::repl_strict,
+        'strict [0|1]', 'Turn \'use strict\' mode on or off';
+    define_shortcut 'quit', \&Sepia::repl_quit,
+        'Quit the REPL';
+    define_shortcut 'reload', \&Sepia::repl_reload,
+        'Reload Sepia.pm and relaunch the REPL.';
+    define_shortcut 'shell', \&Sepia::repl_shell,
+        'shell CMD ...', 'Run CMD in the shell';
+    define_shortcut 'eval', \&Sepia::repl_eval,
+        'eval EXP', '(internal)';
+    define_shortcut 'size', \&Sepia::repl_size,
+        'size PKG [RE]',
+            'List total sizes of objects in PKG matching optional pattern RE.';
+    define_shortcut define => \&Sepia::repl_define,
+        'define NAME [\'doc\'] BODY',
+            'Define NAME as a shortcut executing BODY';
+    define_shortcut undef => \&Sepia::repl_undef,
+        'undef NAME', 'Undefine shortcut NAME';
 }
 
 sub repl_help
 {
-    print "REPL commands (prefixed with ','):\n";
-    for (sort keys %REPL) {
-        print "    ", exists $REPL_DOC{$_} ? "$REPL_DOC{$_}\n":
-            sprintf("%-18s (undocumented)\n", $_);
+    my $width = $ENV{COLUMNS} || 80;
+    my $args = shift;
+    if ($args =~ /\S/) {
+        $args =~ s/^\s+//;
+        $args =~ s/\s+$//;
+        my $full = $RK{$args};
+        if ($full) {
+            print "$RK{$full}    ",
+                flow($width - length $RK{$full} - 4, $REPL_DOC{$full}), "\n";
+        } else {
+            print "$args: no such command\n";
+        }
+    } else {
+        my $left = 1 + max map length, values %REPL_SHORT;
+        print "REPL commands (prefixed with ','):\n";
+
+        for (sort keys %REPL) {
+            my $flow = flow($width - $left, $REPL_DOC{$_});
+            $flow =~ s/(.)\n/"$1\n".(' ' x $left)/eg;
+            printf "%-${left}s%s\n", $REPL_SHORT{$_}, $flow;
+        }
+    }
+    0;
+}
+
+sub repl_define
+{
+    local $_ = shift;
+    my ($name, $doc, $body);
+    if (/^\s*(\S+)\s+'((?:[^'\\]|\\.)*)'\s+(.+)/) {
+        ($name, $doc, $body) = ($1, $2, $3);
+    } elsif (/^\s*(\S+)\s+(\S.*)/) {
+        ($name, $doc, $body) = ($1, $2, $2);
+    } else {
+        print "usage: define NAME ['doc'] BODY...\n";
+        return 0;
+    }
+    my $sub = eval "sub { do { $body }; 0 }";
+    if ($@) {
+        print "usage: define NAME ['doc'] BODY...\n\t$@\n";
+        return 0;
+    }
+    define_shortcut $name, $sub, $doc;
+    %RK = abbrev keys %REPL;
+    0;
+}
+
+sub repl_undef
+{
+    my $name = shift;
+    $name =~ s/^\s*//;
+    $name =~ s/\s*$//;
+    my $full = $RK{$name};
+    if ($full) {
+        delete $REPL{$full};
+        delete $REPL_SHORT{$full};
+        delete $REPL_DOC{$full};
+        %RK = abbrev keys %REPL;
+    } else {
+        print "$name: no such shortcut.\n";
     }
     0;
 }
@@ -782,13 +823,15 @@ sub repl_format
 {
     my $t = shift;
     chomp $t;
-    $t = 'dumper' if $t eq '';
-    my %formats = abbrev qw(dumper dump yaml plain);
-    if (exists $formats{$t}) {
-        no strict;
-        $PRINTER = \&{'print_'.$formats{$t}};
+    if ($t eq '') {
+        print "printer = $PRINTER, pretty = @{[$PRINT_PRETTY ? 1 : 0]}\n";
     } else {
-        warn "No such format '$t' (dumper, dump, yaml, plain).\n";
+        my %formats = abbrev keys %PRINTER;
+        if (exists $formats{$t}) {
+            $PRINTER = $formats{$t};
+        } else {
+            warn "No such format '$t' (dumper, dump, yaml, plain).\n";
+        }
     }
     0;
 }
@@ -930,7 +973,7 @@ sub repl_reload
     if ($@) {
         print "Reload failed:\n$@\n";
     } else {
-        @_ = (select, 0);
+        $REPL_LEVEL = 0;        # ok?
         goto &Sepia::repl;
     }
 }
@@ -992,18 +1035,59 @@ sub print_warnings
     }
 }
 
+=head2 C<repl()>
+
+Execute a command interpreter on standard input and standard output.
+If you want to use different descriptors, localize them before
+calling C<repl()>.  The prompt has a few bells and whistles, including:
+
+  * Obviously-incomplete lines are treated as multiline input (press
+    'return' twice or 'C-c' to discard).
+
+  * C<die> is overridden to enter a debugging repl at the point
+    C<die> is called.
+
+Behavior is controlled in part through the following package-globals:
+
+=over 4
+
+=item C<$PACKAGE> -- evaluation package
+
+=item C<$PRINTER> -- result printer (default: dumper)
+
+=item C<$PS1> -- the default prompt
+
+=item C<$STRICT> -- whether 'use strict' is applied to input
+
+=item C<$WANTARRAY> -- evaluation context
+
+=item C<$PRINT_PRETTY> -- format some output nicely (default = 1)
+
+Format some values nicely, independent of $PRINTER.  Currently, this
+displays arrays of scalars as columns.
+
+=item C<$REPL_LEVEL> -- level of recursive repl() calls
+
+If zero, then initialization takes place.
+
+=item C<%REPL> -- maps shortcut names to handlers
+
+=item C<%REPL_DOC> -- maps shortcut names to documentation
+
+=item C<%REPL_SHORT> -- maps shortcut names to brief usage
+
+=back
+
+=cut
+
 sub repl
 {
-    if (@_ > 0) {
-        $REPL_IN = $_[0];
-        $REPL_OUT = $_[1];
-    } else {
-        $REPL_IN = \*STDIN;
-        $REPL_OUT = \*STDOUT;
-    }
-    select $REPL_OUT;
     $| = 1;
-
+    if ($REPL_LEVEL == 0) {
+        define_shortcuts;
+        -f "$ENV{HOME}/.sepiarc" and do "$ENV{HOME}/.sepiarc";
+        warn ".sepiarc: $@\n" if $@;
+    }
     local $REPL_LEVEL = $REPL_LEVEL + 1;
 
     my $in;
@@ -1024,7 +1108,7 @@ EOS
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
     $SIG{$_} = $nextrepl for @sigs;
- repl: while (defined(my $in = <$REPL_IN>)) {
+ repl: while (defined(my $in = <STDIN>)) {
             if ($sigged) {
                 $buf = '';
                 $sigged = 0;
@@ -1039,7 +1123,7 @@ EOS
                 my $len = $1;
                 my $tmp;
                 $buf = $2;
-                while ($len && defined($tmp = read $REPL_IN, $buf, $len, length $buf)) {
+                while ($len && defined($tmp = read STDIN, $buf, $len, length $buf)) {
                     $len -= $tmp;
                 }
             }

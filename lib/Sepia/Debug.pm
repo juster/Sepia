@@ -6,6 +6,9 @@ use strict;
 use vars qw($pack $file $line $sub $level
             $STOPDIE $STOPWARN);
 
+sub define_shortcut;
+*define_shortcut = *Sepia::define_shortcut;
+
 BEGIN {
     ## Just leave it on -- with $DB::trace = 0, there doesn't seem
     ## to be a perforamnce penalty!
@@ -150,7 +153,7 @@ sub repl_inspect
         print "[$i] $sub:\n";
         for (sort keys %$h) {
             local @Sepia::res = $h->{$_};
-            print "\t$_ = ", $Sepia::PRINTER->(), "\n";
+            print "\t$_ = ", $Sepia::PRINTER{$Sepia::PRINTER}->(), "\n";
         }
     }
     0;
@@ -235,111 +238,74 @@ sub repl_delete
     0
 }
 
-my %parent_repl = (
-    delete => \&repl_delete,
-    debug => \&repl_debug,
-    break => \&repl_break,
-    lsbreak => \&repl_lsbreak,
-);
-
-my %parent_doc = (
-    break =>
-        'break [F:N [E]]    Set a breakpoint in F at line N (or at current
-                       position), enabled if E evalutes to true.',
-    delete =>
-        'delete             Delete current breakpoint.',
-    debug =>
-        'debug [0|1]        Enable or disable debugging.',
-    lsbreak =>
-        'lsbreak            List breakpoints.',
-);
-
 sub add_repl_commands
 {
-    %Sepia::REPL = (%Sepia::REPL, %parent_repl);
-    %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %parent_doc);
+    # %Sepia::REPL = (%Sepia::REPL, %parent_repl);
+    # %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %parent_doc);
+    define_shortcut 'delete', \&repl_delete,
+        'Delete current breakpoint.';
+    define_shortcut 'debug', \&repl_debug,
+        'debug [0|1]', 'Enable or disable debugging.';
+    define_shortcut 'break', \&repl_break,
+        'break [F:N [E]]',
+        'Set a breakpoint in F at line N (or at current position), enabled if E evalutes to true.';
+    define_shortcut 'lsbreak', \&repl_lsbreak,
+        'List breakpoints.';
     %Sepia::RK = abbrev keys %Sepia::REPL;
 }
 
-my %REPL = (
-    up => sub {
+sub add_debug_repl_commands
+{
+
+    define_shortcut up => sub {
         $level += shift || 1;
         update_location(4);
         show_location;
         0
-    },
-    down => sub {
+    }, 'up [N]', 'Move up N stack frames.';
+    define_shortcut down => sub {
         $level -= shift || 1;
         $level = 0 if $level < 0;
         update_location(4);
         show_location;
         0
-    },
-
-    continue => sub {
+    }, 'down [N]', 'Move down N stack frames.';
+    define_shortcut continue => sub {
         $level = 0;
         $DB::single = 0; 1
-    },
+    }, 'Yep.';
 
-    next => sub {
+    define_shortcut next => sub {
         my $n = shift || 1;
         $DB::single = 0;
         breakpoint $file, $line + $n, 'next'; 1
-    },
+    }, 'next [N]', 'Advance N lines, skipping subroutines.';
 
-    step => sub {
+    define_shortcut step => sub {
         $DB::single = shift || 1; 1
-    },
+    }, 'step [N]', 'Step N lines forward, entering subroutines.';
 
-    break => \&repl_break,
-
-    list => \&repl_list,
-
-    # quit => sub {
-    #     debug(0);
-    # },
-    backtrace => \&repl_backtrace,
-    inspect => \&repl_inspect,
-    # eval => \&repl_upeval,
-    return => \&repl_return,
-    lsbreak => \&repl_lsbreak,
-    eval => \&repl_upeval,      # DANGER!
-);
-
-my %REPL_DOC = (
-    continue =>
-        'continue        Yep.',
-    next =>
-        'next [N]        Advance N lines, skipping subroutines.',
-    list =>
-        'list EXPR       List source lines of current file.',
-    step =>
-        'step [N]        Step N lines forward, entering subroutines.',
-    quit =>
-        'quit            Exit the current prompt level.',
-    up =>
-        'up [N]          Move up N stack frames.',
-    down =>
-        'down [N]        Move down N stack frames.',
-    backtrace =>
-        'backtrace       show backtrace',
-    inspect =>
-        'inspect [N]     inspect lexicals in frame N (or current)',
-    eval =>
-        'eval EXPR       evaluate EXPR in current frame',
-    return =>
-        'return EXPR     return EXPR',
-    quit =>
-        'quit            keep on dying/warning',
- );
+    # define_shortcut break => \&repl_break
+    define_shortcut list => \&repl_list,
+        'list EXPR', 'List source lines of current file.';
+    define_shortcut backtrace => \&repl_backtrace, 'show backtrace';
+    define_shortcut inspect => \&repl_inspect,
+        'inspect [N]', 'inspect lexicals in frame N (or current)';
+    define_shortcut return => \&repl_return, 'return EXPR', 'return EXPR';
+    # define_shortcut lsbreak => \&repl_lsbreak;
+    define_shortcut eval => \&repl_upeval,
+        'eval EXPR', 'evaluate EXPR in current frame';      # DANGER!
+}
 
 sub repl
 {
     show_location;
-
-    local %Sepia::REPL = (%Sepia::REPL, %REPL, @_);
-    local %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %REPL_DOC);
+    local %Sepia::REPL = %Sepia::REPL;
+    local %Sepia::REPL_DOC = %Sepia::REPL_DOC;
+    add_debug_repl_commands;
+    map { define_shortcut @$_ } @_;
     local %Sepia::RK = abbrev keys %Sepia::REPL;
+    print "(@{[keys %Sepia::REPL]})\n";
     # local $Sepia::REPL_LEVEL = $Sepia::REPL_LEVEL + 1;
     local $Sepia::PS1 = "*$Sepia::REPL_LEVEL*> ";
     Sepia::repl();
@@ -360,7 +326,7 @@ sub DB::DB
         if ($cond eq 'next') {
             delete $main::{"_<$file"}{$line};
         } else {
-            return unless eval $cond;
+            return unless $Sepia::REPL{eval}->($cond);
         }
     }
     repl();
@@ -379,8 +345,10 @@ sub die
         my $trace = $DB::trace;
         $DB::trace = 1;
         repl(
-            die => sub { local $STOPDIE=0; CORE::die @dieargs },
-            quit => sub { local $STOPDIE=0; CORE::die @dieargs });
+            [die => sub { local $STOPDIE=0; CORE::die @dieargs },
+             'Continue dying.'],
+            [quit => sub { local $STOPDIE=0; CORE::die @dieargs },
+             'Continue dying.']);
         $DB::trace = $trace;
     } else {
         CORE::die(Carp::shortmess @_);
@@ -398,8 +366,10 @@ sub warn
         local ($pack, $file, $line, $sub) = caller($level);
         print "@_\n\tin $sub\nWarned $MSG\n";
         repl(
-            warn => sub { local $STOPWARN=0; CORE::warn @dieargs },
-            quit => sub { local $STOPWARN=0; CORE::warn @dieargs });
+            [warn => sub { local $STOPWARN=0; CORE::warn @dieargs },
+             'Continue warning.'],
+            [quit => sub { local $STOPWARN=0; CORE::warn @dieargs },
+             'Continue warning.']);
         $DB::trace = $trace;
     } else {
         ## Avoid showing up in location information.

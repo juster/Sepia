@@ -1,5 +1,6 @@
-(require 'ido nil t)
-(require 'cl)
+(eval-when-compile
+  (require 'ido)
+  (require 'cl))
 
 (defun* sepia-icompleting-recursive-read (prompt dir &key
                                                  list-fn
@@ -83,7 +84,8 @@ bells-and-whistles.  Arguments are:
 (defun sepia-jump-to-symbol ()
 "Jump to a symbol's definition using ido-like completion."
   (interactive)
-  (let ((pack (concat (sepia-buffer-package) "::")))
+  (let ((pack (concat (sepia-buffer-package) "::"))
+        ido-case-fold)
     (sepia-location
      (sepia-icompleting-recursive-read "Jump to: " pack
                                        :list-fn 'sepia-list-fn

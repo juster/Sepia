@@ -411,6 +411,11 @@ Change Perl's current directory to @var{dir}.
 @item debug [@var{val}]
 Turn Sepia debugger hook on or off, or toggle if @var{val} is missing.
 
+@item define @var{name} ['@var{doc}'] @var{body...}
+Define @var{name} as a shortcut for Perl code @var{body}, with optional
+documentation @var{doc}, surrounded by single quotes.  @var{body} is
+passed the raw command-line text as its first argument.
+
 @item delete
 Delete the current breakpoint.
 
@@ -450,6 +455,10 @@ standard error.
 Set evaluation strictness to @var{val}, or toggle it if @var{val} is not
 given.  Note that turning strictness off and on clears the REPL's
 lexical environment.
+
+@item undef @var{name}
+Undefine shortcut @var{name}.  @strong{Warning}: this can equally be
+used to remove built-in shortcuts.
 
 @item wantarray [@var{val}]
 Set the evaluation context to @var{val}, or toggle between scalar and
@@ -587,11 +596,7 @@ the result on the next line.
 @chapter Customization
 
 While Sepia can be customized in both the Perl and Emacs Lisp, most of
-the user-accessible configuration is in the latter.  The two variables
-most likely to need customization are @kbd{sepia-program-name} and
-@kbd{sepia-perl5lib}.  Since Sepia tries where possible to reuse
-existing Emacs functionality, its behavior should already be covered by
-existing customizations.
+the user-accessible configuration is in the latter.
 
 @menu
 * Emacs Variables::             
@@ -600,6 +605,13 @@ existing customizations.
 
 @node Emacs Variables, Perl Variables, Customization, Customization
 @section Emacs Variables
+
+Since Sepia tries where possible to reuse existing Emacs functionality,
+its behavior should already be covered by existing customizations.  The
+two variables most likely to need customization are
+@kbd{sepia-program-name} and @kbd{sepia-perl5lib}.  General Sepia mode
+configuration can be done with @kbd{sepia-mode-hook}, while
+REPL-specific configuration can be done with @kbd{sepia-repl-mode-hook}.
 
 @table @kbd
 
@@ -657,6 +669,7 @@ Default: @code{sepia-w3m-view-pod} if Emacs-w3m is available, or
 @node Perl Variables,  , Emacs Variables, Customization
 @section Perl Variables
 
+When Sepia starts up, it evaluates the Perl script in @file{~/.sepiarc}.
 The following variables in the Sepia package control various aspects of
 interactive evaluation.
 
@@ -691,6 +704,17 @@ Sepia debugger.  Default: false.
 If true, evaluate interactive expressions in list context.  Default: true.
 
 @end table
+
+Additional REPL shortcuts can be defined with
+@kbd{Sepia::define_shortcut}.  For example
+
+@example
+Sepia::define_shortcut time => sub @{ print scalar localtime, "\n"; 0 @},
+    'Display the current time.';
+@end example
+
+defines a shortcut ``time'' that displays the current time.  For
+details, see the code in @file{Sepia.pm}.
 
 @c ============================================================
 @node Internals, Credits, Customization, Top

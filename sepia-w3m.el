@@ -33,7 +33,8 @@
 ;;    http://emacs-w3m.namazu.org/
 
 ;;; Code:
-(require 'w3m-perldoc nil t)
+(eval-when-compile
+  (require 'w3m-perldoc))
 
 ;;;###autoload
 (defun w3m-about-perldoc-buffer (url &optional no-decode no-cache &rest args)
@@ -45,7 +46,7 @@
 	  (process-environment (copy-sequence process-environment)))
       ;; To specify the place in which pod2html generates its cache files.
       (setenv "HOME" (expand-file-name w3m-profile-directory))
-      (insert-buffer buf)
+      (insert-buffer-substring buf)
       (when (zerop (apply #'call-process-region
 			  (point-min) (point-max)
 			  w3m-perldoc-pod2html-command
@@ -67,9 +68,11 @@
 
 ;;;###autoload
 (defun sepia-w3m-view-pod (&optional buffer)
+  (require 'w3m)
   (w3m-goto-url (concat "about://perldoc-buffer/"
 			(w3m-url-encode-string (buffer-name buffer)))))
 
+;;;###autoload
 (defun sepia-module-list ()
   "List installed modules with links to their documentation.
 
@@ -82,6 +85,7 @@ package."
       (sepia-eval (format "Sepia::html_module_list(\"%s\")" file)))
     (w3m-find-file file)))
 
+;;;###autoload
 (defun sepia-package-list ()
   "List installed packages with links to their documentation.
 

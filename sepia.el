@@ -311,7 +311,7 @@ For modules within packages, see `sepia-module-list'."
                         (cdr stuff)
                         (mapcar (lambda (x) (concat "-I" x)) sepia-perl5lib)
                         '("-MSepia" "-MSepia::Xref"
-                          "-e" "Sepia::repl(*STDIN, *STDOUT)")))))
+                          "-e" "Sepia::repl")))))
     (setq sepia-process (get-buffer-process "*sepia-repl*"))
     (accept-process-output sepia-process 0 1)
     ;; Steal a bit from gud-common-init:
@@ -751,6 +751,10 @@ also rebuild the xref database."
                      prefix-arg
                      (format "*%s errors*" (buffer-file-name))))
   (save-buffer)
+  (when collect-warnings
+    (let (kill-buffer-query-functions)
+      (ignore-errors
+        (kill-buffer collect-warnings))))
   (let* ((tmp (sepia-eval (format "do '%s' || ($@ && do { local $Sepia::Debug::STOPDIE; die $@ })" file)
                           'scalar-context t))
          (res (car tmp))
@@ -1462,10 +1466,11 @@ calling `cperl-describe-perl-symbol'."
                         (concat (substring hlp 0 72) "...")
                         hlp))
                   ;; Try to see if it's a module
-                  (if (and (save-excursion
-                             (beginning-of-line)
-                             (looking-at " *\\(?:use\\|require\\)"))
-                           (sepia-looks-like-module obj))
+                  (if (and
+                       (let ((bol (save-excursion (beginning-of-line)
+                                                  (point))))
+                         (looking-back " *\\(?:use\\|require\\) +[^ ]+" bol))
+                       (sepia-looks-like-module obj))
                       (sepia-core-version obj)
                       ""))))
       "")))

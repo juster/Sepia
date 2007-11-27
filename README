@@ -255,6 +255,7 @@ some operations, if you don't mind losing completion.
    debugger.  Returning from die() is not often useful.
 ** (Easy) Fix sepia-indent-or-complete abbrev expansion
    Currently "else<TAB>" both expands and completes.
+** (Medium) Clean up Sepia::completions et al.
 * BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

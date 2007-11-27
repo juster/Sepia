@@ -10,8 +10,7 @@
 
 ;;; Code:
 
-
-(require 'tree-widget nil t)
+(require 'tree-widget)
 
 (defvar sepia-tree-use-image nil
   "*If non-nil, show tree-widget with icons.")

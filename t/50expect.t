@@ -15,7 +15,7 @@ use Sepia;
 use Sepia::Xref;
 
 expect_run
-    command => "$^X -Mblib -MSepia -MSepia::Xref -e 'Sepia::repl(\\*STDIN, \\*STDOUT)'",
+    command => "$^X -Mblib -MSepia -MSepia::Xref -e Sepia::repl",
     prompt => [-re => 'main @[^>]*> '],
     quit => ',quit';
 expect_handle()->log_file('/tmp/b') if $ENV{USER} eq 'seano';
@@ -75,4 +75,5 @@ expect ',con', '2', 'return from fib';
 expect_send 'fib2 10', 'bad fib';
 expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_send ',q', 'quit';
+# expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_like qr/error: asdf/, 'saw die message';
