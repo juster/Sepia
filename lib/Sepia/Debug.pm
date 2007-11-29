@@ -1,6 +1,6 @@
 package Sepia::Debug;
 # use Sepia;
-require Carp;
+use Carp 'shortmess';
 use Text::Abbrev;
 use strict;
 use vars qw($pack $file $line $sub $level
@@ -351,7 +351,7 @@ sub die
              'Continue dying.']);
         $DB::trace = $trace;
     } else {
-        CORE::die(Carp::shortmess @_);
+        CORE::die(shortmess @_);
     }
 }
 
@@ -373,7 +373,7 @@ sub warn
         $DB::trace = $trace;
     } else {
         ## Avoid showing up in location information.
-        CORE::warn(Carp::shortmess @_);
+        CORE::warn(shortmess @_);
     }
 }
 

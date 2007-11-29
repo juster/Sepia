@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.95_01';
+$VERSION = '0.95_02';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -596,7 +596,7 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
             s/;$//;
         };
         if (length $_ > ($ENV{COLUMNS} || 80)) {
-            $Data::Dumper::Indent = 2;
+            $Data::Dumper::Indent = 1;
             eval {
                 $_ = Data::Dumper::Dumper($thing);
                 s/\A\$VAR1 = //;
@@ -645,7 +645,7 @@ sub printer
         # overloaded?
         $res = $res[0];
     } elsif (!$ISEVAL && $PRINT_PRETTY && @res > 1 && !grep ref, @res) {
-        $res = columnate(sort @res);
+        $res = columnate(@res);
         print $res;
         return;
     } else {

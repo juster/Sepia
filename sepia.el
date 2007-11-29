@@ -34,12 +34,6 @@
 (defvar sepia-program-name "perl"
 "* Perl program name.")
 
-(defvar sepia-perldoc-function
-  (if (featurep 'w3m) 'w3m-perldoc 'cperl-perldoc)
-"* Function to view modules' documentation.
-
-Useful values include `w3m-perldoc' and `cperl-perldoc'.")
-
 (defvar sepia-view-pod-function
   (if (featurep 'w3m) 'sepia-w3m-view-pod 'sepia-perldoc-buffer)
 "* Function to view current buffer's documentation.
@@ -243,7 +237,7 @@ might want to bind your keys, which works best when bound to
                (w3m-about-perldoc-buffer (&rest args)
                  (let ((res (apply old-pdb args)))
                    (or res (error "lose: %s" args)))))
-          (funcall sepia-perldoc-function name))
+          (funcall (if (featurep 'w3m) 'w3m-perldoc 'cperl-perldoc) name))
       (error (set-window-configuration wc)))))
 
 (defun sepia-view-pod ()
@@ -1469,7 +1463,7 @@ calling `cperl-describe-perl-symbol'."
                   (if (and
                        (let ((bol (save-excursion (beginning-of-line)
                                                   (point))))
-                         (looking-back " *\\(?:use\\|require\\) +[^ ]+" bol))
+                         (looking-back " *\\(?:use\\|require\\|package\\) +[^ ]+" bol))
                        (sepia-looks-like-module obj))
                       (sepia-core-version obj)
                       ""))))
