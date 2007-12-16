@@ -97,6 +97,34 @@ For modules within packages, see `sepia-module-list'."
       (sepia-eval (format "Sepia::html_package_list(\"%s\")" file)))
     (w3m-find-file file)))
 
+(defun sepia-w3m-create-imenu ()
+  "Create imenu index from pod2html output."
+  (save-excursion
+    (goto-char (point-min))
+    (when (looking-at "Location: \\(about://perldoc/[^#]+\\)")
+      (let ((base (match-string 1))
+            beg end
+            list)
+        (w3m-view-source)
+        (search-forward "<!-- INDEX BEGIN -->")
+        (setq beg (point))
+        (search-forward "<!-- INDEX END -->")
+        (setq end (point))
+        (goto-char beg)
+        (while (re-search-forward "<a href=\"\\(#[^\"]+\\)\">\\([^<]+\\)" end t)
+          (push (cons (match-string 2) (match-string 1)) list))
+        (w3m-view-source)
+        (nreverse list)))))
+
+(defun sepia-w3m-goto-function (name anchor)
+  (if (string-match "^about://perldoc/" w3m-current-url)
+      (w3m-goto-url (concat w3m-current-url anchor))
+    (imenu-default-goto-function name anchor)))
+
+(defun sepia-w3m-install-imenu ()
+  (setq imenu-create-index-function 'sepia-w3m-create-imenu
+        imenu-default-goto-function 'sepia-w3m-goto-function))
+
 (provide 'sepia-w3m)
 
 ;;; sepia-w3m.el ends here.

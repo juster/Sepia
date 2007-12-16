@@ -21,9 +21,9 @@
 (require 'gud)
 (require 'cl)
 ;; try optional modules, but don't bitch if we fail:
-(require 'sepia-w3m nil t)
-(require 'sepia-tree nil t)
-(require 'sepia-ido nil t)
+(ignore-errors (require 'sepia-w3m))
+(ignore-errors (require 'sepia-tree))
+(ignore-errors (require 'sepia-ido))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Comint communication
@@ -966,8 +966,15 @@ expressions would lead to disaster."
 Just like `sepia-complete-symbol', except that it also completes
 REPL shortcuts."
   (interactive)
-  (error "TODO")
-  )
+  (error "TODO"))
+
+(defvar sepia-shortcuts
+  '("break" "cd" "debug" "define" "delete" "eval" "format" "help" "lsbreak"
+    "methods" "package" "pwd" "quit" "reload" "shell" "size" "strict" "undef"
+    "wantarray")
+  "List of currently-defined REPL shortcuts.
+
+XXX: this needs to be updated whenever you add one on the Perl side.")
 
 (defun sepia-complete-symbol ()
   "Try to complete the word at point.
@@ -994,12 +1001,20 @@ The function is intended to be bound to \\M-TAB, like
         (with-current-buffer (window-buffer win)
           (if (pos-visible-in-window-p (point-max) win)
               (set-window-start win (point-min))
-              (save-selected-window
-                (select-window win)
-                (scroll-up))))
+            (save-selected-window
+              (select-window win)
+              (scroll-up))))
 
-        ;; Otherwise actually do completion:
-        ;; 1 - Look for a method call:
+      ;; Otherwise actually do completion:
+      ;; 0 - try a shortcut
+      (save-excursion
+        (comint-bol)
+        (when (looking-at ",\\([a-z]+\\)\\(?:\\s \\|$\\)")
+          (let ((str (match-string 1)))
+            (setq len (length str)
+                  completions (all-completions str sepia-shortcuts)))))
+      ;; 1 - Look for a method call:
+      (unless completions
         (setq meth (sepia-simple-method-before-point))
         (when meth
           (setq len (length (caddr meth))
@@ -1007,46 +1022,46 @@ The function is intended to be bound to \\M-TAB, like
                              (cons 'expr (format "'%s'" (car meth)))
                              (cadr meth)
                              "Sepia::repl_eval")
-                type (format "%s->" (car meth))))
-        (multiple-value-bind (typ name) (sepia-ident-before-point)
+                type (format "%s->" (car meth)))))
+      (multiple-value-bind (typ name) (sepia-ident-before-point)
+        (unless completions
           ;; 2 - look for a regular function/variable/whatever
-          (unless completions
-            (setq type typ
-                  len (+ (if type 1 0) (length name))
-                  completions (xref-completions
-                               name
-                               (case type
-                                 (?$ "VARIABLE")
-                                 (?@ "ARRAY")
-                                 (?% "HASH")
-                                 (?& "CODE")
-                                 (?* "IO")
-                                 (t ""))
-                               (and (eq major-mode 'sepia-mode)
-                                    (sepia-function-at-point)))))
-          ;; 3 - try a Perl built-in
-          (when (and (not completions)
-                     (or (not type) (eq type ?&)))
-            (when (string-match ".*::([^:]+)$" name)
-              (setq name (match-string 1 name)))
-            (setq completions (all-completions name sepia-perl-builtins)))
-          (case (length completions)
-            (0 (message "No completions for %s." name) nil)
-            (1 ;; XXX - skip sigil to match s-i-before-point
-             (delete-region (- (point) len) (point))
-             (insert (or type "") (car completions))
-             ;; Hide stale completions buffer (stolen from lisp.el).
-             (if win (with-selected-window win (bury-buffer))) t)
-            (t (let ((old name)
-                     (new (try-completion "" completions)))
-                 (if (<= (length new) (length old))
-                     (with-output-to-temp-buffer "*Completions*"
-                       (display-completion-list completions))
-                     (let ((win (get-buffer-window "*Completions*" 0)))
-                       (if win (with-selected-window win (bury-buffer))))
-                     (delete-region (- (point) len) (point))
-                     (insert (or type "") new))))))
-        t)))
+          (setq type typ
+                len (+ (if type 1 0) (length name))
+                completions (xref-completions
+                             name
+                             (case type
+                               (?$ "VARIABLE")
+                               (?@ "ARRAY")
+                               (?% "HASH")
+                               (?& "CODE")
+                               (?* "IO")
+                               (t ""))
+                             (and (eq major-mode 'sepia-mode)
+                                  (sepia-function-at-point)))))
+        ;; 3 - try a Perl built-in
+        (when (and (not completions)
+                   (or (not type) (eq type ?&)))
+          (when (string-match ".*::([^:]+)$" name)
+            (setq name (match-string 1 name)))
+          (setq completions (all-completions name sepia-perl-builtins)))
+        (case (length completions)
+          (0 (message "No completions.") nil)
+          (1 ;; XXX - skip sigil to match s-i-before-point
+           (delete-region (- (point) len) (point))
+           (insert (or type "") (car completions))
+           ;; Hide stale completions buffer (stolen from lisp.el).
+           (if win (with-selected-window win (bury-buffer))) t)
+          (t (let ((old name)
+                   (new (try-completion "" completions)))
+               (if (<= (length new) (length old))
+                   (with-output-to-temp-buffer "*Completions*"
+                     (display-completion-list completions))
+                 (let ((win (get-buffer-window "*Completions*" 0)))
+                   (if win (with-selected-window win (bury-buffer))))
+                 (delete-region (- (point) len) (point))
+                 (insert (or type "") new))))))
+      t)))
 
 (defun sepia-indent-or-complete ()
 "Indent the current line or complete the symbol around point.

@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.95_02';
+$VERSION = '0.95_03';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -29,16 +29,15 @@ use Scalar::Util 'looks_like_number';
 use Text::Abbrev;
 
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
+            @REPL_RESULT
             $REPL_LEVEL $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
             $ISEVAL);
 
-BEGIN {
+sub repl_strict
+{
     eval { require Lexical::Persistence; import Lexical::Persistence };
     if ($@) {
-        *repl_strict = sub {
-            print "Strict mode requires Lexical::Persistence.\n";
-            0;
-        };
+        print "Strict mode requires Lexical::Persistence.\n";
     } else {
         *repl_strict = sub {
             my $x = as_boolean(shift, $STRICT);
@@ -47,15 +46,23 @@ BEGIN {
             } elsif (!$x) {
                 undef $STRICT;
             }
-            0;
         };
+        goto &repl_strict;
     }
+}
+
+sub core_version
+{
     eval { require Module::CoreList };
     if ($@) {
-        *Sepia::core_version = sub { '???' };
+        '???';
     } else {
-        *Sepia::core_version = sub { Module::CoreList->first_release(@_) };
+        *core_version = sub { Module::CoreList->first_release(@_) };
+        goto &core_version;
     }
+}
+
+BEGIN {
     eval { use List::Util 'max' };
     if ($@) {
         *Sepia::max = sub {
@@ -66,12 +73,13 @@ BEGIN {
             $ret;
         };
     }
+}
+
+sub repl_size
+{
     eval { require Devel::Size };
     if ($@) {
-        *Sepia::repl_size = sub {
-            print "Size requires Devel::Size.\n";
-            0;
-        };
+        print "Size requires Devel::Size.\n";
     } else {
         *Sepia::repl_size = sub {
             ## XXX: C&P from repl_who:
@@ -88,14 +96,14 @@ BEGIN {
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
-            local $SIG{WARN} = sub {};
+            local $SIG{__WARN__} = sub {};
             for (@who) {
                 my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
                 next if $res == 0;
                 printf $fmt, $_, $res || 0;
             }
-            0;
         };
+        goto &repl_size;
     }
 }
 
@@ -157,6 +165,7 @@ BEGIN {
 sub filter_untyped
 {
     no strict;
+    local $_ = /^::/ ? $_ : "::$_";
     defined *{$_}{CODE} || defined *{$_}{IO} || (/::$/ && defined *{$_}{HASH});
 }
 
@@ -168,6 +177,7 @@ sub filter_typed
 {
     no strict;
     my $type = shift;
+    local $_ = /^::/ ? $_ : "::$_";
     if ($type eq 'SCALAR') {
         defined ${$_};
     } elsif ($type eq 'VARIABLE') {
@@ -185,23 +195,24 @@ sub maybe_icase
 
 sub all_abbrev_completions
 {
-    use vars '&completions';
-    local *completions = sub {
+    use vars '&_completions';
+    local *_completions = sub {
         no strict;
         my ($stash, @e) = @_;
         my $ch = '[A-Za-z0-9]*';
         my $re1 = "^".maybe_icase($e[0]).$ch.join('', map {
             '_'.maybe_icase($_).$ch
-        } @e[1..$#e]).'$';
+        } @e[1..$#e]);
         $re1 = qr/$re1/;
         my $re2 = maybe_icase $e[0];
         $re2 = qr/^$re2.*::$/;
-        my @ret = grep /$re1/, keys %{$stash};
+        my @ret = grep !/::$/ && /$re1/, keys %{$stash};
         my @pkgs = grep /$re2/, keys %{$stash};
         (map("$stash$_", @ret),
-         @e>1 ? map { completions "$stash$_", @e[1..$#e] } @pkgs : @pkgs)
+         @e > 1 ? map { _completions "$stash$_", @e[1..$#e] } @pkgs :
+             map { "$stash$_" } @pkgs)
     };
-    map { s/^:://; $_ } completions('::', split //, shift);
+    map { s/^:://; $_ } _completions('::', split //, shift);
 }
 
 sub apropos_re
@@ -216,8 +227,8 @@ sub all_completions
     my $icase = $_[0] !~ /[A-Z]/;
     my @parts = split /:+/, shift, -1;
     my $re = apropos_re $icase, pop @parts;
-    use vars '&completions';
-    local *completions = sub {
+    use vars '&_completions';
+    local *_completions = sub {
         no strict;
         my $stash = shift;
         if (@_ == 0) {
@@ -225,32 +236,32 @@ sub all_completions
         } else {
             my $re2 = $icase ? qr/^$_[0].*::$/i : qr/^$_[0].*::$/;
             my @pkgs = grep /$re2/, keys %{$stash};
-            map { completions "$stash$_", @_[1..$#_] } @pkgs
+            map { _completions "$stash$_", @_[1..$#_] } @pkgs
         }
     };
-    map { s/^:://; $_ } completions('::', @parts);
+    map { s/^:://; $_ } _completions('::', @parts);
 }
 
 sub completions
 {
     my ($type, $str) = $_[0] =~ /^([\%\$\@\&]?)(.*)/;
-    my %h = qw(@ ARRAY % HASH & CODE * IO);
-    my $t = $type;
+    my %h = qw(@ ARRAY % HASH & CODE * IO $ SCALAR);
+    my $t = $type || '';
     $type = $h{$type} if $type;
     my @ret = grep {
-        !$type || Sepia::filter_typed $type
+        $type ? filter_typed $type : filter_untyped
     } all_completions $str;
     if (!@ret && $str !~ /:/) {
         @ret = grep {
-            !$type || Sepia::filter_typed $type
+            $type ? filter_typed $type : filter_untyped
         } all_abbrev_completions $str;
     }
-    map { $_ = "$t$_" } @ret if $type;
+    @ret = map { s/^:://; "$t$_" } @ret;
 #     ## XXX: Control characters, $", and $1, etc. confuse Emacs, so
 #     ## remove them.
     grep {
         length > 0 && !looks_like_number $_ && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
-    } map { s/^:://; $_ } @ret;
+    } @ret;
 }
 
 sub method_completions
@@ -419,14 +430,13 @@ Emacs-called function to get module information.
 
 =cut
 
-sub module_info($$);
-
-BEGIN {
+sub module_info
+{
     eval { require Module::Info; import Module::Info };
     if ($@) {
-        *module_info = sub ($$) { undef };
+        undef;
     } else {
-        *module_info = sub ($$) {
+        *module_info = sub {
             my ($m, $func) = @_;
             my $info;
             if (-f $m) {
@@ -444,6 +454,7 @@ BEGIN {
                 return $info->$func;
             }
         };
+        goto &module_info;
     }
 }
 
@@ -781,7 +792,6 @@ sub repl_help
             printf "%-${left}s%s\n", $REPL_SHORT{$_}, $flow;
         }
     }
-    0;
 }
 
 sub repl_define
@@ -794,16 +804,15 @@ sub repl_define
         ($name, $doc, $body) = ($1, $2, $2);
     } else {
         print "usage: define NAME ['doc'] BODY...\n";
-        return 0;
+        return;
     }
-    my $sub = eval "sub { do { $body }; 0 }";
+    my $sub = eval "sub { do { $body } }";
     if ($@) {
         print "usage: define NAME ['doc'] BODY...\n\t$@\n";
-        return 0;
+        return;
     }
     define_shortcut $name, $sub, $doc;
     %RK = abbrev keys %REPL;
-    0;
 }
 
 sub repl_undef
@@ -820,7 +829,6 @@ sub repl_undef
     } else {
         print "$name: no such shortcut.\n";
     }
-    0;
 }
 
 sub repl_format
@@ -837,7 +845,6 @@ sub repl_format
             warn "No such format '$t' (dumper, dump, yaml, plain).\n";
         }
     }
-    0;
 }
 
 sub repl_chdir
@@ -852,13 +859,11 @@ sub repl_chdir
     } else {
         warn "Can't chdir\n";
     }
-    0;
 }
 
 sub repl_pwd
 {
     print Cwd::getcwd(), "\n";
-    0;
 }
 
 sub who
@@ -907,7 +912,6 @@ sub repl_who
         $pkg = $PACKAGE;
     }
     print columnate who($pkg || $PACKAGE, $re);
-    0;
 }
 
 sub methods
@@ -936,7 +940,6 @@ sub repl_methods
     $re ||= '.?';
     $re = qr/$re/;
     print columnate sort { $a cmp $b } grep /$re/, methods $x;
-    0;
 }
 
 sub as_boolean
@@ -949,7 +952,6 @@ sub as_boolean
 sub repl_wantarray
 {
     $WANTARRAY = as_boolean shift, $WANTARRAY;
-    0;
 }
 
 sub repl_package
@@ -963,12 +965,11 @@ sub repl_package
     } else {
         warn "Can't go to package $p -- doesn't exist!\n";
     }
-    0;
 }
 
 sub repl_quit
 {
-    1;
+    last repl;
 }
 
 sub repl_reload
@@ -986,7 +987,6 @@ sub repl_shell
 {
     my $cmd = shift;
     print `$cmd 2>& 1`;
-    return 0;
 }
 
 sub repl_eval
@@ -1112,6 +1112,7 @@ sub repl
     local *__;
     local *CORE::GLOBAL::die = \&Sepia::Debug::die;
     local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
+    local @REPL_RESULT;
     Sepia::Debug::add_repl_commands;
     repl_banner if $REPL_LEVEL == 1;
     print prompt;
@@ -1151,10 +1152,7 @@ sub repl
                     my $ret;
                     my $arg = $2;
                     chomp $arg;
-                    ($ret, @res) = $Sepia::REPL{$Sepia::RK{$short}}->($arg, wantarray);
-                    if ($ret) {
-                        return wantarray ? @res : $res[0];
-                    }
+                    $Sepia::REPL{$Sepia::RK{$short}}->($arg, wantarray);
                 } else {
                     if (grep /^$short/, keys %Sepia::REPL) {
                         print "Ambiguous shortcut '$short': ",
@@ -1205,6 +1203,7 @@ sub repl
             print_warnings;
             print prompt;
         }
+    wantarray ? @REPL_RESULT : $REPL_RESULT[0]
 }
 
 sub perl_eval

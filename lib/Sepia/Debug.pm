@@ -1,6 +1,6 @@
 package Sepia::Debug;
 # use Sepia;
-use Carp 'shortmess';
+use Carp ();                    # old Carp doesn't export shortmess.
 use Text::Abbrev;
 use strict;
 use vars qw($pack $file $line $sub $level
@@ -15,10 +15,16 @@ BEGIN {
     $^P = 0x303;
     $STOPDIE = 1;
     $STOPWARN = 0;
+}
 
-    eval { require PadWalker; import PadWalker qw(peek_my) };
+sub peek_my
+{
+    eval { require PadWalker };
     if ($@) {
-        *peek_my = sub { +{ } };
+        +{ }
+    } else {
+        *peek_my = \&PadWalker::peek_my;
+        goto &peek_my;
     }
 }
 
@@ -26,7 +32,6 @@ BEGIN {
 sub repl_debug
 {
     debug(@_);
-    0;
 }
 
 sub repl_backtrace
@@ -36,13 +41,17 @@ sub repl_backtrace
         last unless $pack;
         print($i == $level+3 ? "*" : ' ', " [$i]\t$sub ($file:$line)\n");
     }
-    0
 }
 
 # return value from die
 sub repl_return
 {
-    (1, $Sepia::REPL{eval}->(@_));
+    if ($Sepia::WANTARRAY) {
+        @Sepia::REPL_RESULT = $Sepia::REPL{eval}->(@_);
+    } else {
+        $Sepia::REPL_RESULT[0] = $Sepia::REPL{eval}->(@_);
+    }
+    last repl;
 }
 
 sub repl_lsbreak
@@ -81,35 +90,6 @@ sub tie_class
                 : die "Sorry, can't tie $sig\n";
 }
 
-# {
-#     require Tie::Array;
-#     require Tie::Hash;
-#     require Tie::Scalar;
-#     package Sepia::Array;
-#     our @ISA = qw(Tie::StdArray);
-#     sub TIEARRAY { bless $_[1], $_[0] }
-#     package Sepia::Hash;
-#     our @ISA = qw(Tie::StdHash);
-#     sub TIEHASH { bless $_[1], $_[0] }
-#     package Sepia::Scalar;
-#     our @ISA = qw(Tie::StdScalar);
-#     sub TIESCALAR { bless $_[1], $_[0] }
-# }
-
-# sub eval_in_env3
-# {
-#     my ($expr, $env) = @_;
-#     my @vars = grep /^([\$\@%])(.+)/, keys %$env;
-#     my $body = 'sub { my ('.join(',', @vars).');';
-#     for my $i (0..$#vars) {
-#         $body .= "tie $vars[$i], ".tie_class($vars[$i]).', $_['.$i.'];';
-#     }
-#     $body .= "$expr }";
-#     print STDERR "---\n$body\n---\n";
-#     $body = eval $body;
-#     $@ || $body->(@{$env}{@vars});
-# }
-
 ## XXX: this is a better approach (the local/tie business is vile),
 ## but it segfaults and I'm not sure why.
 sub eval_in_env2
@@ -130,12 +110,7 @@ sub eval_in_env2
 # evaluate EXP LEV levels up the stack
 sub repl_upeval
 {
-    my $exp = shift;
-    # my ($lev, $exp) = $_[0] =~ /^\s*(\d+)\s+(.*)/;
-    # print " <= $exp\n";
-    # (0, eval_in_env2($exp, $level));
-    # (0, eval_in_env3($exp, peek_my(4 + $level)));
-    eval_in_env($exp, peek_my(4+$level));
+    eval_in_env(shift, peek_my(4+$level));
 }
 
 # inspect lexicals at level N, or current level
@@ -156,7 +131,6 @@ sub repl_inspect
             print "\t$_ = ", $Sepia::PRINTER{$Sepia::PRINTER}->(), "\n";
         }
     }
-    0;
 }
 
 sub debug
@@ -205,9 +179,10 @@ sub repl_break
     $cond = 1 unless $cond =~ /\S/;
     $f ||= $file;
     $l ||= $line;
-    print "break ", breakpoint($f, $l, $cond), "\n";
-    0;
-}
+    return unless defined $f && defined $l;
+    my $bp = breakpoint($f, $l, $cond);
+    print "break $bp\n" if $bp;
+ }
 
 sub update_location
 {
@@ -225,7 +200,6 @@ sub repl_list
     my @lines = eval shift;
     @lines = $line - 5 .. $line + 5 unless @lines;
     printf '%-6d%s', $_, ${"::_<$file"}[$_-1] for @lines;
-    0
 }
 
 sub repl_delete
@@ -235,13 +209,10 @@ sub repl_delete
     $l ||= $line;
     my $h = breakpoint_file $f;
     delete $h->{$l} if defined $h;
-    0
 }
 
 sub add_repl_commands
 {
-    # %Sepia::REPL = (%Sepia::REPL, %parent_repl);
-    # %Sepia::REPL_DOC = (%Sepia::REPL_DOC, %parent_doc);
     define_shortcut 'delete', \&repl_delete,
         'Delete current breakpoint.';
     define_shortcut 'debug', \&repl_debug,
@@ -261,38 +232,37 @@ sub add_debug_repl_commands
         $level += shift || 1;
         update_location(4);
         show_location;
-        0
     }, 'up [N]', 'Move up N stack frames.';
     define_shortcut down => sub {
         $level -= shift || 1;
         $level = 0 if $level < 0;
         update_location(4);
         show_location;
-        0
     }, 'down [N]', 'Move down N stack frames.';
     define_shortcut continue => sub {
         $level = 0;
-        $DB::single = 0; 1
+        $DB::single = 0;
+        last repl;
     }, 'Yep.';
 
     define_shortcut next => sub {
         my $n = shift || 1;
         $DB::single = 0;
-        breakpoint $file, $line + $n, 'next'; 1
+        breakpoint $file, $line + $n, 'next';
+        last repl;
     }, 'next [N]', 'Advance N lines, skipping subroutines.';
 
     define_shortcut step => sub {
-        $DB::single = shift || 1; 1
+        $DB::single = shift || 1;
+        last repl;
     }, 'step [N]', 'Step N lines forward, entering subroutines.';
 
-    # define_shortcut break => \&repl_break
     define_shortcut list => \&repl_list,
         'list EXPR', 'List source lines of current file.';
     define_shortcut backtrace => \&repl_backtrace, 'show backtrace';
     define_shortcut inspect => \&repl_inspect,
         'inspect [N]', 'inspect lexicals in frame N (or current)';
     define_shortcut return => \&repl_return, 'return EXPR', 'return EXPR';
-    # define_shortcut lsbreak => \&repl_lsbreak;
     define_shortcut eval => \&repl_upeval,
         'eval EXPR', 'evaluate EXPR in current frame';      # DANGER!
 }
@@ -305,7 +275,6 @@ sub repl
     add_debug_repl_commands;
     map { define_shortcut @$_ } @_;
     local %Sepia::RK = abbrev keys %Sepia::REPL;
-    print "(@{[keys %Sepia::REPL]})\n";
     # local $Sepia::REPL_LEVEL = $Sepia::REPL_LEVEL + 1;
     local $Sepia::PS1 = "*$Sepia::REPL_LEVEL*> ";
     Sepia::repl();
@@ -341,7 +310,9 @@ sub die
         my @dieargs = @_;
         local $level = 0;
         local ($pack, $file, $line, $sub) = caller($level);
-        print "@_\n\tin $sub\nDied $MSG\n";
+        my $tmp = "@_";
+        $tmp .= "\n" unless $tmp =~ /\n\z/;
+        print "$tmp\tin $sub\nDied $MSG\n";
         my $trace = $DB::trace;
         $DB::trace = 1;
         repl(
@@ -351,8 +322,9 @@ sub die
              'Continue dying.']);
         $DB::trace = $trace;
     } else {
-        CORE::die(shortmess @_);
+        CORE::die(Carp::shortmess @_);
     }
+    1;
 }
 
 sub warn
@@ -373,7 +345,7 @@ sub warn
         $DB::trace = $trace;
     } else {
         ## Avoid showing up in location information.
-        CORE::warn(shortmess @_);
+        CORE::warn(Carp::shortmess @_);
     }
 }
 

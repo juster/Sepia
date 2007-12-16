@@ -44,9 +44,8 @@ q!REPL commands (prefixed with ','):
                        pattern RE.!
     if 0;
 
-expect ",wh Sepia::Xref xref",
-'xref             xref_definitions xref_main
-xref_cv          xref_exclude     xref_object      ';
+expect_send ",wh Sepia::Xref xref";
+expect_like qr/xref \s+ xref_definitions \s+ xref_main \s+ xref_cv \s+ xref_exclude \s+ xref_object \s* /x;
 
 expect_send '{ package A; sub a {}; package X; @ISA = qw(A); sub x {} };';
 expect ",wh X", '@ISA x', 'package list';
@@ -77,3 +76,25 @@ expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_send ',q', 'quit';
 # expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_like qr/error: asdf/, 'saw die message';
+
+<<'EOS';
+,help
+,wh Sepia::Xref xref
+{ package A; sub a {}; package X; @ISA = qw(A); sub x {} };
+,wh X
+,me X
+$x = bless {}, X;
+,me $x
+,lsb
+,debug 1
+do 'testy.pl';
+fib1 10
+,br testy.pl:6
+fib1 10
+$n = 3
+,in
+,del
+,con
+fib2 10
+,q
+EOS
