@@ -1,4 +1,4 @@
-use ExtUtils::MakeMaker;
+use ExtUtils::MakeMaker qw(WriteMakefile prompt);
 use 5.006;                      # for "no warnings" -- sorry!
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
@@ -24,18 +24,8 @@ sub test_for
     my $mod = shift;
     eval "require $mod";
     if ($@) {
-        if (-t STDIN) {
-            $| = 1;
-            print "@_.  Install $mod [yN]? ";
-            my ($rfd, $wfd, $efd) = ('', '', '');
-            vec($rfd, fileno(STDIN), 1) = 1;
-            if (select $rfd, $wfd, $efd, 60.0) {
-                my $resp = <STDIN>;
-                $prereq{$mod} = 0 if $resp =~ /^y/i;
-            }
-        } else {
-            print "@_\n";
-        }
+        my $resp = prompt("@_.  Install $mod [yN]? ", 'n');
+        $prereq{$mod} = 0 if $resp =~ /^y/i;
     }
 }
 

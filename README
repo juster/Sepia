@@ -31,7 +31,8 @@ procedure is:
 ** Requirements for GNU Emacs 22
 *** (optional) emacs-w3m from http://emacs-w3m.namazu.org/
 *** (optional) w3m from http://w3m.sourceforge.net/
-** Requirements GNU Emacs 21
+*** (optional) snippet.el from http://www.kazmier.com/computer/snippet.el
+** Additional requirements GNU Emacs 21
 *** ido.el
     http://cvs.savannah.gnu.org/viewcvs/*checkout*/emacs/lisp/ido.el?root=emacs
 *** FreeBSD may require the following packages:

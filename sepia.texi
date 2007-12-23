@@ -732,6 +732,9 @@ developer documentation, please see the POD for @code{Sepia} and
 @item Hilko Bengen
 Found and motivated me to fix a bunch of bugs, created Debian packages.
 
+@item Ævar Arnfjörð Bjarmason
+Miscellaneous fixes.  Tested unicode support.
+
 @item Ye Wenbin
 Found and fixed numerous bugs.
 

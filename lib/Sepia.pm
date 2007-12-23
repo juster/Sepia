@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.95_03';
+$VERSION = '0.9601';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -98,8 +98,10 @@ sub repl_size
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
             local $SIG{__WARN__} = sub {};
             for (@who) {
+                next unless /^[\$\@\%\&]/; # skip subs.
+                print STDERR "package $pkg; Devel::Size::total_size \\$_;";
                 my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
-                next if $res == 0;
+                # next if $res == 0;
                 printf $fmt, $_, $res || 0;
             }
         };
@@ -244,10 +246,19 @@ sub all_completions
 
 sub completions
 {
-    my ($type, $str) = $_[0] =~ /^([\%\$\@\&]?)(.*)/;
+    my ($type, $str, $t);
     my %h = qw(@ ARRAY % HASH & CODE * IO $ SCALAR);
-    my $t = $type || '';
+    my %rh;
+    @rh{values %h} = keys %h;
+    if (@_ == 1) {
+        ($type, $str) = $_[0] =~ /^([\%\$\@\&]?)(.*)/;
+        $t = $type || '';
     $type = $h{$type} if $type;
+    } else {
+        ($str, $type) = @_;
+        $type ||= '';
+        $t = $rh{$type} if $type;
+    }
     my @ret = grep {
         $type ? filter_typed $type : filter_untyped
     } all_completions $str;
@@ -868,17 +879,29 @@ sub repl_pwd
 
 sub who
 {
-    my ($pack, $re) = @_;
-    $re ||= '.?';
-    $re = qr/$re/;
+    my ($pack, $re_str) = @_;
+    $re_str ||= '.?';
+    my $re = qr/$re_str/;
     no strict;
+    if ($re_str =~ /^[\$\@\%\&]/) {
+        ## sigil given -- match it
     sort grep /$re/, map {
         (defined %{$pack.'::'.$_} ? '%'.$_ : (),
          defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
          defined @{$pack.'::'.$_} ? '@'.$_ : (),
+             defined &{$pack.'::'.$_} ? '&'.$_ : (),
+            )
+        } grep !/::$/ && !/^(?:_<|[^\w])/ && /$re/, keys %{$pack.'::'};
+    } else {
+        ## no sigil -- don't match it
+        sort map {
+            (defined %{$pack.'::'.$_} ? '%'.$_ : (),
+             defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
+             defined @{$pack.'::'.$_} ? '@'.$_ : (),
          defined &{$pack.'::'.$_} ? $_ : (),
      )
-    } grep !/::$/ && !/^(?:_<|[^\w])/, keys %{$pack.'::'};
+        } grep !/::$/ && !/^(?:_<|[^\w])/ && /$re/, keys %{$pack.'::'};
+    }
 }
 
 
@@ -1211,16 +1234,18 @@ sub perl_eval
     tolisp($REPL{eval}->(shift));
 }
 
-=head2 C<$status = html_module_list($file [, $prefix])>
+=head2 C<$status = html_module_list([$file [, $prefix]])>
 
 Generate an HTML list of installed modules, looking inside of
-packages.  If C<$prefix> is missing, uses "about://perldoc/".
+packages.  If C<$prefix> is missing, uses "about://perldoc/".  If
+$file is given, write the result to $file; otherwise, return it as a
+string.
 
-=head2 C<$status = html_package_list($file [, $prefix])>
+=head2 C<$status = html_package_list([$file [, $prefix]])>
 
 Generate an HTML list of installed top-level modules, without looking
 inside of packages.  If C<$prefix> is missing, uses
-"about://perldoc/".
+"about://perldoc/".  $file is the same as for C<html_module_list>.
 
 =cut
 
@@ -1230,7 +1255,8 @@ sub html_module_list
     $base ||= 'about://perldoc/';
     my $inst = inst();
     return unless $inst;
-    return unless open OUT, ">$file";
+    my $out;
+    open OUT, ">", $file || \$out or return;
     print OUT "<html><body><ul>";
     my $pfx = '';
     my %ns;
@@ -1241,8 +1267,8 @@ sub html_module_list
         print OUT qq{<li><b>$_</b><ul>} if @{$ns{$_}} > 1;
         for (sort @{$ns{$_}}) {
             my @fs = map {
-                s/.*man.\///; s|/|::|g; s/\..?pm//; $_
-            } grep /\.\dpm$/, sort $inst->files($_);
+                s/.*man.\///; s|/|::|g; s/\.\d(?:pm)?$//; $_
+            } grep /\.\d(?:pm)?$/, sort $inst->files($_);
             if (@fs == 1) {
                 print OUT qq{<li><a href="$base$fs[0]">$fs[0]</a>};
             } else {
@@ -1257,7 +1283,7 @@ sub html_module_list
     }
     print OUT "</ul></body></html>\n";
     close OUT;
-    1;
+    $file ? 1 : $out;
 }
 
 sub html_package_list
@@ -1265,7 +1291,8 @@ sub html_package_list
     my ($file, $base) = @_;
     return unless inst();
     $base ||= 'about://perldoc/';
-    return unless open OUT, ">$file";
+    my $out;
+    open OUT, ">", $file || \$out or return;
     print OUT "<html><body><ul>";
     my $pfx = '';
     my %ns;
@@ -1285,7 +1312,7 @@ sub html_package_list
     }
     print OUT "</ul></body></html>\n";
     close OUT;
-    1;
+    $file ? 1 : $out;
 }
 
 1;

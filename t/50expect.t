@@ -6,7 +6,7 @@ BEGIN {
         print "# requires Test::Expect\n1..1\nok 1\n";
         exit 0;
     } else {
-        eval 'use Test::Simple tests => 34';
+        eval 'use Test::Simple tests => 36';
     }
 }
 
@@ -63,8 +63,10 @@ expect_send "do '$Bin/testy.pl';", 'get testy';
 expect 'fib1 10', '55', 'plain fib';
 expect ',br testy.pl:6', "break testy.pl:6 if 1", 'break?';
 expect_send 'fib1 10';
+# sleep 1;
 expect_like qr|_<$Bin/testy.pl:6>|, 'break in fib';
 # XXX AGAIN STUPID EXPECT!
+expect '$n = 3', "\$n = 3\n3", 'munge lexicals';
 expect '$n = 3', "\$n = 3\n3", 'munge lexicals';
 expect ',in',
 '[3] DB::DB:
@@ -77,7 +79,7 @@ expect_send ',q', 'quit';
 # expect_like qr/_<$Bin\/testy.pl:12>/;
 expect_like qr/error: asdf/, 'saw die message';
 
-<<'EOS';
+print <<'EOS' if 0;             # for debugging
 ,help
 ,wh Sepia::Xref xref
 { package A; sub a {}; package X; @ISA = qw(A); sub x {} };
