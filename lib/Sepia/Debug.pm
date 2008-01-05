@@ -54,6 +54,45 @@ sub repl_return
     last repl;
 }
 
+use vars qw($DIE_TO @DIE_RETURN $DIE_LEVEL);
+$DIE_LEVEL = 0;
+
+sub repl_xreturn
+{
+    ($DB::DIE_TO, $DB::DIE_RETURN[0]) = split ' ', $_[0], 2;
+    $DB::DIE_RETURN[0] = $Sepia::REPL{eval}->($DB::DIE_RETURN[0]);
+    last SEPIA_DB_SUB;
+}
+
+# { package DB;
+#  no strict;
+sub sub
+{
+    no strict;
+    local $DIE_LEVEL = $DIE_LEVEL + 1;
+    ## Set up a dynamic catch target
+ SEPIA_DB_SUB: {
+        return &$DB::sub;
+    };
+    # we're dying!
+    last SEPIA_DB_SUB
+        if $DIE_LEVEL > 1 && defined $DIE_TO
+            && $DB::sub !~ /(?:^|::)\Q$DIE_TO\E$/;
+    undef $DIE_TO;
+    wantarray ? @DIE_RETURN : $DIE_RETURN[0]
+}
+# }
+
+sub repl_dbsub
+{
+    my $arg = shift;
+    if ($arg) {
+        *DB::sub = \&sub;
+    } else {
+        undef &DB::sub;
+    }
+}
+
 sub repl_lsbreak
 {
     no strict 'refs';
@@ -182,7 +221,7 @@ sub repl_break
     return unless defined $f && defined $l;
     my $bp = breakpoint($f, $l, $cond);
     print "break $bp\n" if $bp;
- }
+}
 
 sub update_location
 {
@@ -222,6 +261,7 @@ sub add_repl_commands
         'Set a breakpoint in F at line N (or at current position), enabled if E evalutes to true.';
     define_shortcut 'lsbreak', \&repl_lsbreak,
         'List breakpoints.';
+    define_shortcut 'dbsub', \&repl_dbsub, '(Un)install DB::sub.';
     %Sepia::RK = abbrev keys %Sepia::REPL;
 }
 
@@ -263,6 +303,8 @@ sub add_debug_repl_commands
     define_shortcut inspect => \&repl_inspect,
         'inspect [N]', 'inspect lexicals in frame N (or current)';
     define_shortcut return => \&repl_return, 'return EXPR', 'return EXPR';
+    define_shortcut xreturn => \&repl_xreturn, 'xreturn NAME EXPR',
+        'xreturn NAME EXPR';
     define_shortcut eval => \&repl_upeval,
         'eval EXPR', 'evaluate EXPR in current frame';      # DANGER!
 }
@@ -346,6 +388,26 @@ sub warn
     } else {
         ## Avoid showing up in location information.
         CORE::warn(Carp::shortmess @_);
+    }
+}
+
+sub oops
+{
+    my $sig = shift;
+    if ($STOPDIE) {
+        my $trace = $DB::trace;
+        $DB::trace = 1;
+        local $level = 0;
+        local ($pack, $file, $line, $sub) = caller($level);
+        print "@_\n\tin $sub\nCaught signal $sig\n";
+        repl(
+        [die => sub { local $STOPDIE=0; CORE::die "Caught signal $sig; exiting." },
+         'Just die.'],
+        [quit => sub { local $STOPWARN=0; CORE::die "Caught signal $sig; exiting." },
+         'Just die.']);
+        $DB::trace = $trace;
+    } else {
+        Carp::confess "Caught signal $sig: continue at your own risk.";
     }
 }
 

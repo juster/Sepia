@@ -29,7 +29,7 @@ use Scalar::Util 'looks_like_number';
 use Text::Abbrev;
 
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
-            @REPL_RESULT
+            @REPL_RESULT @res
             $REPL_LEVEL $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
             $ISEVAL);
 
@@ -90,6 +90,9 @@ sub repl_size
             } elsif (!$re && !defined %{$pkg.'::'}) {
                 $re = $pkg;
                 $pkg = $PACKAGE;
+            } else {
+                $re = '';
+                $pkg = $PACKAGE;
             }
             my @who = who($pkg, $re);
             my $len = max(map { length } @who) + 4;
@@ -99,10 +102,10 @@ sub repl_size
             local $SIG{__WARN__} = sub {};
             for (@who) {
                 next unless /^[\$\@\%\&]/; # skip subs.
-                print STDERR "package $pkg; Devel::Size::total_size \\$_;";
+                # print STDERR "package $pkg; Devel::Size::total_size \\$_;";
                 my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
                 # next if $res == 0;
-                printf $fmt, $_, $res || 0;
+                printf $fmt, $_, $res;
             }
         };
         goto &repl_size;
@@ -614,7 +617,6 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         local $Data::Dumper::Deparse = 1;
         local $Data::Dumper::Indent = 0;
         local $_;
-        no strict;
         my $thing = @res > 1 ? \@res : $res[0];
         eval {
             $_ = Data::Dumper::Dumper($thing);
@@ -634,11 +636,9 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         $_;
     },
     plain => sub {
-        no strict;
         "@res";
     },
     yaml => sub {
-        no strict;
         eval { require YAML };
         if ($@) {
             $PRINTER{dumper}->();
@@ -647,7 +647,6 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         }
     },
     dump => sub {
-        no strict;
         eval { require Data::Dump };
         if ($@) {
             $PRINTER{dumper}->();
@@ -659,9 +658,9 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
 
 sub printer
 {
-    no strict;
     local *res = shift;
     my ($wantarray) = @_;
+    my $res;
     @::__ = @res;
     $::__ = @res == 1 ? $res[0] : [@res];
     my $str;
@@ -685,7 +684,6 @@ sub printer
 }
 
 BEGIN {
-    no strict;
     $PS1 = "> ";
     $PACKAGE = 'main';
     $WANTARRAY = 1;
@@ -708,7 +706,7 @@ sub Dump
 sub flow
 {
     my $n = shift;
-    my $n1 = int($n/2);
+    my $n1 = int(2*$n/3);
     local $_ = shift;
     s/(.{$n1,$n}) /$1\n/g;
     $_
@@ -1077,11 +1075,15 @@ Execute a command interpreter on standard input and standard output.
 If you want to use different descriptors, localize them before
 calling C<repl()>.  The prompt has a few bells and whistles, including:
 
-  * Obviously-incomplete lines are treated as multiline input (press
-    'return' twice or 'C-c' to discard).
+=over 4
 
-  * C<die> is overridden to enter a debugging repl at the point
-    C<die> is called.
+=item Obviously-incomplete lines are treated as multiline input (press
+'return' twice or 'C-c' to discard).
+
+=item C<die> is overridden to enter a debugging repl at the point
+C<die> is called.
+
+=back
 
 Behavior is controlled in part through the following package-globals:
 

@@ -519,6 +519,11 @@ Continue execution as if @code{die()} had returned the value of
 @item step [@var{n}]
 Step forward @var{n} (or one) lines, descending into subroutines.
 
+@item xreturn @var{sub} @var{expr}
+Return @var{expr} from the innermost call to @var{sub}.  This is a
+somewhat dangerous and experimental feature, but is probably more useful
+than returning a value from @code{die()}.
+
 @end table
 
 @node Evaluation, Mutilation, Debugger, Interactive Perl

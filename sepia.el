@@ -310,7 +310,7 @@ Interactive users should call `sepia-view-pod'."
                         '("-MSepia" "-MSepia::Xref"
                           "-e" "Sepia::repl")))))
     (setq sepia-process (get-buffer-process "*sepia-repl*"))
-    (accept-process-output sepia-process 0 1)
+    (accept-process-output sepia-process 1)
     ;; Steal a bit from gud-common-init:
     (setq gud-running t)
     (setq gud-last-last-frame nil)
@@ -1415,6 +1415,11 @@ When called interactively, the current buffer's
                            short)))
                 ;; e.g. "C<foo(BLAH)>" or "$x = $y->foo()"
                 ((string-match "\\([A-Za-z0-9_:]+\\)\\s *\\(\\$\\|(\\)" short)
+                 (list 'function (match-string-no-properties 1 short)
+                       (or (and (equal short (match-string 1 short)) longdoc)
+                           short)))
+                ;; e.g. "C<$result = foo $args...>"
+                ((string-match "=\\s *\\([A-Za-z0-9_:]+\\)" short)
                  (list 'function (match-string-no-properties 1 short)
                        (or (and (equal short (match-string 1 short)) longdoc)
                            short)))
