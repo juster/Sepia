@@ -1,3 +1,7 @@
+2008-01-05  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* README: remove redundant/obsolete documentation
+
 2008-01-02  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia.pm (flow): get closer to margin.
