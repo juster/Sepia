@@ -9,25 +9,17 @@ development, including:
     * eldoc support to echo function arguments in the minibuffer
     * functions to simplify POD browsing with Emacs-w3m
 
-I find Emacs as a software development environment preferable to many
-modern IDEs, particularly when using a richly-supported language like
-Lisp or Emacs Lisp.  Sepia is my attempt to give Perl a similar degree
-of support "in the Emacs way," which represents 40 years' collective
-experience of the software development community.  I have therefore
-tried throughout to use or mimic existing Emacs functionality, rather
-than to create something new.
-
+Please see the Sepia.html or sepia.info for documentation.
 * INSTALLATION
-Sepia is developed on (and probably requires) the latest version of
-GNU Emacs, which can be obtained from CVS or as a prebuilt package on
-some platforms.  All of its features could probably be made to work on
-other Emacsen, but some porting would be required.  The basic
-procedure is:
+The basic installation procedure is:
 
     1) run "perl Makefile.PL; make; make install"
     2) optionally, install w3m and Emacs-w3m
     3) put the elisp files somewhere Emacs will find them.
 
+Sepia is developed on the latest version of GNU Emacs, which can be
+obtained from CVS or as a prebuilt package on some platforms.  It can
+run on other versions of Emacs, but may require additional packages.
 ** Requirements for GNU Emacs 22
 *** (optional) emacs-w3m from http://emacs-w3m.namazu.org/
 *** (optional) w3m from http://w3m.sourceforge.net/
@@ -47,217 +39,33 @@ procedure is:
     apel-emacs21-10.7
     ja-nkf-2.05
 
-* GETTING STARTED
-To start the interpreter, type
-
-   M-x load-library RET sepia RET
-   M-x sepia-init RET
-
-Since the cross-reference database can take several seconds to create,
-and become outdated when the program changes, it must be built
-explicitly by
-
-   M-x sepia-rebuild RET
-
-Type
-
-   C-h f sepia-init RET
-
-to get a list of Sepia functions.  Locating functions will look up
-zero or more source locations, then allow you to cycle through them
-with "M-x sepia-next" ("\M-," by default).  With a prefix argument,
-the functions will instead display a grep-mode buffer listing all the
-hits.
-* COMMANDS
-** Navigation and text manipulation
-*** `C-M-a' (`sepia-beginning-of-defun')
-Move to beginning of current function.
-
-If prefix argument given, move n functions backward.
-
-*** `C-M-e' (`sepia-end-of-defun')
-Move to beginning of current function.
-
-If prefix argument given, move n functions forward.
-
-** Symbol completion
-*** `M-TAB' (`sepia-complete-symbol')
-Try to complete the word at point, either as a global variable if it
-has a sigil (sorry, no lexicals), a module, or a function.  The
-function currently ignores module qualifiers, which may be
-annoying in larger programs.
-
-*** (`sepia-ido-complete')
-Try to complete the current pattern amongst the file names.
-
-*** `TAB' (`sepia-indent-or-complete')
-Indent the current line and, if indentation doesn't move point,
-complete the symbol around point.
-
-** Evaluation
-*** `C-M-x' (`sepia-eval-defun')
-Re-evaluate the current function and rebuild its Xrefs.
-
-*** `C-c C-l' (`sepia-load-file')
-Reload the current buffer's file into the interpreter.  With rebuild-p
-(or a prefix argument when called interactively), also rebuild the
-xref database.
-
-** Scratchpad and REPL
-*** (`sepia-scratch')
-Create a buffer to interact with a Perl interpreter.
-
-The buffer is placed in cperl-mode; calling
-``sepia-scratch-send-line'' will evaluate the current line and
-display the result.
-
-*** `C-j' (`sepia-scratch-send-line')
-Send the current line to Perl, and display the result.
-
-*** (`sepia-interact')
-Start or switch to a Perl interaction buffer.
-
-** Finding definitions and uses
-*** `M-. KEY' keys
-    M-.             sepia-dwim
-    l               sepia-location
-    a               sepia-apropos
-    A               sepia-var-apropos
-    f               sepia-defs
-    c               sepia-callers
-    C               sepia-callees
-    v               sepia-var-uses
-    V               sepia-var-defs
-    m               sepia-module-find
-    d               sepia-w3m-perldoc-this
-    j               sepia-jump-to-symbol
-    n               sepia-next
-    r               sepia-rebuild
-    t               find-tag
-
-With a prefix argument, these functions list occurences in a
-``grep-mode'' buffer.  Without, they place the occurrences on
-``sepia-found'', then go to the first; calling ``sepia-next'' will
-cycle through the other locations.
-
-Depending on the query, module, file, and line information may be used
-to narrow the results, as long as doing so leaves some matches.
-
-Note that `find-tag', the normal binding of `M-.', is still available
-on `M-. t'.
-
-*** `M-,' `M-. n' (`sepia-next')
-Go to the next thing (e.g. def, use) found by a previous sepia
-command.
-
-*** (`sepia-location')
-Go to a named function's definition.
-
-*** `M-. r' (`sepia-rebuild')
-Rebuild the Xref database.
-
-*** `M-.' (`sepia-dwim')
-Try to do the right thing with identifier at point:
-    * Find all definitions, if thing-at-point is a function
-    * Find all uses, if thing-at-point is a variable
-    * Find documentation, if thing-at-point is a module
-    * Prompt otherwise
-
-** Miscellany
-*** (`sepia-init')
-Perform the initialization necessary to start Sepia, a set of
-tools for developing Perl in Emacs.
-
-*** (`sepia-doc-update')
-Update documentation for a file.
-
-This documentation, taken from "=item" entries in the POD, is
-used for eldoc feedback.
-
-*** (`sepia-display-errors')
-Display source causing errors in current buffer.
-
-*** (`sepia-goto-error-at')
-Visit the source of the error on line at point.
-
-*** (`sepia-install-eldoc')
-
-Install Sepia hooks for eldoc support.
-
-*** (`sepia-install-keys')
-
-Install Sepia bindings in the current local keymap.
-
-*** (`sepia-module-describe' / `sepia-package-defs')
-Find all subroutines in a package.
-
-** Documentation browsing
-*** (`sepia-perldoc-this')
-View perldoc for module at point.
-
-*** (`sepia-view-pod')
-View POD for the current buffer.
-
-*** (`sepia-package-list')
-List installed packages in an HTML page, with links to the
-documentation of their top-level modules.
-
-*** (`sepia-module-list')
-List installed modules in an HTML page, grouped by package, with links
-to their documentation.
-
-** Tree browsing (somewhat flaky)
-Pressing RET on a function's name displays its definition.  With
-prefix argument, RET instead visits in another window.
-
-*** (`sepia-callee-tree')
-Create a tree view of a function's callees.
-
-*** (`sepia-caller-tree')
-Create a tree view of a function's callers.
-
-*** (`sepia-module-callee-tree')
-Display a callee tree for each of mod's subroutines.
-
-** User variables
-*** sepia-prefix-key (default: "\M-.")
-Prefix for functions in ``sepia-keymap''.
-
-*** sepia-perl5lib (default: nil)
-Extra PERL5LIB directory for Sepia.pm
-
-*** sepia-eval-defun-include-decls (default: t)
-Generate and use a declaration list for ``sepia-eval-defun''.
-
-*** sepia-program-name (default: "perl")
-Perl program name.
-
-*** sepia-use-completion (default: t)
-Use completion based on Xref database.  Turning this off may speed up
-some operations, if you don't mind losing completion.
-
 * TODO
 ** implement mod_apropos
-** use xref-completions in sepia-interactive-arg
 ** improve output for sepia-module-* (modinfo functions)
-** better intro for debugger
+** (Medium) better intro documentation for debugger
 ** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.
-** (Medium) Support user-defined abbrevs in REPL
-** (Easy) Clean up Perl side a bit more.
 ** (Hard) Use module, file, line to filter results (Emacs side)
 ** (Medium) Let sepia-next go backward
    Need to use a vector plus current index instead of a list for
    sepia-found.
-** (Medium) Use lexical environment more
-   ",eval" should use lexical evaluation whenever PadWalker's available.
 ** (Hard) return from anything in the debugger
-   Make it possible to return from intermediate calls in the
-   debugger.  Returning from die() is not often useful.
+   Make it possible to return from intermediate calls in the debugger.
+   Returning from die() is not often useful.
+
+   This can be done with a clever DB::sub, but that dramatically slows
+   down execution.
 ** (Easy) Fix sepia-indent-or-complete abbrev expansion
    Currently "else<TAB>" both expands and completes.
-** (Medium) Clean up Sepia::completions et al.
-* BUGS
+** (Medium) fix `sepia-beginning-of-defun' and `sepia-end-of-defun'.
+   While they work for "normal" sub definitions, they fail on
+   definitions that are all on one line, e.g.
+
+       sub foo { ... }
+       sub bar {
+           ...
+       }
+* KNOWN BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
 ** The cursor may miss by several lines when jumping to a definition.
@@ -267,14 +75,6 @@ some operations, if you don't mind losing completion.
 ** named method calls are (mostly?) detected, but nothing smart is
    done about packages, so e.g. "new Foo" will result in listings for
    every instance of "new" in your program.
-** `sepia-beginning-of-defun' and `sepia-end-of-defun' are flaky.
-   Specifically, while they work for "normal" sub definitions, they
-   fail on definitions that are all on one line, e.g.
-
-       sub foo { ... }
-       sub bar {
-           ...
-       }
 * CREDITS
 Sepia would never have been possible without Software Libre, as many
 key components have been stolen and adapted from other packages:
@@ -282,7 +82,7 @@ key components have been stolen and adapted from other packages:
     * Sepia::Xref is taken from B::Xref.
     * sepia-w3m is taken from w3m-perldoc.
 * COPYRIGHT AND LICENCE
-Copyright (C) 2004-2007 by Sean O'Rourke
+Copyright (C) 2004-2008 by Sean O'Rourke
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, at the time at which this
