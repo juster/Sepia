@@ -1332,7 +1332,7 @@ Bug reports welcome, patches even more welcome.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2005-2007 Sean O'Rourke.  All rights reserved, some
+Copyright (C) 2005-2008 Sean O'Rourke.  All rights reserved, some
 wrongs reversed.  This module is distributed under the same terms as
 Perl itself.
 
