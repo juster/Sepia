@@ -19,6 +19,7 @@ navigation and interactive evaluation.
 * Introduction::
 * Editing::
 * Interactive Perl::
+* CPAN browsing::
 * Customization::
 * Internals::
 * Credits::
@@ -316,7 +317,7 @@ This is intended to give the programmer a sense of when he is creating
 external dependencies.
 
 
-File: sepia.info,  Node: Interactive Perl,  Next: Customization,  Prev: Editing,  Up: Top
+File: sepia.info,  Node: Interactive Perl,  Next: CPAN browsing,  Prev: Editing,  Up: Top
 
 3 Interactive Perl
 ******************
@@ -467,6 +468,11 @@ and modify lexical variables.
 `step [N]'
      Step forward N (or one) lines, descending into subroutines.
 
+`xreturn SUB EXPR'
+     Return EXPR from the innermost call to SUB.  This is a somewhat
+     dangerous and experimental feature, but is probably more useful
+     than returning a value from `die()'.
+
 
 
 File: sepia.info,  Node: Evaluation,  Next: Mutilation,  Prev: Debugger,  Up: Interactive Perl
@@ -537,9 +543,39 @@ except <C-j> evaluates the current line and prints the result on the
 next line.
 
 
-File: sepia.info,  Node: Customization,  Next: Internals,  Prev: Interactive Perl,  Up: Top
+File: sepia.info,  Node: CPAN browsing,  Next: Customization,  Prev: Interactive Perl,  Up: Top
 
-4 Customization
+4 CPAN browsing
+***************
+
+Sepia has rudimentary support for browsing documentation and installing
+modules from CPAN.  To list modules with names matching a pattern, call
+`sepia-cpan-search'.  In the `*sepia-cpan*' buffer, the pressing the
+single keys listed below on the module-name buttons will perform the
+corresponding action on the named module.
+
+`s'
+`M-x sepia-cpan-search <RET> PATTERN <RET>'
+     List modules whose names match PATTERN.
+
+`r'
+`M-x sepia-cpan-readme <RET> MODULE <RET>'
+     Fetch and display MODULE's README file.
+
+`d'
+`M-x sepia-cpan-doc <RET> MODULE <RET>'
+     Browse MODULE's documentation on `http://search.cpan.org'.
+
+`i'
+`M-x sepia-cpan-install <RET> MODULE <RET>'
+     Install MODULE and its prerequisites.  This feature is not yet
+     well tested.
+
+
+
+File: sepia.info,  Node: Customization,  Next: Internals,  Prev: CPAN browsing,  Up: Top
+
+5 Customization
 ***************
 
 While Sepia can be customized in both the Perl and Emacs Lisp, most of
@@ -553,7 +589,7 @@ the user-accessible configuration is in the latter.
 
 File: sepia.info,  Node: Emacs Variables,  Next: Perl Variables,  Prev: Customization,  Up: Customization
 
-4.1 Emacs Variables
+5.1 Emacs Variables
 ===================
 
 Since Sepia tries where possible to reuse existing Emacs functionality,
@@ -616,7 +652,7 @@ configuration can be done with `sepia-repl-mode-hook'.
 
 File: sepia.info,  Node: Perl Variables,  Prev: Emacs Variables,  Up: Customization
 
-4.2 Perl Variables
+5.2 Perl Variables
 ==================
 
 When Sepia starts up, it evaluates the Perl script in `~/.sepiarc'.
@@ -666,7 +702,7 @@ details, see the code in `Sepia.pm'.
 
 File: sepia.info,  Node: Internals,  Next: Credits,  Prev: Customization,  Up: Top
 
-5 Internals
+6 Internals
 ***********
 
 Many things remain unexplained except by the code itself, and some
@@ -683,6 +719,9 @@ Credits
 Hilko Bengen
      Found and motivated me to fix a bunch of bugs, created Debian
      packages.
+
+Ævar Arnfjörð Bjarmason
+     Miscellaneous fixes.  Tested unicode support.
 
 Ye Wenbin
      Found and fixed numerous bugs.
@@ -705,6 +744,10 @@ Function Index
 * sepia-callees:                         Navigation.           (line 68)
 * sepia-callers:                         Navigation.           (line 64)
 * sepia-complete-symbol:                 Completion.           (line 34)
+* sepia-cpan-doc:                        CPAN browsing.        (line 22)
+* sepia-cpan-install:                    CPAN browsing.        (line 26)
+* sepia-cpan-readme:                     CPAN browsing.        (line 18)
+* sepia-cpan-search:                     CPAN browsing.        (line 14)
 * sepia-defs:                            Navigation.           (line 52)
 * sepia-dwim:                            Navigation.           (line 20)
 * sepia-eval-defun:                      Evaluation.           (line 12)
@@ -726,6 +769,7 @@ Function Index
 * sepia-rebuild:                         Navigation.           (line 89)
 * sepia-repl:                            Interactive Perl.     (line  6)
 * sepia-scratch:                         Scratchpad.           (line  6)
+* sepia-set-cwd:                         Evaluation.           (line 28)
 * sepia-var-defs:                        Navigation.           (line 76)
 * sepia-var-uses:                        Navigation.           (line 72)
 * sepia-view-pod:                        Documentation.        (line 16)
@@ -734,24 +778,25 @@ Function Index
 
 Tag Table:
 Node: Top187
-Node: Introduction512
-Node: Getting Started933
-Node: Philosophy1558
-Node: Editing4564
-Node: Completion5026
-Node: Navigation6870
-Node: Documentation10219
-Node: Interactive Perl11766
-Node: Shortcuts12503
-Node: Debugger14704
-Node: Evaluation16163
-Node: Mutilation17139
-Node: Scratchpad18091
-Node: Customization18496
-Node: Emacs Variables18797
-Node: Perl Variables21292
-Node: Internals22779
-Node: Credits23139
-Node: Function Index23518
+Node: Introduction530
+Node: Getting Started951
+Node: Philosophy1576
+Node: Editing4582
+Node: Completion5044
+Node: Navigation6888
+Node: Documentation10237
+Node: Interactive Perl11784
+Node: Shortcuts12521
+Node: Debugger14722
+Node: Evaluation16381
+Node: Mutilation17357
+Node: Scratchpad18309
+Node: CPAN browsing18714
+Node: Customization19603
+Node: Emacs Variables19901
+Node: Perl Variables22396
+Node: Internals23883
+Node: Credits24243
+Node: Function Index24701
 
 End Tag Table

@@ -44,6 +44,7 @@ navigation and interactive evaluation.
 * Introduction::                
 * Editing::                     
 * Interactive Perl::            
+* CPAN browsing::               
 * Customization::               
 * Internals::                   
 * Credits::                     
@@ -373,7 +374,7 @@ This is intended to give the programmer a sense of when he is creating
 external dependencies.
 
 @c ============================================================
-@node Interactive Perl, Customization, Editing, Top
+@node Interactive Perl, CPAN browsing, Editing, Top
 @chapter Interactive Perl
 
 @findex sepia-repl
@@ -555,6 +556,7 @@ prefix argument, evaluate in list context.
 
 @item C-c!
 @itemx sepia-set-cwd
+@findex sepia-set-cwd
 Set the REPL's working directory to the current buffer's directory.
 
 @end table
@@ -597,7 +599,41 @@ like Sepia mode, except @key{C-j} evaluates the current line and prints
 the result on the next line.
 
 @c ============================================================
-@node Customization, Internals, Interactive Perl, Top
+@node  CPAN browsing, Customization, Interactive Perl, Top
+@chapter CPAN browsing
+
+Sepia has rudimentary support for browsing documentation and installing
+modules from CPAN.  To list modules with names matching a pattern, call
+@code{sepia-cpan-search}.  In the @code{*sepia-cpan*} buffer, the
+pressing the single keys listed below on the module-name buttons will
+perform the corresponding action on the named module.
+
+@table @kbd
+@item s
+@itemx M-x sepia-cpan-search @key{RET} @var{pattern} @key{RET}
+@findex sepia-cpan-search
+List modules whose names match @var{pattern}.
+
+@item r
+@itemx M-x sepia-cpan-readme @key{RET} @var{module} @key{RET}
+@findex sepia-cpan-readme
+Fetch and display @var{module}'s README file.
+
+@item d
+@itemx M-x sepia-cpan-doc @key{RET} @var{module} @key{RET}
+@findex sepia-cpan-doc
+Browse @var{module}'s documentation on @url{http://search.cpan.org}.
+
+@item i
+@itemx M-x sepia-cpan-install @key{RET} @var{module} @key{RET}
+@findex sepia-cpan-install
+Install @var{module} and its prerequisites.  This feature is not yet
+well tested.
+
+@end table
+
+@c ============================================================
+@node Customization, Internals, CPAN browsing, Top
 @chapter Customization
 
 While Sepia can be customized in both the Perl and Emacs Lisp, most of

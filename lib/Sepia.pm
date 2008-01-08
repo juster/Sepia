@@ -1324,6 +1324,10 @@ __END__
 
 See the README file included with the distribution.
 
+=head1 SEE ALSO
+
+Sepia's public GIT repository is located at L<http://repo.or.cz/w/sepia.git>.
+
 =head1 AUTHOR
 
 Sean O'Rourke, E<lt>seano@cpan.orgE<gt>

@@ -3,7 +3,7 @@
 (define-button-type 'sepia-cpan
   'follow-link nil
   'action 'sepia-cpan-button
-  'help-echo "[r]eadme, [d]ocumentation, [i]nstall, [b]rowse"
+  'help-echo "[r]eadme, [d]ocumentation, [i]nstall"
   'keymap sepia-cpan-mode-map)
 
 (defvar sepia-cpan-actions
@@ -71,7 +71,7 @@
   (remove-overlays)
   (insert (format "\
 CPAN modules matching /%s/
-    [r]eadme, [d]ocumentation, [i]nstall, [b]rowse
+    [r]eadme, [d]ocumentation, [i]nstall, [s]earch
 
 " pat))
   (let ((mods (sepia-cpan-list pat))
@@ -95,6 +95,7 @@ CPAN modules matching /%s/
             (concat (mapconcat (lambda (x) (format "%%-%ds" x)) lengths "")
                     "\n"))
       (insert (format fmt "Module" "Author" "Inst." "CPAN" "Distribution"))
+      (insert (format fmt "------" "------" "-----" "----" "------------"))
       (dolist (mod mods)
         (let ((beg (point)))
           (insert
