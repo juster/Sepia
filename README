@@ -65,6 +65,8 @@ run on other versions of Emacs, but may require additional packages.
        sub bar {
            ...
        }
+** (Medium) Fix string escaping when passing between Perl and Emacs
+   IO::Scalar's README tickles a bug.
 * KNOWN BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
