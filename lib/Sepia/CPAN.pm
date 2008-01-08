@@ -14,6 +14,12 @@ sub list
     grep $_->inst_file, CPAN::Shell->expand('Module', shift || '/./');
 }
 
+sub interesting_parts
+{
+    my $mod = shift;
+    +{ map { $_ => scalar $mod->$_ } qw(id cpan_version inst_version fullname cpan_file)};
+}
+
 sub outdated
 {
     grep !$_->uptodate, list @_;

@@ -756,7 +756,8 @@ also rebuild the xref database."
                           'scalar-context t))
          (res (car tmp))
          (errs (cdr tmp)))
-    (message "sepia: %s returned %s" (abbreviate-file-name file) res)
+    (message "sepia: %s returned %s" (abbreviate-file-name file)
+             (if (string= res "") "undef" res))
     (when (and collect-warnings
                (> (length errs) 1))
       (with-current-buffer (get-buffer-create collect-warnings)
@@ -1367,7 +1368,7 @@ With prefix arg, replace the region with the result."
 When called interactively, the current buffer's
 `default-directory' is used."
   (interactive (list (expand-file-name default-directory)))
-  (sepia-call "Cwd::chdir" dir))
+  (sepia-call "Cwd::chdir" 'list-context dir))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Doc-scanning
