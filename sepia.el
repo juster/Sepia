@@ -757,7 +757,7 @@ also rebuild the xref database."
          (res (car tmp))
          (errs (cdr tmp)))
     (message "sepia: %s returned %s" (abbreviate-file-name file)
-             (if (string= res "") "undef" res))
+             (if (equal res "") "undef" res))
     (when (and collect-warnings
                (> (length errs) 1))
       (with-current-buffer (get-buffer-create collect-warnings)
