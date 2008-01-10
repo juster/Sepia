@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.9601';
+$VERSION = '0.96_01';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
