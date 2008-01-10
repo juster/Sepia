@@ -1328,6 +1328,10 @@ See the README file included with the distribution.
 
 Sepia's public GIT repository is located at L<http://repo.or.cz/w/sepia.git>.
 
+There are several modules for Perl development in Emacs on CPAN,
+including L<Devel::PerlySense> and L<PDE>.  For a complete list, see
+L<http://emacswiki.org/cgi-bin/wiki/PerlLanguage>.
+
 =head1 AUTHOR
 
 Sean O'Rourke, E<lt>seano@cpan.orgE<gt>
