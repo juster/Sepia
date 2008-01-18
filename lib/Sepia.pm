@@ -916,7 +916,8 @@ sub columnate
     my @incs = map { $_ * $nr } 0..$nc-1;
     my $str = '';
     for my $r (0..$nr-1) {
-        $str .= sprintf $fmt, map { $_ || '' } @_[map { $r + $_ } @incs];
+        $str .= sprintf $fmt, map { defined($_) ? $_ : '' }
+            @_[map { $r + $_ } @incs];
     }
     $str =~ s/ +$//m;
     $str
@@ -1212,7 +1213,12 @@ sub repl
                     } else {
                         print_warnings;
                         # $@ =~ s/(.*) at eval .*/$1/;
-                        print "error: $@\n";
+                        # don't complain if we're abandoning execution
+                        # from the debugger.
+                        unless (ref $@ eq 'Sepia::Debug') {
+                            print "error: $@";
+                            print "\n" unless $@ =~ /\n\z/;
+                        }
                         print prompt;
                         $buf = '';
                     }

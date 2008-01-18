@@ -39,7 +39,8 @@ sub repl_backtrace
     for (my $i = 0; ; ++$i) {
         my ($pack, $file, $line, $sub) = caller($i);
         last unless $pack;
-        print($i == $level+3 ? "*" : ' ', " [$i]\t$sub ($file:$line)\n");
+        # XXX: 4 is the magic number...
+        print($i == $level+4 ? "*" : ' ', " [$i]\t$sub ($file:$line)\n");
     }
 }
 
@@ -117,7 +118,7 @@ sub eval_in_env
         next unless /^([\$\@%])(.+)/;
         $str .= "local *$2 = \$Sepia::ENV->{'$_'}; ";
     }
-    eval "do { no strict; $str $expr }";
+    eval "do { no strict; package $Sepia::PACKAGE; $str $expr }";
 }
 
 sub tie_class
@@ -175,16 +176,13 @@ sub repl_inspect
 sub debug
 {
     my $new = Sepia::as_boolean(shift, $DB::trace);
-    return if $new == $DB::trace;
-    if ($new) {
-        # $^P = 0x2 | 0x10 | 0x100 | 0x200;
-        # *DB::DB = \&repl;
-        $DB::trace = 1;
-        print "debug ON\n";
+    print "debug ", $new ? "ON" : "OFF";
+    if ($new == $DB::trace) {
+        print " (unchanged)\n"
     } else {
-        $DB::trace = 0;
-        print "debug OFF\n";
+        print "\n";
     }
+    $DB::trace = $new;
 }
 
 sub breakpoint_file
@@ -250,6 +248,23 @@ sub repl_delete
     delete $h->{$l} if defined $h;
 }
 
+my ($finish_file, $finish_line);
+
+sub repl_finish
+{
+    print STDERR "finish: ($file, $line)\n";
+    $finish_file = $file;
+    $finish_line = $line;
+    $DB::single = 1;
+    last repl;
+}
+
+sub repl_toplevel
+{
+    local $STOPDIE;
+    die(bless [], __PACKAGE__);
+}
+
 sub add_repl_commands
 {
     define_shortcut 'delete', \&repl_delete,
@@ -261,13 +276,16 @@ sub add_repl_commands
         'Set a breakpoint in F at line N (or at current position), enabled if E evalutes to true.';
     define_shortcut 'lsbreak', \&repl_lsbreak,
         'List breakpoints.';
-    define_shortcut 'dbsub', \&repl_dbsub, '(Un)install DB::sub.';
+    # define_shortcut 'dbsub', \&repl_dbsub, '(Un)install DB::sub.';
     %Sepia::RK = abbrev keys %Sepia::REPL;
 }
 
 sub add_debug_repl_commands
 {
-
+    define_shortcut quit => \&repl_toplevel,
+        'quit', 'Quit the debugger, returning to the top level.';
+    define_shortcut toplevel => \&repl_toplevel,
+        'toplevel', 'Return to the top level.';
     define_shortcut up => sub {
         $level += shift || 1;
         update_location(4);
@@ -297,14 +315,17 @@ sub add_debug_repl_commands
         last repl;
     }, 'step [N]', 'Step N lines forward, entering subroutines.';
 
+    # define_shortcut finish => \&repl_finish,
+    #     'finish', 'Finish the current subroutine.';
+
     define_shortcut list => \&repl_list,
         'list EXPR', 'List source lines of current file.';
     define_shortcut backtrace => \&repl_backtrace, 'show backtrace';
     define_shortcut inspect => \&repl_inspect,
         'inspect [N]', 'inspect lexicals in frame N (or current)';
     define_shortcut return => \&repl_return, 'return EXPR', 'return EXPR';
-    define_shortcut xreturn => \&repl_xreturn, 'xreturn NAME EXPR',
-        'xreturn NAME EXPR';
+    # define_shortcut xreturn => \&repl_xreturn, 'xreturn NAME EXPR',
+    #     'xreturn NAME EXPR';
     define_shortcut eval => \&repl_upeval,
         'eval EXPR', 'evaluate EXPR in current frame';      # DANGER!
 }
@@ -330,7 +351,19 @@ sub DB::DB
     ## Don't do anything if we're inside an eval request, even if in
     ## single-step mode.
     return unless $DB::single || exists $main::{"_<$file"}{$line};
-    if ($DB::single) {
+    if (defined $finish_file) {
+        print STDERR "finish = $finish_file:$finish_line\n",
+            "cur = $file:$line\n";
+        if ($file eq $finish_file
+                && abs($line - $finish_line) < 3) {
+            $finish_line = $line;
+        } else {
+            undef $finish_line;
+            undef $finish_file;
+            $DB::single = 0;
+            return;
+        }
+    } elsif ($DB::single) {
         return unless --$DB::single == 0;
     } else {
         my $cond = $main::{"_<$file"}{$line};

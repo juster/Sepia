@@ -1,8 +1,8 @@
 ;;; sepia-w3m.el --- The add-on program to view Perl documents.
 
 ;; Copyright (C) 2001 TSUCHIYA Masatoshi <tsuchiya@namazu.org>
-;; Modified 2004 by Sean O'Rourke to work with Sepia and operate on
-;; buffer.
+;; Modified 2004-2008 by Sean O'Rourke to work with Sepia and operate
+;; on buffer.
 
 ;; Author: TSUCHIYA Masatoshi <tsuchiya@namazu.org>
 ;; Keywords: w3m, perldoc

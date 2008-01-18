@@ -67,6 +67,11 @@ run on other versions of Emacs, but may require additional packages.
        }
 ** (Medium) Fix string escaping when passing between Perl and Emacs
    IO::Scalar's README tickles a bug.
+** (Medium) Make the debugger's "next" and "finish" work
+   "next" assumes that the next statement after line $n is line $n+1,
+   which isn't true for loops, blank lines, multi-line statements,
+   etc.  Fix this somehow.  The same mechanism can probably make
+   "finish" work.
 * KNOWN BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
@@ -77,6 +82,7 @@ run on other versions of Emacs, but may require additional packages.
 ** named method calls are (mostly?) detected, but nothing smart is
    done about packages, so e.g. "new Foo" will result in listings for
    every instance of "new" in your program.
+** the first value printed in the debugger is undef.  why?!
 * CREDITS
 Sepia would never have been possible without Software Libre, as many
 key components have been stolen and adapted from other packages:

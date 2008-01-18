@@ -1,7 +1,7 @@
 ;;; Sepia -- Simple Emacs-Perl InterAction: ugly, yet effective.
 ;;; (a.k.a. Septik -- Sean's Emacs-Perl Total Integration Kludge.)
 
-;; Copyright (C) 2004-2007 Sean O'Rourke.  All rights reserved, some
+;; Copyright (C) 2004-2008 Sean O'Rourke.  All rights reserved, some
 ;; wrongs reversed.  This code is distributed under the same terms as
 ;; Perl itself.
 
@@ -361,6 +361,8 @@ Interactive users should call `sepia-view-pod'."
     (gud-def gud-cont ",continue" "\C-r" "Continue.")
     (gud-def gud-print "%e" "\C-p" "Evaluate something.")
     (gud-def gud-remove ",delete %l %f" "\C-d" "Delete current breakpoint.")
+    ;; Sadly, this hoses our keybindings.
+    (compilation-shell-minor-mode 1)
     (run-hooks 'sepia-repl-mode-hook))
 
 (defvar gud-sepia-acc nil
@@ -1012,11 +1014,11 @@ The function is intended to be bound to \\M-TAB, like
       ;; Otherwise actually do completion:
       ;; 0 - try a shortcut
       (when (eq major-mode 'sepia-repl-mode)
-      (save-excursion
-        (comint-bol)
+        (save-excursion
+          (comint-bol)
           (when (looking-at ",\\([a-z]+\\)$")
-          (let ((str (match-string 1)))
-            (setq len (length str)
+            (let ((str (match-string 1)))
+              (setq len (length str)
                     completions (all-completions str sepia-shortcuts))))))
       ;; 1 - Look for a method call:
       (unless completions
