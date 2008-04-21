@@ -63,6 +63,7 @@ other languages, including Lisp, Python, and Emacs Lisp.
 @menu
 * Getting Started::             
 * Philosophy::                  
+* Related Work::                
 @end menu
 
 @node Getting Started, Philosophy, Introduction, Introduction
@@ -83,7 +84,7 @@ To install Sepia, its Emacs Lisp files must be in Emacs'
 
 Then to bring up the interactive Perl prompt, type @kbd{M-x sepia-repl}.
 
-@node Philosophy,  , Getting Started, Introduction
+@node Philosophy, Related Work, Getting Started, Introduction
 @section Philosophy
 
 A development environment should support three activities: code
@@ -133,6 +134,42 @@ of accumulated cruft, it must rediscover these hidden trade-offs.
 Anyways, I hope you enjoy using Sepia.  Its development style is strange
 for someone used Perl's typical mix of one-liners and edit-save-run, but
 once you are accustomed to it, you may find it very effective.
+
+@node Related Work,  , Philosophy, Introduction
+@comment  node-name,  next,  previous,  up
+@section Related Work
+
+A number of more-or-less related Emacs extensions are currently under
+development.  Here is a list of the ones I have heard about, along with
+my brief impression of how they differ from Sepia.  Since I use none of
+them regularly, these impressions should be taken with a grain of salt.
+
+@table @cite
+
+@item PDE
+
+PDE is similar to Sepia in offering an interactive Lisp-like development
+environment interfacing with a long-running Perl process.  It seems more
+ambitious, and therefore a bit more invasive.
+
+@url{http://search.cpan.org/search?query=pde&mode=module}
+
+@item Devel::PerlySense
+
+Devel::PerlySense offers a more Eclipse-like development environment,
+with offline code analysis via @acronym{PPI}.
+
+@url{http://search.cpan.org/search?query=devel::perlysense&mode=module}
+
+@item Emacs::EPL
+
+Emacs::EPL is a low-level IPC interface between Emacs and Perl.  Sepia
+was originally based on Emacs::EPL, but the current
+@command{comint}-based implementation proved more maintainable.
+
+@url{http://search.cpan.org/search?query=emacs::epl&mode=module}
+
+@end table
 
 @c ============================================================
 @node Editing, Interactive Perl, Introduction, Top

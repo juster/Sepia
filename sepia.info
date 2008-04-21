@@ -40,6 +40,7 @@ other languages, including Lisp, Python, and Emacs Lisp.
 
 * Getting Started::
 * Philosophy::
+* Related Work::
 
 
 File: sepia.info,  Node: Getting Started,  Next: Philosophy,  Prev: Introduction,  Up: Introduction
@@ -60,7 +61,7 @@ following lines to `~/.emacs':
    Then to bring up the interactive Perl prompt, type `M-x sepia-repl'.
 
 
-File: sepia.info,  Node: Philosophy,  Prev: Getting Started,  Up: Introduction
+File: sepia.info,  Node: Philosophy,  Next: Related Work,  Prev: Getting Started,  Up: Introduction
 
 1.2 Philosophy
 ==============
@@ -113,6 +114,39 @@ of accumulated cruft, it must rediscover these hidden trade-offs.
 strange for someone used Perl's typical mix of one-liners and
 edit-save-run, but once you are accustomed to it, you may find it very
 effective.
+
+
+File: sepia.info,  Node: Related Work,  Prev: Philosophy,  Up: Introduction
+
+1.3 Related Work
+================
+
+A number of more-or-less related Emacs extensions are currently under
+development.  Here is a list of the ones I have heard about, along with
+my brief impression of how they differ from Sepia.  Since I use none of
+them regularly, these impressions should be taken with a grain of salt.
+
+`PDE'
+     `http://search.cpan.org/search?query=pde&mode=module'
+
+     PDE is similar to Sepia in offering an interactive Lisp-like
+     development environment interfacing with a long-running Perl
+     process.  It seems more ambitious, and therefore a bit more
+     invasive.
+
+`Devel::PerlySense'
+     `http://search.cpan.org/search?query=devel::perlysense&mode=module'
+
+     Emacs::EPL offers a more Eclipse-like development environment, with
+     offline code analysis via PPI.
+
+`Emacs::EPL'
+     `http://search.cpan.org/search?query=emacs::epl&mode=module'
+
+     EPL is a low-level IPC interface between Emacs and Perl.  Sepia was
+     originally based on EPL, but the current `comint'-based
+     implementation proved more maintainable.
+
 
 
 File: sepia.info,  Node: Editing,  Next: Interactive Perl,  Prev: Introduction,  Up: Top
@@ -779,24 +813,25 @@ Function Index
 Tag Table:
 Node: Top187
 Node: Introduction530
-Node: Getting Started951
-Node: Philosophy1576
-Node: Editing4582
-Node: Completion5044
-Node: Navigation6888
-Node: Documentation10237
-Node: Interactive Perl11784
-Node: Shortcuts12521
-Node: Debugger14722
-Node: Evaluation16381
-Node: Mutilation17357
-Node: Scratchpad18309
-Node: CPAN browsing18714
-Node: Customization19603
-Node: Emacs Variables19901
-Node: Perl Variables22396
-Node: Internals23883
-Node: Credits24243
-Node: Function Index24701
+Node: Getting Started968
+Node: Philosophy1593
+Node: Related Work4620
+Node: Editing5766
+Node: Completion6228
+Node: Navigation8072
+Node: Documentation11421
+Node: Interactive Perl12968
+Node: Shortcuts13705
+Node: Debugger15906
+Node: Evaluation17565
+Node: Mutilation18541
+Node: Scratchpad19493
+Node: CPAN browsing19898
+Node: Customization20787
+Node: Emacs Variables21085
+Node: Perl Variables23580
+Node: Internals25067
+Node: Credits25427
+Node: Function Index25885
 
 End Tag Table
