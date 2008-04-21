@@ -55,3 +55,5 @@ sub install
     my $dist = CPAN::Shell->expand('Module', shift);
     $dist->install if $dist;
 }
+
+1;

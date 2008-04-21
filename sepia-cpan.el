@@ -1,11 +1,5 @@
 (require 'button)
 
-(define-button-type 'sepia-cpan
-  'follow-link nil
-  'action 'sepia-cpan-button
-  'help-echo "[r]eadme, [d]ocumentation, [i]nstall"
-  'keymap sepia-cpan-mode-map)
-
 (defvar sepia-cpan-actions
   '(("r" . sepia-cpan-readme)
     ("d" . sepia-cpan-doc)
@@ -13,11 +7,13 @@
     ("b" . sepia-cpan-browse)
     ("?" . sepia-cpan-readme)))
 
+;;;###autoload
 (defun sepia-cpan-doc (mod)
   "Browse the online Perldoc for MOD."
   (interactive "sModule: ")
   (browse-url (concat "http://search.cpan.org/perldoc?" mod)))
 
+;;;###autoload
 (defun sepia-cpan-readme (mod)
   "Display the README file for MOD."
   (interactive "sModule: ")
@@ -25,12 +21,14 @@
     (insert (sepia-call "Sepia::CPAN::readme" 'list-context mod))
     (pop-to-buffer (current-buffer))))
 
+;;;###autoload
 (defun sepia-cpan-install (mod)
   "Install MOD and its prerequisites."
   (interactive "sModule: ")
   (when (y-or-n-p (format "Install %s? " mod))
     (sepia-call "Sepia::CPAN::install" 'void-context mod)))
 
+;;;###autoload
 (defun sepia-cpan-list (pattern)
   "Return a list modules matching PATTERN."
   ;; (interactive "sPattern (regexp): ")
@@ -58,9 +56,16 @@
       (define-key km k 'sepia-cpan-button-press))
     km))
 
+(define-button-type 'sepia-cpan
+  'follow-link nil
+  'action 'sepia-cpan-button
+  'help-echo "[r]eadme, [d]ocumentation, [i]nstall"
+  'keymap sepia-cpan-mode-map)
+
 (define-derived-mode sepia-cpan-mode view-mode "CPAN"
   "Major mode for CPAN browsing.")
 
+;;;###autoload
 (defun sepia-cpan-search (pat)
   (interactive  "sPattern (regexp): ")
   (switch-to-buffer "*sepia-cpan*")

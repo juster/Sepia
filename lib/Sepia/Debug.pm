@@ -273,7 +273,7 @@ sub add_repl_commands
         'debug [0|1]', 'Enable or disable debugging.';
     define_shortcut 'break', \&repl_break,
         'break [F:N [E]]',
-        'Set a breakpoint in F at line N (or at current position), enabled if E evalutes to true.';
+        'Break at file F, line N (or at current position) if E is true.';
     define_shortcut 'lsbreak', \&repl_lsbreak,
         'List breakpoints.';
     # define_shortcut 'dbsub', \&repl_dbsub, '(Un)install DB::sub.';
