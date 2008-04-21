@@ -1453,7 +1453,7 @@ used for eldoc feedback."
 
 (defun sepia-looks-like-module (obj)
   (let (case-fold-search)
-    (or (string-match "^\\([A-Z][A-Za-z0-9]+::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
+    (or (string-match "^\\([A-Z][A-Za-z0-9]*::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
         (string-match
          (eval-when-compile (regexp-opt '("strict" "vars" "warnings" "lib")))
          obj))))
