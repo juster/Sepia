@@ -5,6 +5,7 @@
     ("d" . sepia-cpan-doc)
     ("i" . sepia-cpan-install)
     ("b" . sepia-cpan-browse)
+    ("q" . bury-buffer)
     ("?" . sepia-cpan-readme)))
 
 ;;;###autoload
@@ -18,7 +19,8 @@
   "Display the README file for MOD."
   (interactive "sModule: ")
   (with-current-buffer (get-buffer-create "*sepia-cpan-readme*")
-    (insert (sepia-call "Sepia::CPAN::readme" 'list-context mod))
+    (insert-file-contents
+     (sepia-call "Sepia::CPAN::readme" 'scalar-context mod 1))
     (pop-to-buffer (current-buffer))))
 
 ;;;###autoload
@@ -29,10 +31,16 @@
     (sepia-call "Sepia::CPAN::install" 'void-context mod)))
 
 ;;;###autoload
-(defun sepia-cpan-list (pattern)
+(defun sepia-cpan-do-search (pattern)
   "Return a list modules matching PATTERN."
   ;; (interactive "sPattern (regexp): ")
-  (sepia-eval (format "map { Sepia::CPAN::interesting_parts $_ } Sepia::CPAN::list('/%s/')" pattern)
+  (sepia-eval (format "do { require Sepia::CPAN; map { Sepia::CPAN::interesting_parts $_ } Sepia::CPAN::list('/%s/') }" pattern)
+              'list-context))
+
+(defun sepia-cpan-do-list (pattern)
+  "Return a list modules matching PATTERN."
+  ;; (interactive "sPattern (regexp): ")
+  (sepia-eval (format "do { require Sepia::CPAN; map { Sepia::CPAN::interesting_parts $_ } Sepia::CPAN::ls('%s') }" (upcase pattern))
               'list-context))
 
 (defun sepia-cpan-button (button)
@@ -65,9 +73,14 @@
 (define-derived-mode sepia-cpan-mode view-mode "CPAN"
   "Major mode for CPAN browsing.")
 
-;;;###autoload
-(defun sepia-cpan-search (pat)
-  (interactive  "sPattern (regexp): ")
+(defun string-repeat (s n)
+  "Repeat S N times."
+  (let ((ret ""))
+    (dotimes (i n)
+      (setq ret (concat ret s)))
+    ret))
+
+(defun sepia-cpan-make-buffer (title mods fields names)
   (switch-to-buffer "*sepia-cpan*")
   (sepia-cpan-mode)
   (setq buffer-read-only nil)
@@ -75,40 +88,55 @@
     (erase-buffer))
   (remove-overlays)
   (insert (format "\
-CPAN modules matching /%s/
-    [r]eadme, [d]ocumentation, [i]nstall, [s]earch
+%s
+    [r]eadme, [d]ocumentation, [i]nstall, [s]earch, [l]ist, [q]uit
 
-" pat))
-  (let ((mods (sepia-cpan-list pat))
-        (fields 
-         '("id" "fullname" "inst_version" "cpan_version" "cpan_file"))
-        lengths fmt)
-    (when mods
-      (dolist (mod mods)
-        (setcdr (assoc "cpan_file" mod)
-                (replace-regexp-in-string "^.*/" ""
-                                          (cdr (assoc "cpan_file" mod)))))
-      (setq lengths
-            (mapcar
-             (lambda (f)
-               (+ 2 (apply #'max (mapcar
-                                  (lambda (x)
-                                    (length (format "%s" (cdr (assoc f x)))))
-                                  mods))))
-             fields))
-      (setq fmt
-            (concat (mapconcat (lambda (x) (format "%%-%ds" x)) lengths "")
-                    "\n"))
-      (insert (format fmt "Module" "Author" "Inst." "CPAN" "Distribution"))
-      (insert (format fmt "------" "------" "-----" "----" "------------"))
-      (dolist (mod mods)
-        (let ((beg (point)))
-          (insert
-           (apply #'format fmt
-                  (mapcar (lambda (x) (cdr (assoc x mod))) fields)))
-          (make-button beg (+ beg (length (cdr (assoc "id" mod))))
-                       :type 'sepia-cpan)))))
+" title))
+  (when mods
+    (dolist (mod mods)
+      (setcdr (assoc "cpan_file" mod)
+              (replace-regexp-in-string "^.*/" ""
+                                        (cdr (assoc "cpan_file" mod)))))
+    (setq lengths
+          (mapcar
+           (lambda (f)
+             (+ 2 (apply #'max (mapcar
+                                (lambda (x)
+                                  (length (format "%s" (cdr (assoc f x)))))
+                                mods))))
+           fields))
+    (setq fmt
+          (concat (mapconcat (lambda (x) (format "%%-%ds" x)) lengths "")
+                  "\n"))
+    (insert (apply 'format fmt names))
+    (insert (apply 'format fmt
+                   (mapcar (lambda (x) (string-repeat "-" (length x))) names)))
+    (dolist (mod mods)
+      (let ((beg (point)))
+        (insert
+         (apply #'format fmt
+                (mapcar (lambda (x) (or (cdr (assoc x mod)) "-")) fields)))
+        (make-button beg (+ beg (length (cdr (assoc "id" mod))))
+                     :type 'sepia-cpan))))
   (setq buffer-read-only t
         truncate-lines t))
+
+;;;###autoload
+(defun sepia-cpan-list (name)
+  (interactive  "sAuthor: ")
+  (sepia-cpan-make-buffer
+   (concat "CPAN modules by " name)
+   (sepia-cpan-do-list name)
+   '("id" "inst_version" "cpan_version" "cpan_file")
+   '("Module" "Inst." "CPAN" "Distribution")))
+
+;;;###autoload
+(defun sepia-cpan-search (pat)
+  (interactive  "sPattern (regexp): ")
+  (sepia-cpan-make-buffer
+   (concat "CPAN modules matching /" pat "/")
+   (sepia-cpan-do-search pat)
+   '("id" "fullname" "inst_version" "cpan_version" "cpan_file")
+   '("Module" "Author" "Inst." "CPAN" "Distribution")))
 
 (provide 'sepia-cpan)

@@ -1,3 +1,14 @@
+2008-05-10  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia-cpan.el (sepia-cpan-list, sepia-cpan-make-buffer)
+	(sepia-cpan-search): added list-by-author, refactored.
+	(sepia-cpan-readme): insert temp file rather than passing as
+	string.
+
+	* lib/Sepia/CPAN.pm (ls): new function to list author's modules.
+	* lib/Sepia/Debug.pm (repl_finish): mostly-working, by adding 0x10
+	  to $^P and looking at sub's last line.
+
 2008-01-10  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia.pm (columnate): true -> defined
