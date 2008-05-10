@@ -1,5 +1,5 @@
 package Sepia::CPAN;
-use CPAN;
+use CPAN ();
 use LWP::Simple;
 
 sub init
@@ -12,6 +12,15 @@ sub init
 sub list
 {
     grep $_->inst_file, CPAN::Shell->expand('Module', shift || '/./');
+}
+
+sub ls
+{
+    my $want = shift;
+    grep {
+        # XXX: key to test in this order, because inst_file is slow.
+        $_->userid eq $want && $_->inst_file
+    } CPAN::Shell->expand('Module', '/./')
 }
 
 sub interesting_parts
@@ -30,6 +39,7 @@ sub readme
 {
     my $dist = CPAN::Shell->expand('Module', shift);
     return unless $dist;
+    my $wantfile = shift;
     $dist = $dist->cpan_file;
     # my ($dist) = $self->id;
     my ($sans, $suffix) = $dist =~ /(.+)\.(tgz|tar[\._-]gz|tar\.Z|zip)$/;
@@ -38,11 +48,16 @@ sub readme
         $CPAN::Config->{keep_source_where}, "authors", "id",
         split(/\//,"$sans.readme"));
     $local_file = CPAN::FTP->localize("authors/id/$sans.readme", $local_wanted);
-    local (*IN, $/);
-    open IN, $local_wanted;
-    my $ret = <IN>;
-    close IN;
-    $ret;
+    ## Return filename rather than contents to avoid Elisp reader issues...
+    if ($wantfile) {
+        $local_file;
+    } else {
+        local (*IN, $/);
+        open IN, $local_wanted;
+        my $ret = <IN>;
+        close IN;
+        $ret;
+    }
 }
 
 sub perldoc
@@ -55,3 +70,5 @@ sub install
     my $dist = CPAN::Shell->expand('Module', shift);
     $dist->install if $dist;
 }
+
+1;

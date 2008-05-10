@@ -67,11 +67,13 @@ run on other versions of Emacs, but may require additional packages.
        }
 ** (Medium) Fix string escaping when passing between Perl and Emacs
    IO::Scalar's README tickles a bug.
-** (Medium) Make the debugger's "next" and "finish" work
-   "next" assumes that the next statement after line $n is line $n+1,
-   which isn't true for loops, blank lines, multi-line statements,
-   etc.  Fix this somehow.  The same mechanism can probably make
-   "finish" work.
+** (Medium) Make the debugger's "next" work
+   "next" (as opposed to "step") assumes that the next statement after
+   line $n is line $n+1, which isn't true for loops, blank lines,
+   multi-line statements, etc.  Fix this somehow.
+** (Medium) Make "finish" more reliable
+   It currently assumes that the last breakable statement in a sub is
+   one line before its end.
 * KNOWN BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.

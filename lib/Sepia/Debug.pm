@@ -12,7 +12,7 @@ sub define_shortcut;
 BEGIN {
     ## Just leave it on -- with $DB::trace = 0, there doesn't seem
     ## to be a perforamnce penalty!
-    $^P = 0x303;
+    $^P = 0x313;                # 01 | 02 | 10 | 100 | 200
     $STOPDIE = 1;
     $STOPWARN = 0;
 }
@@ -248,15 +248,20 @@ sub repl_delete
     delete $h->{$l} if defined $h;
 }
 
-my ($finish_file, $finish_line);
-
 sub repl_finish
 {
-    print STDERR "finish: ($file, $line)\n";
-    $finish_file = $file;
-    $finish_line = $line;
-    $DB::single = 1;
-    last repl;
+    # XXX: doesn't handle recursion, but oh, well...
+    my $sub = (caller $level + 4)[3];
+    if (exists $DB::sub{$sub}) {
+        my ($file, $start, $end) = $DB::sub{$sub} =~ /(.*):(\d+)-(\d+)/;
+        print STDERR "finish($sub): will stop at $file:$end\n";
+        # XXX: $end doesn't always work, since it may not have an
+        # executable statement on it.
+        breakpoint($file, $end-1, 'finish');
+        last repl;
+    } else {
+        print STDERR "yikes: @{[keys %DB::sub]}\n";
+    }
 }
 
 sub repl_toplevel
@@ -315,8 +320,8 @@ sub add_debug_repl_commands
         last repl;
     }, 'step [N]', 'Step N lines forward, entering subroutines.';
 
-    # define_shortcut finish => \&repl_finish,
-    #     'finish', 'Finish the current subroutine.';
+    define_shortcut finish => \&repl_finish,
+        'finish', 'Finish the current subroutine.';
 
     define_shortcut list => \&repl_list,
         'list EXPR', 'List source lines of current file.';
@@ -351,24 +356,17 @@ sub DB::DB
     ## Don't do anything if we're inside an eval request, even if in
     ## single-step mode.
     return unless $DB::single || exists $main::{"_<$file"}{$line};
-    if (defined $finish_file) {
-        print STDERR "finish = $finish_file:$finish_line\n",
-            "cur = $file:$line\n";
-        if ($file eq $finish_file
-                && abs($line - $finish_line) < 3) {
-            $finish_line = $line;
-        } else {
-            undef $finish_line;
-            undef $finish_file;
-            $DB::single = 0;
-            return;
-        }
-    } elsif ($DB::single) {
+    if ($DB::single) {
         return unless --$DB::single == 0;
     } else {
         my $cond = $main::{"_<$file"}{$line};
         if ($cond eq 'next') {
             delete $main::{"_<$file"}{$line};
+        } elsif ($cond eq 'finish') {
+            # remove temporary breakpoint and take one more step.
+            delete $main::{"_<$file"}{$line};
+            $DB::single = 1;
+            return;
         } else {
             return unless $Sepia::REPL{eval}->($cond);
         }
