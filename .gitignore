@@ -11,3 +11,5 @@ blib
 *.toc
 *.tp
 *.vr
+Makefile
+Makefile.old
