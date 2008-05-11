@@ -640,16 +640,25 @@ the result on the next line.
 @chapter CPAN browsing
 
 Sepia has rudimentary support for browsing documentation and installing
-modules from CPAN.  To list modules with names matching a pattern, call
-@code{sepia-cpan-search}.  In the @code{*sepia-cpan*} buffer, the
-pressing the single keys listed below on the module-name buttons will
-perform the corresponding action on the named module.
+modules from CPAN.  Modules whose names, descriptions, or authors match
+a query are displayed in a @code{*sepia-cpan*} buffer, in which the
+following commands are available:
 
 @table @kbd
 @item s
 @itemx M-x sepia-cpan-search @key{RET} @var{pattern} @key{RET}
 @findex sepia-cpan-search
 List modules whose names match @var{pattern}.
+
+@item /
+@itemx M-x sepia-cpan-desc @key{RET} @var{pattern} @key{RET}
+@findex sepia-cpan-desc
+List modules whose names or descriptions match @var{pattern}.
+
+@item l
+@itemx M-x sepia-cpan-list @key{RET} @var{name} @key{RET}
+@findex sepia-cpan-list
+List modules authored by @var{name}.
 
 @item r
 @itemx M-x sepia-cpan-readme @key{RET} @var{module} @key{RET}

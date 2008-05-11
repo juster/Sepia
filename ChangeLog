@@ -1,6 +1,8 @@
 2008-05-11  Sean O'Rourke  <seano@cs.ucla.edu>
 
+	* sepia.texi (Mutilation): updated CPAN documentation.
 	* sepia-cpan.el (sepia-cpan-desc): add search-by-description
+	(sepia-cpan-mode-map): fix keybindings.
 	* lib/Sepia/CPAN.pm: have ls/_ls, etc call interesting_parts
 
 2008-05-10  Sean O'Rourke  <seano@cs.ucla.edu>

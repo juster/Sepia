@@ -127,25 +127,25 @@ my brief impression of how they differ from Sepia.  Since I use none of
 them regularly, these impressions should be taken with a grain of salt.
 
 `PDE'
-     `http://search.cpan.org/search?query=pde&mode=module'
-
      PDE is similar to Sepia in offering an interactive Lisp-like
      development environment interfacing with a long-running Perl
      process.  It seems more ambitious, and therefore a bit more
      invasive.
 
+     `http://search.cpan.org/search?query=pde&mode=module'
+
 `Devel::PerlySense'
+     Devel::PerlySense offers a more Eclipse-like development
+     environment, with offline code analysis via PPI.
+
      `http://search.cpan.org/search?query=devel::perlysense&mode=module'
 
-     Emacs::EPL offers a more Eclipse-like development environment, with
-     offline code analysis via PPI.
-
 `Emacs::EPL'
-     `http://search.cpan.org/search?query=emacs::epl&mode=module'
+     Emacs::EPL is a low-level IPC interface between Emacs and Perl.
+     Sepia was originally based on Emacs::EPL, but the current
+     `comint'-based implementation proved more maintainable.
 
-     EPL is a low-level IPC interface between Emacs and Perl.  Sepia was
-     originally based on EPL, but the current `comint'-based
-     implementation proved more maintainable.
+     `http://search.cpan.org/search?query=emacs::epl&mode=module'
 
 
 
@@ -583,14 +583,21 @@ File: sepia.info,  Node: CPAN browsing,  Next: Customization,  Prev: Interactive
 ***************
 
 Sepia has rudimentary support for browsing documentation and installing
-modules from CPAN.  To list modules with names matching a pattern, call
-`sepia-cpan-search'.  In the `*sepia-cpan*' buffer, the pressing the
-single keys listed below on the module-name buttons will perform the
-corresponding action on the named module.
+modules from CPAN.  Modules whose names, descriptions, or authors match
+a query are displayed in a `*sepia-cpan*' buffer, in which the
+following commands are available:
 
 `s'
 `M-x sepia-cpan-search <RET> PATTERN <RET>'
      List modules whose names match PATTERN.
+
+`/'
+`M-x sepia-cpan-desc <RET> PATTERN <RET>'
+     List modules whose names or descriptions match PATTERN.
+
+`l'
+`M-x sepia-cpan-list <RET> NAME <RET>'
+     List modules authored by NAME.
 
 `r'
 `M-x sepia-cpan-readme <RET> MODULE <RET>'
@@ -778,10 +785,12 @@ Function Index
 * sepia-callees:                         Navigation.           (line 68)
 * sepia-callers:                         Navigation.           (line 64)
 * sepia-complete-symbol:                 Completion.           (line 34)
-* sepia-cpan-doc:                        CPAN browsing.        (line 22)
-* sepia-cpan-install:                    CPAN browsing.        (line 26)
-* sepia-cpan-readme:                     CPAN browsing.        (line 18)
-* sepia-cpan-search:                     CPAN browsing.        (line 14)
+* sepia-cpan-desc:                       CPAN browsing.        (line 17)
+* sepia-cpan-doc:                        CPAN browsing.        (line 29)
+* sepia-cpan-install:                    CPAN browsing.        (line 33)
+* sepia-cpan-list:                       CPAN browsing.        (line 21)
+* sepia-cpan-readme:                     CPAN browsing.        (line 25)
+* sepia-cpan-search:                     CPAN browsing.        (line 13)
 * sepia-defs:                            Navigation.           (line 52)
 * sepia-dwim:                            Navigation.           (line 20)
 * sepia-eval-defun:                      Evaluation.           (line 12)
@@ -816,22 +825,22 @@ Node: Introduction530
 Node: Getting Started968
 Node: Philosophy1593
 Node: Related Work4620
-Node: Editing5766
-Node: Completion6228
-Node: Navigation8072
-Node: Documentation11421
-Node: Interactive Perl12968
-Node: Shortcuts13705
-Node: Debugger15906
-Node: Evaluation17565
-Node: Mutilation18541
-Node: Scratchpad19493
-Node: CPAN browsing19898
-Node: Customization20787
-Node: Emacs Variables21085
-Node: Perl Variables23580
-Node: Internals25067
-Node: Credits25427
-Node: Function Index25885
+Node: Editing5786
+Node: Completion6248
+Node: Navigation8092
+Node: Documentation11441
+Node: Interactive Perl12988
+Node: Shortcuts13725
+Node: Debugger15926
+Node: Evaluation17585
+Node: Mutilation18561
+Node: Scratchpad19513
+Node: CPAN browsing19918
+Node: Customization20912
+Node: Emacs Variables21210
+Node: Perl Variables23705
+Node: Internals25192
+Node: Credits25552
+Node: Function Index26010
 
 End Tag Table

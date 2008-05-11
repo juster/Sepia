@@ -4,9 +4,7 @@
   '(("r" . sepia-cpan-readme)
     ("d" . sepia-cpan-doc)
     ("i" . sepia-cpan-install)
-    ("b" . sepia-cpan-browse)
-    ("q" . bury-buffer)
-    ("?" . sepia-cpan-readme)))
+    ("q" . bury-buffer)))
 
 ;;;###autoload
 (defun sepia-cpan-doc (mod)
@@ -65,9 +63,9 @@
     (set-keymap-parent km button-map)
     ;; (define-key km "q" 'bury-buffer)
     (define-key km "/" 'sepia-cpan-desc)
-    (define-key km "n" 'sepia-cpan-search)
+    (define-key km "S" 'sepia-cpan-desc)
     (define-key km "s" 'sepia-cpan-search)
-    (define-key km "d" 'sepia-cpan-desc)
+    (define-key km "l" 'sepia-cpan-list)
     (dolist (k (mapcar #'car sepia-cpan-actions))
       (define-key km k 'sepia-cpan-button-press))
     km))
@@ -97,7 +95,7 @@
   (remove-overlays)
   (insert title "\
     [r]eadme, [d]ocumentation, [i]nstall,
-    search-by-[n]ame, search-by-d[e]scription, [l]ist-for-author, [q]uit
+    [s]earch-by-name, [/][S]earch-by-description, [l]ist-for-author, [q]uit
 
 ")
   (when mods
