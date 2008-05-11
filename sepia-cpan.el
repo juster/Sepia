@@ -32,10 +32,16 @@
 
 ;;;###autoload
 (defun sepia-cpan-do-search (pattern)
-  "Return a list modules matching PATTERN."
+  "Return a list modules whose names match PATTERN."
   ;; (interactive "sPattern (regexp): ")
   (sepia-eval (format "do { require Sepia::CPAN; map { Sepia::CPAN::interesting_parts $_ } Sepia::CPAN::list('/%s/') }" pattern)
               'list-context))
+
+(defun sepia-cpan-do-desc (pattern)
+  "Return a list modules whose descriptions match PATTERN."
+  ;; (interactive "sPattern (regexp): ")
+  (sepia-eval "require Sepia::CPAN")
+  (sepia-call "Sepia::CPAN::desc" 'list-context pattern))
 
 (defun sepia-cpan-do-list (pattern)
   "Return a list modules matching PATTERN."
@@ -58,8 +64,10 @@
   (let ((km (make-sparse-keymap)))
     (set-keymap-parent km button-map)
     ;; (define-key km "q" 'bury-buffer)
-    (define-key km "/" 'sepia-cpan-search)
+    (define-key km "/" 'sepia-cpan-desc)
+    (define-key km "n" 'sepia-cpan-search)
     (define-key km "s" 'sepia-cpan-search)
+    (define-key km "d" 'sepia-cpan-desc)
     (dolist (k (mapcar #'car sepia-cpan-actions))
       (define-key km k 'sepia-cpan-button-press))
     km))
@@ -87,11 +95,11 @@
   (let ((inhibit-read-only t))
     (erase-buffer))
   (remove-overlays)
-  (insert (format "\
-%s
-    [r]eadme, [d]ocumentation, [i]nstall, [s]earch, [l]ist, [q]uit
+  (insert title "\
+    [r]eadme, [d]ocumentation, [i]nstall,
+    search-by-[n]ame, search-by-d[e]scription, [l]ist-for-author, [q]uit
 
-" title))
+")
   (when mods
     (dolist (mod mods)
       (setcdr (assoc "cpan_file" mod)
@@ -136,6 +144,15 @@
   (sepia-cpan-make-buffer
    (concat "CPAN modules matching /" pat "/")
    (sepia-cpan-do-search pat)
+   '("id" "fullname" "inst_version" "cpan_version" "cpan_file")
+   '("Module" "Author" "Inst." "CPAN" "Distribution")))
+
+;;;###autoload
+(defun sepia-cpan-desc (pat)
+  (interactive  "sPattern (regexp): ")
+  (sepia-cpan-make-buffer
+   (concat "CPAN module with descriptions matching /" pat "/")
+   (sepia-cpan-do-desc pat)
    '("id" "fullname" "inst_version" "cpan_version" "cpan_file")
    '("Module" "Author" "Inst." "CPAN" "Distribution")))
 

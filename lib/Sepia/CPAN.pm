@@ -9,12 +9,23 @@ sub init
       CPAN::Index->reload;
 }
 
-sub list
+sub interesting_parts
+{
+    my $mod = shift;
+    +{ map { $_ => scalar $mod->$_ } qw(id cpan_version inst_version fullname cpan_file)};
+}
+
+sub _list
 {
     grep $_->inst_file, CPAN::Shell->expand('Module', shift || '/./');
 }
 
-sub ls
+sub list
+{
+    map { interesting_parts $_ } _list @_
+}
+
+sub _ls
 {
     my $want = shift;
     grep {
@@ -23,10 +34,22 @@ sub ls
     } CPAN::Shell->expand('Module', '/./')
 }
 
-sub interesting_parts
+sub ls
 {
-    my $mod = shift;
-    +{ map { $_ => scalar $mod->$_ } qw(id cpan_version inst_version fullname cpan_file)};
+    map { interesting_parts $_ } _ls @_
+}
+
+sub _desc
+{
+    my $pat = qr/$_[0]/i;
+    grep {
+        ($_->description =~ /$pat/ || $_->id =~ /$pat/) && $_->inst_file
+    } CPAN::Shell->expand('Module', '/./');
+}
+
+sub desc
+{
+    map { interesting_parts $_ } _desc @_;
 }
 
 sub outdated
