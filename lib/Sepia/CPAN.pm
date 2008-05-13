@@ -94,4 +94,30 @@ sub install
     $dist->install if $dist;
 }
 
+# Based on CPAN::Shell::_u_r_common
+sub _recommend
+{
+    my $pat = shift || '/./';
+    my (@result, %seen, %need);
+    $version_undefs = $version_zeroes = 0;
+    for my $module (CPAN::Shell->expand('Module',$pat)) {
+        my $file  = $module->cpan_file;
+        next unless defined $file && $module->inst_file;
+        $file =~ s!^./../!!;
+        my $latest = $module->cpan_version;
+        my $have = $module->inst_version;
+        local ($^W) = 0;
+        next unless CPAN::Version->vgt($latest, $have);
+        push @result, $module;
+        next if $seen{$file}++;
+        $need{$module->id}++;
+    }
+    @result;
+}
+
+sub recommend
+{
+    map { interesting_parts $_ } _recommend @_;
+}
+
 1;
