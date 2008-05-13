@@ -102,9 +102,9 @@ sub repl_size
             local $SIG{__WARN__} = sub {};
             for (@who) {
                 next unless /^[\$\@\%\&]/; # skip subs.
-                # print STDERR "package $pkg; Devel::Size::total_size \\$_;";
-                my $res = eval "package $pkg; Devel::Size::total_size \\$_;";
-                # next if $res == 0;
+                # print STDERR "no strict; package $pkg; Devel::Size::total_size \\$_;";
+                my $res = eval "no strict; package $pkg; Devel::Size::total_size \\$_;";
+                print "aiee: $@\n" if $@;
                 printf $fmt, $_, $res;
             }
         };
