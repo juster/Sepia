@@ -17,8 +17,11 @@
   "Display the README file for MOD."
   (interactive "sModule: ")
   (with-current-buffer (get-buffer-create "*sepia-cpan-readme*")
-    (insert-file-contents
-     (sepia-call "Sepia::CPAN::readme" 'scalar-context mod 1))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert-file-contents
+       (sepia-call "Sepia::CPAN::readme" 'scalar-context mod 1)))
+    (view-mode 1)
     (pop-to-buffer (current-buffer))))
 
 ;;;###autoload
@@ -26,12 +29,13 @@
   "Install MOD and its prerequisites."
   (interactive "sModule: ")
   (when (y-or-n-p (format "Install %s? " mod))
+    (sepia-eval "require Sepia::CPAN")
     (sepia-call "Sepia::CPAN::install" 'void-context mod)))
 
 (defun sepia-cpan-do-search (pattern)
   "Return a list modules whose names match PATTERN."
-  (sepia-eval (format "do { require Sepia::CPAN; map { Sepia::CPAN::interesting_parts $_ } Sepia::CPAN::list('/%s/') }" pattern)
-              'list-context))
+  (sepia-eval "require Sepia::CPAN")
+  (sepia-call "Sepia::CPAN::list" 'list-context (format "/%s/" pattern)))
 
 (defun sepia-cpan-do-desc (pattern)
   "Return a list modules whose descriptions match PATTERN."
