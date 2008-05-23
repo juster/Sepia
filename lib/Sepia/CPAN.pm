@@ -17,7 +17,7 @@ sub interesting_parts
 
 sub _list
 {
-    grep $_->inst_file, CPAN::Shell->expand('Module', shift || '/./');
+    CPAN::Shell->expand('Module', shift || '/./');
 }
 
 sub list
@@ -30,7 +30,7 @@ sub _ls
     my $want = shift;
     grep {
         # XXX: key to test in this order, because inst_file is slow.
-        $_->userid eq $want && $_->inst_file
+        $_->userid eq $want
     } CPAN::Shell->expand('Module', '/./')
 }
 
@@ -43,7 +43,7 @@ sub _desc
 {
     my $pat = qr/$_[0]/i;
     grep {
-        ($_->description =~ /$pat/ || $_->id =~ /$pat/) && $_->inst_file
+        ($_->description =~ /$pat/ || $_->id =~ /$pat/)
     } CPAN::Shell->expand('Module', '/./');
 }
 
