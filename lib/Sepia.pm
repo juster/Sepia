@@ -82,6 +82,7 @@ sub repl_size
         print "Size requires Devel::Size.\n";
     } else {
         *Sepia::repl_size = sub {
+            no strict 'refs';
             ## XXX: C&P from repl_who:
             my ($pkg, $re) = split ' ', shift || '';
             if ($pkg =~ /^\/(.*)\/?$/) {
@@ -926,6 +927,7 @@ sub columnate
 sub repl_who
 {
     my ($pkg, $re) = split ' ', shift;
+    no strict;
     if ($pkg =~ /^\/(.*)\/?$/) {
         $pkg = $PACKAGE;
         $re = $1;
