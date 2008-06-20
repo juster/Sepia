@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.96_02';
+$VERSION = '0.96_03';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -88,7 +88,7 @@ sub repl_size
             if ($pkg =~ /^\/(.*)\/?$/) {
                 $pkg = $PACKAGE;
                 $re = $1;
-            } elsif (!$re && !defined %{$pkg.'::'}) {
+            } elsif (!$re && !%{$pkg.'::'}) {
                 $re = $pkg;
                 $pkg = $PACKAGE;
             } else {
@@ -96,7 +96,7 @@ sub repl_size
                 $pkg = $PACKAGE;
             }
             my @who = who($pkg, $re);
-            my $len = max(map { length } @who) + 4;
+            my $len = max(3, map { length } @who) + 4;
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
@@ -172,7 +172,7 @@ sub filter_untyped
 {
     no strict;
     local $_ = /^::/ ? $_ : "::$_";
-    defined *{$_}{CODE} || defined *{$_}{IO} || (/::$/ && defined *{$_}{HASH});
+    defined *{$_}{CODE} || defined *{$_}{IO} || (/::$/ && %$_);
 }
 
 ## XXX: Careful about autovivification here!  Specifically:
@@ -185,9 +185,9 @@ sub filter_typed
     my $type = shift;
     local $_ = /^::/ ? $_ : "::$_";
     if ($type eq 'SCALAR') {
-        defined ${$_};
+        defined $$_;
     } elsif ($type eq 'VARIABLE') {
-        defined ${$_} || defined *{$_}{HASH} || defined *{$_}{ARRAY};
+        defined $$_ || defined *{$_}{HASH} || defined *{$_}{ARRAY};
     } else {
         defined *{$_}{$type}
     }
@@ -287,7 +287,7 @@ sub method_completions
     $eval ||= 'CORE::eval';
     no strict;
     return unless ($x =~ /^\$/ && ($x = $eval->("ref($x)")))
-        || $eval->('defined(%{'.$x.'::})');
+        || $eval->('%'.$x.'::');
     unless ($@) {
         my $re = _apropos_re $fn;
         ## Filter out overload methods "(..."
@@ -376,7 +376,7 @@ sub apropos
     no strict;
     if ($it =~ /^(.*::)([^:]+)$/) {
         my ($stash, $name) = ($1, $2);
-        if (!defined %$stash) {
+        if (!%$stash) {
             return;
         }
         if ($re) {
@@ -388,7 +388,9 @@ sub apropos
                 my $stashnm = "$stash$_";
                 /$name/ &&
                     (($stashp && /::$/)
-                     || scalar grep { defined *{$stashnm}{$_} } @types)
+                     || scalar grep {
+                         defined($_ eq 'SCALAR' ? $$stashnm : *{$stashnm}{$_})
+                     } @types)
             } keys %$stash;
         } else {
             defined &$it ? $it : ();
@@ -414,7 +416,7 @@ sub mod_subs
     no strict;
     my $p = shift;
     my $stash = \%{"$p\::"};
-    if (defined $stash) {
+    if (%$stash) {
         grep { defined &{"$p\::$_"} } keys %$stash;
     }
 }
@@ -884,21 +886,23 @@ sub who
     no strict;
     if ($re_str =~ /^[\$\@\%\&]/) {
         ## sigil given -- match it
-    sort grep /$re/, map {
-        (defined %{$pack.'::'.$_} ? '%'.$_ : (),
-         defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
-         defined @{$pack.'::'.$_} ? '@'.$_ : (),
-             defined &{$pack.'::'.$_} ? '&'.$_ : (),
-            )
+        sort grep /$re/, map {
+            my $name = $pack.'::'.$_;
+            (defined *{$name}{HASH} ? '%'.$_ : (),
+             defined *{$name}{ARRAY} ? '@'.$_ : (),
+             defined *{$name}{CODE} ? $_ : (),
+             defined ${$name} ? '$'.$_ : (), # ?
+         )
         } grep !/::$/ && !/^(?:_<|[^\w])/ && /$re/, keys %{$pack.'::'};
     } else {
         ## no sigil -- don't match it
         sort map {
-            (defined %{$pack.'::'.$_} ? '%'.$_ : (),
-             defined ${$pack.'::'.$_} ? '$'.$_ : (), # ?
-             defined @{$pack.'::'.$_} ? '@'.$_ : (),
-         defined &{$pack.'::'.$_} ? $_ : (),
-     )
+            my $name = $pack.'::'.$_;
+            (defined *{$name}{HASH} ? '%'.$_ : (),
+             defined *{$name}{ARRAY} ? '@'.$_ : (),
+             defined *{$name}{CODE} ? $_ : (),
+             defined ${$name} ? '$'.$_ : (), # ?
+         )
         } grep !/::$/ && !/^(?:_<|[^\w])/ && /$re/, keys %{$pack.'::'};
     }
 }
@@ -931,7 +935,7 @@ sub repl_who
     if ($pkg =~ /^\/(.*)\/?$/) {
         $pkg = $PACKAGE;
         $re = $1;
-    } elsif (!$re && !defined %{$pkg.'::'}) {
+    } elsif (!$re && !%{$pkg.'::'}) {
         $re = $pkg;
         $pkg = $PACKAGE;
     }
@@ -948,7 +952,7 @@ sub methods
         : grep {
             defined *{"$pack\::$_"}{CODE}
         } keys %{$pack.'::'};
-    (@own, defined @{$pack.'::ISA'}
+    (@own, defined *{$pack.'::ISA'}{ARRAY}
          ? (map methods($_, $qualified), @{$pack.'::ISA'}) : ());
 }
 
@@ -982,7 +986,7 @@ sub repl_package
 {
     chomp(my $p = shift);
     no strict;
-    if (defined %{$p.'::'}) {
+    if (%{$p.'::'}) {
         $PACKAGE = $p;
 #         my $ecmd = '(setq sepia-eval-package "'.$p.'")';
 #         print ";;;###".length($ecmd)."\n$ecmd\n";
