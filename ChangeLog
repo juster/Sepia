@@ -1,5 +1,6 @@
 2008-06-20  Sean O'Rourke  <seano@cs.ucla.edu>
 
+	* VERSION: 0.97
 	* lib/Sepia.pm: fix use of defined().
 
 2008-06-17  Sean O'Rourke  <seano@cs.ucla.edu>
