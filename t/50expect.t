@@ -18,7 +18,8 @@ expect_run
     command => "$^X -Mblib -MSepia -MSepia::Xref -e Sepia::repl",
     prompt => [-re => 'main @[^>]*> '],
     quit => ',quit';
-expect_handle()->log_file('/tmp/b') if $ENV{USER} eq 'seano';
+expect_handle()->log_file('/tmp/b')
+    if exists $ENV{USER} && $ENV{USER} eq 'seano';
 
 expect ",help",
 q!REPL commands (prefixed with ','):
