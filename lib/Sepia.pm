@@ -100,10 +100,9 @@ sub repl_size
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
-            local $SIG{__WARN__} = sub {};
             for (@who) {
                 next unless /^[\$\@\%\&]/; # skip subs.
-                # print STDERR "no strict; package $pkg; Devel::Size::total_size \\$_;";
+                next if $_ eq '%SIG';
                 my $res = eval "no strict; package $pkg; Devel::Size::total_size \\$_;";
                 print "aiee: $@\n" if $@;
                 printf $fmt, $_, $res;
