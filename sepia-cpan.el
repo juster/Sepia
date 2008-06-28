@@ -50,6 +50,7 @@
 (defun sepia-cpan-do-list (pattern)
   "Return a list modules matching PATTERN."
   ;; (interactive "sPattern (regexp): ")
+  (sepia-eval "require Sepia::CPAN")
   (sepia-call "Sepia::CPAN::ls" 'list-context (upcase pattern)))
 
 (defun sepia-cpan-button (button)
