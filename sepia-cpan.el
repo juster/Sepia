@@ -41,12 +41,12 @@
 (defun sepia-cpan-do-desc (pattern)
   "Return a list modules whose descriptions match PATTERN."
   (sepia-eval "require Sepia::CPAN")
-  (sepia-call "Sepia::CPAN::recommend" 'list-context pattern))
+  (sepia-call "Sepia::CPAN::desc" 'list-context pattern))
 
 (defun sepia-cpan-do-recommend (pattern)
   "Return a list modules whose descriptions match PATTERN."
   (sepia-eval "require Sepia::CPAN")
-  (sepia-call "Sepia::CPAN::desc" 'list-context pattern))
+  (sepia-call "Sepia::CPAN::recommend" 'list-context pattern))
 
 (defun sepia-cpan-do-list (pattern)
   "Return a list modules matching PATTERN."
