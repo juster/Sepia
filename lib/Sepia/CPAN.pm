@@ -12,7 +12,10 @@ sub init
 sub interesting_parts
 {
     my $mod = shift;
-    +{ map { $_ => scalar $mod->$_ } qw(id cpan_version inst_version fullname cpan_file)};
+    # XXX: stupid CPAN.pm functions die for some modules...
+    +{ map {
+        $_ => scalar eval { $mod->$_ }
+    } qw(id cpan_version inst_version fullname cpan_file)};
 }
 
 sub _list
@@ -43,6 +46,7 @@ sub _desc
 {
     my $pat = qr/$_[0]/i;
     grep {
+        $_->description &&
         ($_->description =~ /$pat/ || $_->id =~ /$pat/)
     } CPAN::Shell->expand('Module', '/./');
 }
