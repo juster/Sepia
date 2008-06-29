@@ -24,6 +24,9 @@
 (ignore-errors (require 'sepia-w3m))
 (ignore-errors (require 'sepia-tree))
 (ignore-errors (require 'sepia-ido))
+(ignore-errors (require 'sepia-snippet))
+;; extensions that should always load (autoload later?)
+(require 'sepia-cpan)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Comint communication
@@ -326,11 +329,18 @@ Interactive users should call `sepia-view-pod'."
   (sepia-ensure-process remote-host)
   (pop-to-buffer (get-buffer "*sepia-repl*")))
 
+(defun sepia-cont-or-restart ()
+  (interactive)
+  (if (get-buffer-process (current-buffer))
+      (gud-cont current-prefix-arg)
+    (sepia-repl)))
+
 (defvar sepia-repl-mode-map
   (let ((map (copy-keymap sepia-shared-map)))
     (set-keymap-parent map gud-mode-map)
     (define-key map (kbd "<tab>") 'comint-dynamic-complete)
     (define-key map "\C-a" 'comint-bol)
+    (define-key map "\C-c\C-r" 'sepia-cont-or-restart)
     map)
 
 "Keymap for Sepia interactive mode.")
