@@ -349,10 +349,6 @@ Interactive users should call `sepia-view-pod'."
   "Major mode for the Sepia REPL.
 
 \\{sepia-repl-mode-map}"
-    (set (make-local-variable 'comint-dynamic-complete-functions)
-         '(sepia-complete-symbol comint-dynamic-complete-filename))
-    (set (make-local-variable 'comint-preoutput-filter-functions)
-         '(sepia-watch-for-eval))
     ;; (set (make-local-variable 'comint-use-prompt-regexp) t)
     (modify-syntax-entry ?: "_")
     (modify-syntax-entry ?> ".")
@@ -373,6 +369,10 @@ Interactive users should call `sepia-view-pod'."
     (gud-def gud-remove ",delete %l %f" "\C-d" "Delete current breakpoint.")
     ;; Sadly, this hoses our keybindings.
     (compilation-shell-minor-mode 1)
+    (set (make-local-variable 'comint-dynamic-complete-functions)
+         '(sepia-complete-symbol comint-dynamic-complete-filename))
+    (set (make-local-variable 'comint-preoutput-filter-functions)
+         '(sepia-watch-for-eval))
     (run-hooks 'sepia-repl-mode-hook))
 
 (defvar gud-sepia-acc nil
@@ -1108,14 +1108,10 @@ This function is intended to be bound to TAB."
     map)
  "Keymap for Sepia mode.")
 
-(defvar sepia-mode-abbrev-table nil
-"Abbrevs for Sepia mode.")
-
 ;;;###autoload
 (define-derived-mode sepia-mode cperl-mode "Sepia"
   "Major mode for Perl editing, derived from cperl mode.
 \\{sepia-mode-map}"
-  :abbrev-table nil
   (sepia-init)
   (sepia-install-eldoc)
   (sepia-doc-update)
