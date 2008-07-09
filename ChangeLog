@@ -1,3 +1,18 @@
+2008-07-09  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.el (sepia-indent-line): new function.  Let-bind
+	  beginning-of-defun-function for cperl-indent-line.
+
+2008-06-29  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.el (sepia-cont-or-restart): new function to restart
+	  quitted REPL.
+	* sepia-cpan.el (sepia-cpan-do-{desc,recommend}): oops.
+	(sepia-cpan-make-buffer): better column widths
+	* lib/Sepia.pm (repl_size): skip %SIG to avoid segfaults.
+	* lib/sepia/CPAN.pm (group_by_dist): only list "main" module in
+	  each distribution, and sort them.
+
 2008-06-20  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* VERSION: 0.97

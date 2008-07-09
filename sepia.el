@@ -1118,7 +1118,8 @@ This function is intended to be bound to TAB."
   (set (make-local-variable 'beginning-of-defun-function)
        'sepia-beginning-of-defun)
   (set (make-local-variable 'end-of-defun-function)
-       'sepia-end-of-defun))
+       'sepia-end-of-defun)
+  (setq indent-line-function 'sepia-indent-line))
 
 (defun sepia-init ()
   "Perform the initialization necessary to start Sepia."
@@ -1201,6 +1202,11 @@ Does not require loading.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Miscellany
+
+(defun sepia-indent-line (&rest args)
+  "Unbind `beginning-of-defun-function' to not confuse `cperl-indent-line'."
+  (let (beginning-of-defun-function)
+    (apply #'cperl-indent-line args)))
 
 (defun sepia-string-count-matches (reg str)
   (let ((n 0)
