@@ -1193,12 +1193,13 @@ Does not require loading.")
 (defun sepia-scratch-send-line (&optional scalarp)
   "Send the current line to perl, and display the result."
   (interactive "P")
-  (insert "\n"
-   (format "%S" (sepia-eval-raw (concat "scalar do{"
-		       (buffer-substring (sepia-bol-from (point))
-					 (sepia-eol-from (point)))
-		       "}")))
-   "\n"))
+  (insert
+   (format "\n%s\n"
+           (car
+            (sepia-eval-raw
+             (concat "$Sepia::REPL{eval}->(q#"
+                     (buffer-substring (sepia-bol-from (point))
+                                       (sepia-eol-from (point))) "#)"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Miscellany
