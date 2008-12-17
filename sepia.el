@@ -444,12 +444,12 @@ symbol at point."
          (choices
           (lambda (str &rest blah)
             (let ((completions (xref-completions
-                                str
                                 (case sepia-arg-type
                                   (module nil)
                                   (variable "VARIABLE")
                                   (function "CODE")
-                                  (t nil)))))
+                                  (t nil))
+                                str)))
               (when (eq sepia-arg-type 'module)
                 (setq completions
                       (remove-if (lambda (x) (string-match "::$" x)) completions)))
@@ -969,13 +969,13 @@ expressions would lead to disaster."
           (goto-char pt)
           (sepia-end-of-defun)
           (when (and (>= pt bof) (< pt (point)))
-            (goto-char bof)
-            (looking-at "\\s *sub\\s +")
-            (forward-char (length (match-string 0)))
-            (concat (or (sepia-buffer-package) "")
-                    "::"
-                    (cadr (sepia-ident-at-point))))))
-    (error nil)))
+            (sepia-beginning-of-defun)
+            (when (and (= (point) bof) (looking-at "\\s *sub\\s +"))
+              (forward-char (length (match-string 0)))
+              (concat (or (sepia-buffer-package) "")
+                      "::"
+                      (cadr (sepia-ident-at-point)))))))
+        (error nil)))
 
 (defun sepia-repl-complete ()
   "Try to complete the word at point in the REPL.
@@ -994,10 +994,9 @@ XXX: this needs to be updated whenever you add one on the Perl side.")
 
 (defun sepia-complete-symbol ()
   "Try to complete the word at point.
-The word may be either a global variable if it has a
-sigil (sorry, no lexicals), a module, or a function.  The
-function currently ignores module qualifiers, which may be
-annoying in larger programs.
+The word may be either a global or lexical variable if it has a
+sigil, a module, or a function.  The function currently ignores
+module qualifiers, which may be annoying in larger programs.
 
 The function is intended to be bound to \\M-TAB, like
 `lisp-complete-symbol'."
@@ -1046,7 +1045,6 @@ The function is intended to be bound to \\M-TAB, like
           (setq type typ
                 len (+ (if type 1 0) (length name))
                 completions (xref-completions
-                             name
                              (case type
                                (?$ "VARIABLE")
                                (?@ "ARRAY")
@@ -1054,6 +1052,7 @@ The function is intended to be bound to \\M-TAB, like
                                (?& "CODE")
                                (?* "IO")
                                (t ""))
+                             name
                              (and (eq major-mode 'sepia-mode)
                                   (sepia-function-at-point)))))
         ;; 3 - try a Perl built-in
