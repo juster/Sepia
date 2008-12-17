@@ -185,7 +185,7 @@ each of the following in turn, using the first successful approach:
      `Class->f'), complete on methods.
 
   2. If it looks like a variable (e.g. `%hash' or `$scalar'), complete
-     on variables.
+     first on lexical, then global variables.
 
   3. Complete on modules and functions.
 
@@ -197,12 +197,12 @@ resulting word parts.  For example, `X:a_b' will complete to all
 symbols matching `^X[^:]*:+a[^:_]*_b' such as `Xref::a_bug' and
 `X::always_bites_me'.  If no matches result, the text is treated as an
 acronym.  For example, `dry' will complete to `dont_repeat_yourself'.
+_Note: partial-word completion is not currently supported for lexicals._
 
    Completion is performed by the following commands:
 `M-x sepia-complete-symbol'
-     Complete the symbol before point as described above.  Note that
-     this does not consider lexical scope, and is always case-sensitive,
-     independent of `completion-ignore-case'.
+     Complete the symbol before point as described above.  This is
+     always case-sensitive, independent of `completion-ignore-case'.
 
 `TAB'
 `M-x sepia-indent-or-complete'
@@ -784,7 +784,7 @@ Function Index
 * sepia-apropos:                         Navigation.           (line 60)
 * sepia-callees:                         Navigation.           (line 68)
 * sepia-callers:                         Navigation.           (line 64)
-* sepia-complete-symbol:                 Completion.           (line 34)
+* sepia-complete-symbol:                 Completion.           (line 35)
 * sepia-cpan-desc:                       CPAN browsing.        (line 17)
 * sepia-cpan-doc:                        CPAN browsing.        (line 29)
 * sepia-cpan-install:                    CPAN browsing.        (line 33)
@@ -827,20 +827,20 @@ Node: Philosophy1593
 Node: Related Work4620
 Node: Editing5786
 Node: Completion6248
-Node: Navigation8092
-Node: Documentation11441
-Node: Interactive Perl12988
-Node: Shortcuts13725
-Node: Debugger15926
-Node: Evaluation17585
-Node: Mutilation18561
-Node: Scratchpad19513
-Node: CPAN browsing19918
-Node: Customization20912
-Node: Emacs Variables21210
-Node: Perl Variables23705
-Node: Internals25192
-Node: Credits25552
-Node: Function Index26010
+Node: Navigation8140
+Node: Documentation11489
+Node: Interactive Perl13036
+Node: Shortcuts13773
+Node: Debugger15974
+Node: Evaluation17633
+Node: Mutilation18609
+Node: Scratchpad19561
+Node: CPAN browsing19966
+Node: Customization20960
+Node: Emacs Variables21258
+Node: Perl Variables23753
+Node: Internals25240
+Node: Credits25600
+Node: Function Index26058
 
 End Tag Table
