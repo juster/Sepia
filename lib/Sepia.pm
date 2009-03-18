@@ -100,12 +100,14 @@ sub repl_size
             my $fmt = '%-'.$len."s%10d\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
+            my %res;
             for (@who) {
                 next unless /^[\$\@\%\&]/; # skip subs.
                 next if $_ eq '%SIG';
-                my $res = eval "no strict; package $pkg; Devel::Size::total_size \\$_;";
-                print "aiee: $@\n" if $@;
-                printf $fmt, $_, $res;
+                $res{$_} = eval "no strict; package $pkg; Devel::Size::total_size \\$_;";
+            }
+            for (sort { $res{$b} <=> $res{$a} } keys %res) {
+                printf $fmt, $_, $res{$_};
             }
         };
         goto &repl_size;
@@ -788,8 +790,10 @@ sub repl_help
         $args =~ s/\s+$//;
         my $full = $RK{$args};
         if ($full) {
-            print "$RK{$full}    ",
-                flow($width - length $RK{$full} - 4, $REPL_DOC{$full}), "\n";
+            my $short = $REPL_SHORT{$full};
+            my $flow = flow($width - length $short - 4, $REPL_DOC{$full});
+            $flow =~ s/(.)\n/"$1\n".(' 'x (4 + length $short))/eg;
+            print "$short    $flow\n";
         } else {
             print "$args: no such command\n";
         }
