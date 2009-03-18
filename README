@@ -92,7 +92,7 @@ key components have been stolen and adapted from other packages:
     * Sepia::Xref is taken from B::Xref.
     * sepia-w3m is taken from w3m-perldoc.
 * COPYRIGHT AND LICENCE
-Copyright (C) 2004-2008 by Sean O'Rourke
+Copyright (C) 2004-2009 Sean O'Rourke
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, at the time at which this
