@@ -3,12 +3,19 @@
 	* lib/Sepia.pm (repl_help): fix formatting with "help CMD"
 	(repl_size): sort by size
 
+2008-12-17  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.texi (Completion): we do lexicals.
+	* lib/Sepia.pm (lexical_completions): new function.
+	(completions): use it.
+	* sepia.el (sepia-function-at-point): return nil outside subs.
+	(sepia-interactive-arg): fix call to xref-completions.
+
 2008-07-22  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* sepia.el (sepia-scratch-send-line): change to use REPL printer.
 
 2008-07-09  Sean O'Rourke  <seano@cs.ucla.edu>
-
 	* sepia.el (sepia-indent-line): new function.  Let-bind
 	  beginning-of-defun-function for cperl-indent-line.
 

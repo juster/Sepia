@@ -207,7 +207,7 @@ If the text looks like a method call (e.g. @samp{$object->f} or
 
 @item
 If it looks like a variable (e.g. @samp{%hash} or @samp{$scalar}),
-complete on variables.
+complete first on lexical, then global variables.
 
 @item
 Complete on modules and functions.
@@ -222,15 +222,15 @@ the resulting word parts.  For example, @samp{X:a_b} will complete to
 all symbols matching @samp{^X[^:]*:+a[^:_]*_b} such as @samp{Xref::a_bug}
 and @samp{X::always_bites_me}.  If no matches result, the text is
 treated as an acronym.  For example, @samp{dry} will complete to
-@samp{dont_repeat_yourself}.
+@samp{dont_repeat_yourself}.  @emph{Note: partial-word completion is not
+currently supported for lexicals.}
 
 Completion is performed by the following commands:
 @table @kbd
 @item M-x sepia-complete-symbol
 @findex sepia-complete-symbol
-Complete the symbol before point as described above.  Note that this
-does not consider lexical scope, and is always case-sensitive,
-independent of @code{completion-ignore-case}.
+Complete the symbol before point as described above.  This is always
+case-sensitive, independent of @code{completion-ignore-case}.
 
 @item TAB
 @itemx M-x sepia-indent-or-complete

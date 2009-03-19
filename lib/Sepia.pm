@@ -249,24 +249,45 @@ sub all_completions
     map { s/^:://; $_ } _completions('::', @parts);
 }
 
+sub lexical_completions
+{
+    eval { require PadWalker; import PadWalker 'peek_sub' };
+    # "internal" function, so don't warn on failure
+    return if $@;
+    *lexical_completions = sub {
+        my ($type, $str, $sub) = @_;
+        $sub = "$PACKAGE\::$sub" unless $sub =~ /::/;
+        # warn "Completing $str of type $type in $sub\n";
+        no strict;
+        return unless defined *{$sub}{CODE};
+        my $pad = peek_sub(\&$sub);
+        if ($type) {
+            map { s/^[\$\@&\%]//;$_ } grep /^\Q$type$str\E/, keys %$pad;
+        } else {
+            map { s/^[\$\@&\%]//;$_ } grep /^.\Q$str\E/, keys %$pad;
+        }
+    };
+    goto &lexical_completions;
+}
+
 sub completions
 {
-    my ($type, $str, $t);
+    my ($type, $str, $sub) = @_;
+    my $t;
     my %h = qw(@ ARRAY % HASH & CODE * IO $ SCALAR);
     my %rh;
     @rh{values %h} = keys %h;
-    if (@_ == 1) {
-        ($type, $str) = $_[0] =~ /^([\%\$\@\&]?)(.*)/;
-        $t = $type || '';
-    $type = $h{$type} if $type;
-    } else {
-        ($str, $type) = @_;
-        $type ||= '';
-        $t = $rh{$type} if $type;
+    $type ||= '';
+    $t = $rh{$type} if $type;
+    my @ret;
+    if ($sub && $type ne '') {
+        @ret = lexical_completions $t, $str, $sub;
     }
-    my @ret = grep {
-        $type ? filter_typed $type : filter_untyped
-    } all_completions $str;
+    if (!@ret) {
+        @ret = grep {
+            $type ? filter_typed $type : filter_untyped
+        } all_completions $str;
+    }
     if (!@ret && $str !~ /:/) {
         @ret = grep {
             $type ? filter_typed $type : filter_untyped
@@ -1274,18 +1295,39 @@ sub html_module_list
     return unless $inst;
     my $out;
     open OUT, ">", $file || \$out or return;
-    print OUT "<html><body><ul>";
+    print OUT "<html><body>";
     my $pfx = '';
     my %ns;
     for (package_list) {
         push @{$ns{$1}}, $_ if /^([^:]+)/;
     }
+    # Handle core modules.
+    my %fs;
+    undef $fs{$_} for map {
+        s/.*man.\///; s|/|::|g; s/\.\d(?:pm)?$//; $_
+    } grep {
+        /\.\d(?:pm)?$/ && !/man1/ && !/usr\/bin/ # && !/^(?:\/|perl)/
+    } $inst->files('Perl');
+    my @fs = sort keys %fs;
+    print OUT qq{<h2>Core Modules</h2><ul>};
+    for (@fs) {
+        print OUT qq{<li><a href="$base$_">$_</a>};
+    }
+    print OUT '</ul><h2>Installed Modules</h2><ul>';
+
+    # handle the rest
     for (sort keys %ns) {
+        next if $_ eq 'Perl';   # skip Perl core.
         print OUT qq{<li><b>$_</b><ul>} if @{$ns{$_}} > 1;
         for (sort @{$ns{$_}}) {
-            my @fs = map {
+            my %fs;
+            undef $fs{$_} for map {
                 s/.*man.\///; s|/|::|g; s/\.\d(?:pm)?$//; $_
-            } grep /\.\d(?:pm)?$/, sort $inst->files($_);
+            } grep {
+                /\.\d(?:pm)?$/ && !/man1/
+            } $inst->files($_);
+            my @fs = sort keys %fs;
+            next unless @fs > 0;
             if (@fs == 1) {
                 print OUT qq{<li><a href="$base$fs[0]">$fs[0]</a>};
             } else {
@@ -1298,6 +1340,7 @@ sub html_module_list
         }
         print OUT qq{</ul>} if @{$ns{$_}} > 1;
     }
+
     print OUT "</ul></body></html>\n";
     close OUT;
     $file ? 1 : $out;
