@@ -121,7 +121,7 @@ development.  This package contains the Perl side of the
 implementation, including all user-serviceable parts (for the
 cross-referencing facility see L<Sepia::Xref>).  This document is
 aimed as Sepia developers; for user documentation, see
-L<sepia/index.html>.
+L<Sepia.html> or L<sepia.info>.
 
 Though not intended to be used independent of the Emacs interface, the
 Sepia module's functionality can be used through a rough procedural
@@ -197,6 +197,7 @@ sub filter_typed
 sub maybe_icase
 {
     my $ch = shift;
+    return '' if $ch eq '';
     $ch =~ /[A-Z]/ ? $ch : '['.uc($ch).$ch.']';
 }
 
@@ -278,7 +279,7 @@ sub completions
     my %rh;
     @rh{values %h} = keys %h;
     $type ||= '';
-    $t = $rh{$type} if $type;
+    $t = $type ? $rh{$type} : '';
     my @ret;
     if ($sub && $type ne '') {
         @ret = lexical_completions $t, $str, $sub;
@@ -297,7 +298,7 @@ sub completions
 #     ## XXX: Control characters, $", and $1, etc. confuse Emacs, so
 #     ## remove them.
     grep {
-        length > 0 && !looks_like_number $_ && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
+        length $_ > 0 && !looks_like_number($_) && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
     } @ret;
 }
 
@@ -956,7 +957,7 @@ sub repl_who
 {
     my ($pkg, $re) = split ' ', shift;
     no strict;
-    if ($pkg =~ /^\/(.*)\/?$/) {
+    if ($pkg && $pkg =~ /^\/(.*)\/?$/) {
         $pkg = $PACKAGE;
         $re = $1;
     } elsif (!$re && !%{$pkg.'::'}) {
