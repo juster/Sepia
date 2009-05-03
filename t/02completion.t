@@ -3,6 +3,7 @@
 use Test::Simple tests => 11;
 use Data::Dumper;
 require Sepia;
+# use warnings;
 no warnings;
 
 ## Set up some symbols to complete on:
@@ -35,25 +36,25 @@ package main;
 
 sub ok_comp
 {
-    my $str = shift;
-    my $res = Dumper([sort(Sepia::completions($str))]);
+    my ($type, $str) = splice @_, 0, 2;
+    my $res = Dumper([sort(Sepia::completions($type, $str))]);
     my $expect = Dumper([sort @_]);
     my $ok = $res eq $expect;
-    ok($ok, $ok ? $str : "$str\n$res\n$expect\n");
+    ok($ok, $ok ? $str : "$type/$str\n$res\n$expect\n");
 }
 
-ok_comp('$Z:A:a_v', qw($Z::A::a_var $Z::Another::a_var));
-ok_comp('@Z:A:a_v', qw(@Z::A::a_var2 @Z::Another::a_var2));
-ok_comp('%Z:A:a_v', qw(%Z::A::a_var3 %Z::Another::a_var3));
-ok_comp('%z:a:a_v', qw(%Z::A::a_var3 %Z::Another::a_var3));
-ok_comp('%z:a:a_', qw(%Z::A::a_var3 %Z::Another::a_var3));
-ok_comp('%z:a:a', qw(%Z::A::a_var3 %Z::Another::a_var3));
-ok_comp('Z:A:a_v');
-ok_comp('Z:A:a', qw(Z::A::a_nother_function Z::Another::a_nother_function
-                    Z::A::a_function Z::Another::a_function));
-ok_comp('z:a:a', qw(Z::A::a_nother_function Z::Another::a_nother_function
-                    Z::A::a_function Z::Another::a_function));
-ok_comp('zaa', qw(Z::A::a_nother_function Z::Another::a_nother_function
-                    Z::A::a_function Z::Another::a_function));
-ok_comp('za', qw(Z::A:: Z::Another::));
+ok_comp(qw'SCALAR Z:A:a_v', qw($Z::A::a_var $Z::Another::a_var));
+ok_comp(qw'ARRAY Z:A:a_v', qw(@Z::A::a_var2 @Z::Another::a_var2));
+ok_comp(qw'HASH Z:A:a_v', qw(%Z::A::a_var3 %Z::Another::a_var3));
+ok_comp(qw'HASH z:a:a_v', qw(%Z::A::a_var3 %Z::Another::a_var3));
+ok_comp(qw'HASH z:a:a_', qw(%Z::A::a_var3 %Z::Another::a_var3));
+ok_comp(qw'HASH z:a:a', qw(%Z::A::a_var3 %Z::Another::a_var3));
+ok_comp(qw'CODE Z:A:a_v');
+ok_comp(qw'CODE Z:A:a', qw(&Z::A::a_nother_function &Z::Another::a_nother_function
+                    &Z::A::a_function &Z::Another::a_function));
+ok_comp(qw'CODE z:a:a', qw(&Z::A::a_nother_function &Z::Another::a_nother_function
+                    &Z::A::a_function &Z::Another::a_function));
+ok_comp(qw'CODE zaa', qw(&Z::A::a_nother_function &Z::Another::a_nother_function
+                    &Z::A::a_function &Z::Another::a_function));
+ok_comp('', 'za', qw(Z::A:: Z::Another::));
 
