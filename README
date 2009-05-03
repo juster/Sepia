@@ -75,6 +75,7 @@ run on other versions of Emacs, but may require additional packages.
    It currently assumes that the last breakable statement in a sub is
    one line before its end.
 ** (Medium) Enable partial-word completion of lexicals
+** (Medium) Rewrite completion code, which is pretty ugly now.
 * KNOWN BUGS
 ** Function definition lines may occasionally all go completely wrong.
    Rebuilding the Xref database fixes this.
