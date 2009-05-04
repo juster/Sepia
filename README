@@ -40,9 +40,7 @@ run on other versions of Emacs, but may require additional packages.
     ja-nkf-2.05
 
 * TODO
-** implement mod_apropos
-** improve output for sepia-module-* (modinfo functions)
-** (Medium) better intro documentation for debugger
+** (Medium) implement mod_apropos
 ** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.
 ** (Hard) Use module, file, line to filter results (Emacs side)
@@ -67,26 +65,36 @@ run on other versions of Emacs, but may require additional packages.
        }
 ** (Medium) Fix string escaping when passing between Perl and Emacs
    IO::Scalar's README tickles a bug.
-** (Medium) Make the debugger's "next" work
+** (Hard) Make the debugger's "next" work
    "next" (as opposed to "step") assumes that the next statement after
    line $n is line $n+1, which isn't true for loops, blank lines,
-   multi-line statements, etc.  Fix this somehow.
+   multi-line statements, etc.  Fix this somehow.  One way might be to
+   temporary regain control on a op_next/op_nextstate, or whatever
+   those are called, but this would be hard and/or require XS.
 ** (Medium) Make "finish" more reliable
    It currently assumes that the last breakable statement in a sub is
-   one line before its end.
+   one line before its end.  The "right" solution would be like above:
+   to hook op_leave temporarily.  This would similarly require XS
+   trickery.
 ** (Medium) Enable partial-word completion of lexicals
-** (Medium) Rewrite completion code, which is pretty ugly now.
+** (Hard) Rewrite completion code, which is pretty ugly now.
+   This wouldn't seem "hard" but, having hacked on two completion
+   codebases (Sepia's and complete.el's), I know there are always a
+   lot of subtle cases to get right, and what acts "naturally" by
+   human standards is extremely complicated to specify in code.
 * KNOWN BUGS
-** Function definition lines may occasionally all go completely wrong.
+The following is a list of bugs that are difficult to automatically
+reproduce, with the dates they were first observed.
+** (2006-05-19) Function definition lines occasionally all go wrong.
    Rebuilding the Xref database fixes this.
-** The cursor may miss by several lines when jumping to a definition.
+** (2006-05-19) The cursor misses by several lines jumping to a definition.
    This is hard to fix -- Perl doesn't give exact line numbers for sub
    defs, so we have to do some minor regex-searching.
-** `sepia-var-assigns' doesn't work yet -- don't use it.
-** named method calls are (mostly?) detected, but nothing smart is
-   done about packages, so e.g. "new Foo" will result in listings for
-   every instance of "new" in your program.
-** the first value printed in the debugger is undef.  why?!
+** (2006-05-19) `sepia-var-assigns' doesn't work yet -- don't use it.
+** (2006-05-19) named method calls (mostly?) detected, but naively.
+   Nothing smart is done about packages, so e.g. "new Foo" will result
+   in listings for every instance of "new" in your program.
+** (2008-01-18) the first value printed in the debugger is undef.  why?!
 * CREDITS
 Sepia would never have been possible without Software Libre, as many
 key components have been stolen and adapted from other packages:
