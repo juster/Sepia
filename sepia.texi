@@ -49,6 +49,7 @@ navigation and interactive evaluation.
 * Internals::                   
 * Credits::                     
 * Function Index::              
+* Variable Index::              
 @end menu
 
 @c ============================================================
@@ -700,7 +701,7 @@ two variables most likely to need customization are
 configuration can be done with @kbd{sepia-mode-hook}, while
 REPL-specific configuration can be done with @kbd{sepia-repl-mode-hook}.
 
-@table @kbd
+@vtable @kbd
 
 @item sepia-complete-methods
 If non-@code{nil}, @code{sepia-complete-symbol} will complete
@@ -751,7 +752,7 @@ The function called to view the current buffer's documentation.
 Default: @code{sepia-w3m-view-pod} if Emacs-w3m is available, or
 @code{sepia-perldoc-buffer} otherwise.
 
-@end table
+@end vtable
 
 @node Perl Variables,  , Emacs Variables, Customization
 @section Perl Variables
@@ -832,8 +833,12 @@ B::Xref, all of which are Free software.
 @end table
 
 @c ============================================================
-@node Function Index,  , Credits, Top
+@node Function Index, Variable Index, Credits, Top
 @unnumbered Function Index
 @printindex fn
+
+@node Variable Index,  , Function Index, Top
+@unnumbered Variable Index
+@printindex vr
 
 @bye

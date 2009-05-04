@@ -95,12 +95,6 @@ reproduce, with the dates they were first observed.
    Nothing smart is done about packages, so e.g. "new Foo" will result
    in listings for every instance of "new" in your program.
 ** (2008-01-18) the first value printed in the debugger is undef.  why?!
-* CREDITS
-Sepia would never have been possible without Software Libre, as many
-key components have been stolen and adapted from other packages:
-
-    * Sepia::Xref is taken from B::Xref.
-    * sepia-w3m is taken from w3m-perldoc.
 * COPYRIGHT AND LICENCE
 Copyright (C) 2004-2009 Sean O'Rourke
 

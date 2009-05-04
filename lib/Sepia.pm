@@ -20,7 +20,7 @@ come with the distribution.
 
 =cut
 
-$VERSION = '0.97';
+$VERSION = '0.98';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -1399,7 +1399,7 @@ Bug reports welcome, patches even more welcome.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2005-2008 Sean O'Rourke.  All rights reserved, some
+Copyright (C) 2005-2009 Sean O'Rourke.  All rights reserved, some
 wrongs reversed.  This module is distributed under the same terms as
 Perl itself.
 

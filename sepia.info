@@ -24,6 +24,7 @@ navigation and interactive evaluation.
 * Internals::
 * Credits::
 * Function Index::
+* Variable Index::
 
 
 File: sepia.info,  Node: Introduction,  Next: Editing,  Prev: Top,  Up: Top
@@ -773,7 +774,7 @@ Free Software
 
 
 
-File: sepia.info,  Node: Function Index,  Prev: Credits,  Up: Top
+File: sepia.info,  Node: Function Index,  Next: Variable Index,  Prev: Credits,  Up: Top
 
 Function Index
 **************
@@ -817,30 +818,51 @@ Function Index
 * sepia-var-uses:                        Navigation.           (line 72)
 * sepia-view-pod:                        Documentation.        (line 16)
 
+
+File: sepia.info,  Node: Variable Index,  Prev: Function Index,  Up: Top
+
+Variable Index
+**************
+
+ [index ]
+* Menu:
+
+* sepia-complete-methods:                Emacs Variables.      (line 13)
+* sepia-eval-defun-include-decls:        Emacs Variables.      (line 18)
+* sepia-indent-expand-abbrev:            Emacs Variables.      (line 25)
+* sepia-module-list-function:            Emacs Variables.      (line 31)
+* sepia-perl5lib:                        Emacs Variables.      (line 41)
+* sepia-perldoc-function:                Emacs Variables.      (line 36)
+* sepia-prefix-key:                      Emacs Variables.      (line 45)
+* sepia-program-name:                    Emacs Variables.      (line 49)
+* sepia-use-completion:                  Emacs Variables.      (line 52)
+* sepia-view-pod-function:               Emacs Variables.      (line 57)
+
 
 
 Tag Table:
 Node: Top187
-Node: Introduction530
-Node: Getting Started968
-Node: Philosophy1593
-Node: Related Work4620
-Node: Editing5786
-Node: Completion6248
-Node: Navigation8140
-Node: Documentation11489
-Node: Interactive Perl13036
-Node: Shortcuts13773
-Node: Debugger15974
-Node: Evaluation17633
-Node: Mutilation18609
-Node: Scratchpad19561
-Node: CPAN browsing19966
-Node: Customization20960
-Node: Emacs Variables21258
-Node: Perl Variables23753
-Node: Internals25240
-Node: Credits25600
-Node: Function Index26058
+Node: Introduction549
+Node: Getting Started987
+Node: Philosophy1612
+Node: Related Work4639
+Node: Editing5805
+Node: Completion6267
+Node: Navigation8159
+Node: Documentation11508
+Node: Interactive Perl13055
+Node: Shortcuts13792
+Node: Debugger15993
+Node: Evaluation17652
+Node: Mutilation18628
+Node: Scratchpad19580
+Node: CPAN browsing19985
+Node: Customization20979
+Node: Emacs Variables21277
+Node: Perl Variables23772
+Node: Internals25259
+Node: Credits25619
+Node: Function Index26077
+Node: Variable Index28777
 
 End Tag Table
