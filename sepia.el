@@ -44,7 +44,7 @@
 Useful values include `sepia-w3m-view-pod' and `sepia-perldoc-buffer'.")
 
 (defvar sepia-module-list-function
-  (if (featurep 'w3m) 'w3m-find-file 'browse-url-of-buffer)
+  (if (featurep 'w3m) 'w3m-find-file 'browse-url-of-file)
 "* Function to view a list of installed modules.
 
 Useful values include `w3m-find-file' and `browse-url-of-buffer'.")
