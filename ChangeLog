@@ -2,6 +2,7 @@
 
 	* lib/Sepia.pm (save,load,repl_save,repl_load): Persist
 	variables to a file.
+	* VERSION: 0.99_01
 
 2009-07-05  Sean O'Rourke  <seano@cs.ucla.edu>
 
