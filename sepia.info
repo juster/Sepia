@@ -166,6 +166,7 @@ completion.
 * Completion::
 * Navigation::
 * Documentation::
+* Other commands::
 
 
 File: sepia.info,  Node: Completion,  Next: Navigation,  Prev: Editing,  Up: Editing
@@ -311,7 +312,7 @@ not fit into either of the above categories.
 
 
 
-File: sepia.info,  Node: Documentation,  Prev: Navigation,  Up: Editing
+File: sepia.info,  Node: Documentation,  Next: Other commands,  Prev: Navigation,  Up: Editing
 
 2.3 Documentation
 =================
@@ -352,6 +353,17 @@ This is intended to give the programmer a sense of when he is creating
 external dependencies.
 
 
+File: sepia.info,  Node: Other commands,  Prev: Documentation,  Up: Editing
+
+2.4 Other commands
+==================
+
+`M-x sepia-rename-lexical'
+     Rename a variable in the function at point, querying for each
+     replacement when called with a prefix argument.  Currently, this
+     is only a thin wrapper around `query-replace'.
+
+
 File: sepia.info,  Node: Interactive Perl,  Next: CPAN browsing,  Prev: Editing,  Up: Top
 
 3 Interactive Perl
@@ -384,9 +396,14 @@ File: sepia.info,  Node: Shortcuts,  Next: Debugger,  Prev: Interactive Perl,  U
 
 "Shortcuts" are commands handled specially by the REPL rather than
 being evaluated as Perl code.  They either communicate with the REPL
-function, or provide a convenient interface to variables in the Sepia
-package.  Shortcuts are prefixed by a comma (<,>), and may be
-abbreviated to the shortest unique prefix.
+function, or provide a convenient interface to Sepia variables and
+functions.  Shortcuts are prefixed by a comma (<,>), and may be
+abbreviated to the shortest unique prefix.  The debugger defines
+additional shortcuts (*Note Debugger::.).
+
+`break FILE:LINE [EXPR]'
+     Set a breakpoint in FILE at LINE.  If EXPR is supplied, stop only
+     if it evaluates to true.
 
 `cd DIR'
      Change Perl's current directory to DIR.
@@ -399,9 +416,6 @@ abbreviated to the shortest unique prefix.
      documentation DOC, surrounded by single quotes.  BODY is passed
      the raw command-line text as its first argument.
 
-`delete'
-     Delete the current breakpoint.
-
 `format TYPE'
      Set the output format to TYPE, either "dumper" (using
      `Data::Dumper'), "dump" (`Data::Dump'), "yaml" (`YAML'), or
@@ -409,6 +423,10 @@ abbreviated to the shortest unique prefix.
 
 `help'
      Display a list of shortcuts.
+
+`load [FILE]'
+     Reload saved variables from FILE (or `~/.sepia-save'), created by
+     `save'.
 
 `lsbreak'
      List breakpoints.
@@ -428,11 +446,23 @@ abbreviated to the shortest unique prefix.
 
 `reload'
      Reload `Sepia.pm' and recursively invoke the REPL.  This command is
-     mostly of interest when working on Sepia itself.
+     mostly of interest when working on Sepia itself, and will fail
+     catastrophically if `Sepia.pm' fails to compile.
+
+`save [PATTERN [FILE]]'
+     Save variables matching PATTERN (or all variables) to FILE (or
+     `~/.sepia-save') in `Storable' format.  Note that because saving
+     magic variables can have unpredictable results, using `save'
+     without a pattern argument is risky.  Sepia excludes common magic
+     variables and dangerous packages, but its list is not foolproof.
 
 `shell [COMMAND]'
      Execute shell command COMMAND, displaying its standard output and
      standard error.
+
+`size [PACKAGE [REGEXP]]'
+     List the variables in PACKAGE (or the current package) along with
+     their total sizes.  This requires the `Devel::Size' module.
 
 `strict [VAL]'
      Set evaluation strictness to VAL, or toggle it if VAL is not
@@ -472,9 +502,8 @@ and modify lexical variables.
 `backtrace'
      Show a backtrace.
 
-`break FILE:LINE [EXPR]'
-     Set a breakpoint in FILE at LINE.  If EXPR is supplied, stop only
-     if it evaluates to true.
+`delete'
+     Delete the current breakpoint.
 
 `down N'
 `up N'
@@ -483,9 +512,6 @@ and modify lexical variables.
 `inspect [N]'
      Inspect lexicals in the current frame or frame N, counting upward
      from 1.
-
-`lsbreak'
-     List breakpoints.
 
 `next [N]'
      Advance N (or one) lines, skipping subroutine calls.
@@ -811,6 +837,7 @@ Function Index
 * sepia-perldoc-this:                    Documentation.        (line 12)
 * sepia-perlize-region:                  Mutilation.           (line 20)
 * sepia-rebuild:                         Navigation.           (line 89)
+* sepia-rename-lexical:                  Other commands.       (line  7)
 * sepia-repl:                            Interactive Perl.     (line  6)
 * sepia-scratch:                         Scratchpad.           (line  6)
 * sepia-set-cwd:                         Evaluation.           (line 28)
@@ -847,22 +874,23 @@ Node: Getting Started987
 Node: Philosophy1612
 Node: Related Work4639
 Node: Editing5805
-Node: Completion6267
-Node: Navigation8159
-Node: Documentation11508
-Node: Interactive Perl13055
-Node: Shortcuts13792
-Node: Debugger15993
-Node: Evaluation17652
-Node: Mutilation18628
-Node: Scratchpad19580
-Node: CPAN browsing19985
-Node: Customization20979
-Node: Emacs Variables21277
-Node: Perl Variables23772
-Node: Internals25259
-Node: Credits25619
-Node: Function Index26077
-Node: Variable Index28777
+Node: Completion6286
+Node: Navigation8178
+Node: Documentation11527
+Node: Other commands13097
+Node: Interactive Perl13432
+Node: Shortcuts14169
+Node: Debugger17214
+Node: Evaluation18758
+Node: Mutilation19734
+Node: Scratchpad20686
+Node: CPAN browsing21091
+Node: Customization22085
+Node: Emacs Variables22383
+Node: Perl Variables24878
+Node: Internals26365
+Node: Credits26725
+Node: Function Index27183
+Node: Variable Index29956
 
 End Tag Table

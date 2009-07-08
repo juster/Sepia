@@ -187,6 +187,7 @@ completion.
 * Completion::                  
 * Navigation::                  
 * Documentation::               
+* Other commands::              
 @end menu
 
 @node Completion, Navigation, Editing, Editing
@@ -365,7 +366,7 @@ Execute the @code{find-tag} command typically bound to @key{M-.}.
 
 @end table
 
-@node Documentation,  , Navigation, Editing
+@node Documentation, Other commands, Navigation, Editing
 @section Documentation
 
 Sepia can be used to browse installed modules' documentation, to format
@@ -411,6 +412,18 @@ also display the first version of Perl with which a module was shipped.
 This is intended to give the programmer a sense of when he is creating
 external dependencies.
 
+@node Other commands,  , Documentation, Editing
+@section Other commands
+
+@table @kbd
+@item M-x sepia-rename-lexical
+@findex sepia-rename-lexical
+Rename a variable in the function at point, querying for each
+replacement when called with a prefix argument.  Currently, this is only
+a thin wrapper around @code{query-replace}.
+@end table
+
+
 @c ============================================================
 @node Interactive Perl, CPAN browsing, Editing, Top
 @chapter Interactive Perl
@@ -439,11 +452,16 @@ Perl, and commands to process buffer text using the inferior process.
 
 ``Shortcuts'' are commands handled specially by the REPL rather than
 being evaluated as Perl code.  They either communicate with the REPL
-function, or provide a convenient interface to variables in the Sepia
-package.  Shortcuts are prefixed by a comma (@key{,}), and may be
-abbreviated to the shortest unique prefix.
+function, or provide a convenient interface to Sepia variables and
+functions.  Shortcuts are prefixed by a comma (@key{,}), and may be
+abbreviated to the shortest unique prefix.  The debugger defines
+additional shortcuts (@xref{Debugger}.).
 
 @table @kbd
+@item break @var{file}:@var{line} [@var{expr}]
+Set a breakpoint in @var{file} at @var{line}.  If @var{expr} is
+supplied, stop only if it evaluates to true.
+
 @item cd @var{dir}
 Change Perl's current directory to @var{dir}.
 
@@ -455,9 +473,6 @@ Define @var{name} as a shortcut for Perl code @var{body}, with optional
 documentation @var{doc}, surrounded by single quotes.  @var{body} is
 passed the raw command-line text as its first argument.
 
-@item delete
-Delete the current breakpoint.
-
 @item format @var{type}
 Set the output format to @var{type}, either ``dumper'' (using
 @code{Data::Dumper}), ``dump'' (@code{Data::Dump}), ``yaml''
@@ -465,6 +480,10 @@ Set the output format to @var{type}, either ``dumper'' (using
 
 @item help
 Display a list of shortcuts.
+
+@item load [@var{file}]
+Reload saved variables from @var{file} (or @file{~/.sepia-save}),
+created by @kbd{save}.
 
 @item lsbreak
 List breakpoints.
@@ -484,11 +503,23 @@ Exit the inferior Perl process.
 
 @item reload
 Reload @file{Sepia.pm} and recursively invoke the REPL.  This command is
-mostly of interest when working on Sepia itself.
+mostly of interest when working on Sepia itself, and will fail
+catastrophically if @file{Sepia.pm} fails to compile.
+
+@item save [@var{pattern} [@var{file}]]
+Save variables matching @var{pattern} (or all variables) to @var{file}
+(or @file{~/.sepia-save}) in @code{Storable} format.  Note that because
+saving magic variables can have unpredictable results, using @kbd{save}
+without a pattern argument is risky.  Sepia excludes common magic
+variables and dangerous packages, but its list is not foolproof.
 
 @item shell [@var{command}]
 Execute shell command @var{command}, displaying its standard output and
 standard error.
+
+@item size [@var{package} [@var{regexp}]]
+List the variables in @var{package} (or the current package) along with
+their total sizes.  This requires the @code{Devel::Size} module.
 
 @item strict [@var{val}]
 Set evaluation strictness to @var{val}, or toggle it if @var{val} is not
@@ -527,9 +558,8 @@ The debugger has its own set of shortcuts, also prefixed by a comma.
 @item backtrace
 Show a backtrace.
 
-@item break @var{file}:@var{line} [@var{expr}]
-Set a breakpoint in @var{file} at @var{line}.  If @var{expr} is
-supplied, stop only if it evaluates to true.
+@item delete
+Delete the current breakpoint.
 
 @item down @var{n}
 @itemx up @var{n}
@@ -538,9 +568,6 @@ Move the current stack frame up or down by @var{n} (or one) frames.
 @item inspect [@var{n}]
 Inspect lexicals in the current frame or frame @var{n}, counting upward
 from 1.
-
-@item lsbreak
-List breakpoints.
 
 @item next [@var{n}]
 Advance @var{n} (or one) lines, skipping subroutine calls.
