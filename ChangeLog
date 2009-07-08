@@ -1,3 +1,8 @@
+2009-07-05  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.el (sepia-rename-lexical): New function; a small wrapper
+	around query-replace(-regexp).
+
 2009-05-03  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* t/02completion.t (ok_comp): adjust for completion changes.
