@@ -27,6 +27,8 @@ use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
 use Cwd 'abs_path';
 use Scalar::Util 'looks_like_number';
 use Text::Abbrev;
+use File::Find;
+use Storable qw(store retrieve);
 
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
             @REPL_RESULT @res
@@ -738,13 +740,62 @@ sub flow
     $_
 }
 
+sub load
+{
+    my $a = shift;
+    no strict;
+    for (@$a) {
+        *{$_->[0]} = $_->[1];
+    }
+}
+
+my %BADVARS;
+undef @BADVARS{qw(%INC @INC %SIG @ISA %ENV @ARGV)};
+
+# magic variables
+sub saveable
+{
+    local $_ = shift;
+    return !/^.[^c-zA-Z]$/ # single-letter stuff (match vars, $_, etc.)
+        && !/^.[\0-\060]/         # magic weirdness.
+        && !/^._</        # debugger info
+        && !exists $BADVARS{$_}; # others.
+}
+
+sub save
+{
+    my ($re) = @_;
+    my @save;
+    $re = qr/(?:^|::)$re/;
+    no strict;                  # no kidding...
+    my_walksymtable {
+        return if /::$/
+            || $stash =~ /^(?:::)?(?:warnings|Config|strict|B)\b/;
+        if (/$re/) {
+            my $name = "$stash$_";
+            if (defined ${$name} and saveable '$'.$_) {
+                push @save, [$name, \$$name];
+            }
+            if (defined *{$name}{HASH} and saveable '%'.$_) {
+                push @save, [$name, \%{$name}];
+            }
+            if (defined *{$name}{ARRAY} and saveable '@'.$_) {
+                push @save, [$name, \@{$name}];
+            }
+        }
+    } '::';
+    print STDERR "$_->[0] " for @save;
+    print STDERR "\n";
+    \@save;
+}
+
 =head2 C<define_shortcut $name, $sub [, $doc [, $shortdoc]]>
 
 Define $name as a shortcut for function $sub.
 
 =cut
 
-    sub define_shortcut
+sub define_shortcut
 {
     my ($name, $doc, $short, $fn);
     if (@_ == 2) {
@@ -801,6 +852,12 @@ sub define_shortcuts
             'Define NAME as a shortcut executing BODY';
     define_shortcut undef => \&Sepia::repl_undef,
         'undef NAME', 'Undefine shortcut NAME';
+    define_shortcut test => \&Sepia::repl_test,
+        'test FILE...', 'Run tests interactively.';
+    define_shortcut load => \&Sepia::repl_load,
+        'load [FILE]', 'Load state from FILE.';
+    define_shortcut save => \&Sepia::repl_save,
+        'save [PATTERN [FILE]]', 'Save variables matching PATTERN to FILE.';
 }
 
 sub repl_help
@@ -1067,6 +1124,43 @@ sub repl_eval
             scalar eval $buf;
         }
     }
+}
+
+sub repl_test
+{
+    my ($buf) = @_;
+    my @files;
+    if ($buf =~ /\S/) {
+        $buf =~ s/^\s+//;
+        $buf =~ s/\s+$//;
+        if (-f $buf) {
+            push @files, $buf;
+        } elsif (-f "t/$buf") {
+            push @files, $buf;
+        } else {
+            return;
+        }
+    } else {
+        find({ no_chdir => 1,
+               wanted => sub {
+                   push @files, $_ if /\.t$/;
+            }}, Cwd::getcwd() =~ /t\/?$/ ? '.' : './t');
+    }
+}
+
+sub repl_load
+{
+    my ($file) = split ' ', shift;
+    $file ||= "$ENV{HOME}/.sepia-save";
+    load(retrieve $file);
+}
+
+sub repl_save
+{
+    my ($re, $file) = split ' ', shift;
+    $re ||= '.';
+    $file ||= "$ENV{HOME}/.sepia-save";
+    store save($re), $file;
 }
 
 ## Collects warnings for REPL
