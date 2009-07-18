@@ -33,7 +33,7 @@ use Storable qw(store retrieve);
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
             @REPL_RESULT @res
             $REPL_LEVEL $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
-            $ISEVAL);
+            $ISEVAL $LAST_INPUT);
 
 sub repl_strict
 {
@@ -252,6 +252,21 @@ sub all_completions
     map { s/^:://; $_ } _completions('::', @parts);
 }
 
+# Filter exact matches so that e.g. "A::x" completes to "A::xx" when
+# both "Ay::xx" and "A::xx" exist.
+sub filter_exact_prefix
+{
+    my @parts = split /:+/, shift, -1;
+    my @res = @_;
+    my @tmp;
+    my $pre = shift @parts;
+    while (@parts && (@tmp = grep /^\Q$pre\E(?:::|$)/, @res)) {
+        @res = @tmp;
+        $pre .= '::'.shift @parts;
+    }
+    @res;
+}
+
 sub lexical_completions
 {
     eval { require PadWalker; import PadWalker 'peek_sub' };
@@ -296,7 +311,7 @@ sub completions
             $type ? filter_typed $type : filter_untyped
         } all_abbrev_completions $str;
     }
-    @ret = map { s/^:://; "$t$_" } @ret;
+    @ret = map { s/^:://; "$t$_" } filter_exact_prefix $str, @ret;
 #     ## XXX: Control characters, $", and $1, etc. confuse Emacs, so
 #     ## remove them.
     grep {
@@ -1295,6 +1310,14 @@ sub repl
             @warn = ();
             unless ($SIG{__WARN__}) {
                 $SIG{__WARN__} = 'Sepia::sig_warn';
+            }
+            if (!$ISEVAL) {
+                if ($buf eq '') {
+                    # repeat last interactive command
+                    $buf = $LAST_INPUT;
+                } else {
+                    $LAST_INPUT = $buf;
+                }
             }
             if ($buf =~ /^,(\S+)\s*(.*)/s) {
                 ## Inspector shortcuts
