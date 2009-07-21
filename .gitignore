@@ -13,3 +13,7 @@ blib
 *.vr
 Makefile
 Makefile.old
+
+/Sepia.html
+/pm_to_blib
+/sepia.???
