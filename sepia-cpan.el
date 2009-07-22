@@ -11,7 +11,13 @@
 (defun sepia-cpan-doc (mod)
   "Browse the online Perldoc for MOD."
   (interactive "sModule: ")
-  (browse-url (concat "http://search.cpan.org/perldoc?" mod)))
+  (let ((buf
+         (save-window-excursion
+           (and
+            (browse-url (concat "http://search.cpan.org/perldoc?" mod))
+            (current-buffer)))))
+    (when buf
+      (pop-to-buffer buf))))
 
 ;;;###autoload
 (defun sepia-cpan-readme (mod)
@@ -101,9 +107,9 @@
   (let ((inhibit-read-only t))
     (erase-buffer))
   (remove-overlays)
-  (insert title "\
-    [r]eadme, [d]ocumentation, [i]nstall,
-    [s]earch-by-name, [/][S]earch-by-description, [l]ist-for-author, [q]uit
+  (insert title "
+    [r]eadme, [d]ocumentation, [i]nstall, [q]uit,
+    [s]earch-by-name, [/][S]earch-by-description, [l]ist-for-author
 
 ")
   (when (consp mods)
