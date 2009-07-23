@@ -1,9 +1,12 @@
 ;;; Sepia -- Simple Emacs-Perl InterAction: ugly, yet effective.
-;;; (a.k.a. Septik -- Sean's Emacs-Perl Total Integration Kludge.)
+;;  (a.k.a. Septik -- Sean's Emacs-Perl Total Integration Kludge.)
 
-;; Copyright (C) 2004-2008 Sean O'Rourke.  All rights reserved, some
-;; wrongs reversed.  This code is distributed under the same terms as
-;; Perl itself.
+;; Author: Sean O'Rourke <seano@cpan.org>
+;; Keywords: Perl, languages
+
+;; Copyright (C) 2004-2009 Sean O'Rourke.  All rights reserved, some
+;;   wrongs reversed.  This code is distributed under the same terms
+;;   as Perl itself.
 
 ;;; Commentary:
 
