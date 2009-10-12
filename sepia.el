@@ -1169,6 +1169,7 @@ Does not require loading.")
                  (mod-file "Find the file defining a package.")
                  (apropos "Find subnames matching RE.")
                  (lexicals "Find lexicals for a sub.")
+                 (apropos-module "Find installed modules matching RE.")
                  ))
       (apply #'define-xref-function "Sepia" x))
 
@@ -1289,7 +1290,7 @@ prefix arg, replace the region with the result."
 
 \(i.e. evaluate an expression on each line of region).  With
 prefix arg, replace the region with the result."
-  (interactive "MExpression:\nr\nP")
+  (interactive "MExpression: \nr\nP")
   (sepia-perlize-region-internal
    "do { my $ret='';my $region = "
    (concat "; for (split /(?<=\\n)/, $region, -1) { $ret .= do { " expr
@@ -1300,7 +1301,7 @@ prefix arg, replace the region with the result."
   "Evaluate a Perl expression on the region as a whole.
 
 With prefix arg, replace the region with the result."
-  (interactive "MExpression:\nr\nP")
+  (interactive "MExpression: \nr\nP")
   (sepia-perlize-region-internal
    "do { local $_ = " (concat "; do { " expr ";}; $_ }") beg end replace-p))
 
@@ -1327,6 +1328,15 @@ With prefix arg, replace the region with the result."
 	     (fourth (find-if (lambda (x) (equal (car x) file)) defs)))
 	;; (car (xref-file-modules file))
 	(sepia-buffer-package))))
+
+;;;###autoload
+(defun sepia-apropos-module (name)
+  (interactive "MList modules matching regexp: ")
+  (let ((res (xref-apropos-module name)))
+    (if res
+        (with-output-to-temp-buffer "*Modules*"
+          (display-completion-list res))
+      (message "No modules matching %s." name))))
 
 ;;;###autoload
 (defun sepia-eval-defun ()
@@ -1527,7 +1537,7 @@ calling `cperl-describe-perl-symbol'."
                   (if (and
                        (let ((bol (save-excursion (beginning-of-line)
                                                   (point))))
-                         (looking-back " *\\(?:use\\|require\\|package\\) +[^ ]+" bol))
+                         (looking-back " *\\(?:use\\|require\\|package\\|no\\)\\s +[^ ]*" bol))
                        (sepia-looks-like-module obj))
                       (sepia-core-version obj)
                       ""))))
