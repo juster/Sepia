@@ -1493,6 +1493,22 @@ sub html_package_list
     $file ? 1 : $out;
 }
 
+sub apropos_module
+{
+    my $re = qr/$_[0]/;
+    my $inst = inst();
+    my %ret;
+    for (package_list) {
+        undef $ret{$_} if /$re/;
+    }
+    undef $ret{$_} for map {
+        s/.*man.\///; s|/|::|g; s/\.\d(?:pm)?$//; $_
+    } grep {
+        /\.\d(?:pm)?$/ && !/man1/ && !/usr\/bin/ && /$re/
+    } $inst->files('Perl');
+    sort keys %ret;
+}
+
 1;
 __END__
 

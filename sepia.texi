@@ -316,6 +316,12 @@ Find the source of module @var{name}.
 @findex sepia-apropos
 Find definitions of all functions whose names match @var{regexp}.
 
+@item M-x sepia-apropos-module @var{regexp} @key{RET}
+@findex sepia-apropos-module
+Find all installed modules matching @var{regexp}.  This function may be
+slow the first time it is called, because it has to build a list of
+installed modules.
+
 @item M-. c @var{name} @key{RET}
 @itemx M-x sepia-callers @var{name} @key{RET}
 @findex sepia-callers
@@ -827,8 +833,8 @@ Additional REPL shortcuts can be defined with
 @kbd{Sepia::define_shortcut}.  For example
 
 @example
-Sepia::define_shortcut time => sub @{ print scalar localtime, "\n"; 0 @},
-    'Display the current time.';
+Sepia::define_shortcut time => sub @{ print scalar localtime, "\n" @},
+    'time', 'Display the current time.';
 @end example
 
 defines a shortcut ``time'' that displays the current time.  For
