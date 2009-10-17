@@ -853,7 +853,7 @@ sub define_shortcuts
         'strict [0|1]', 'Turn \'use strict\' mode on or off';
     define_shortcut 'quit', \&Sepia::repl_quit,
         'Quit the REPL';
-    define_shortcut 'reload', \&Sepia::repl_reload,
+    define_shortcut 'restart', \&Sepia::repl_restart,
         'Reload Sepia.pm and relaunch the REPL.';
     define_shortcut 'shell', \&Sepia::repl_shell,
         'shell CMD ...', 'Run CMD in the shell';
@@ -873,6 +873,10 @@ sub define_shortcuts
         'load [FILE]', 'Load state from FILE.';
     define_shortcut save => \&Sepia::repl_save,
         'save [PATTERN [FILE]]', 'Save variables matching PATTERN to FILE.';
+    define_shortcut reload => \&Sepia::repl_reload,
+        'reload [MODULE | /RE/]', 'Reload MODULE, or all modules matching RE.';
+    define_shortcut freload => \&Sepia::repl_full_reload,
+        'freload MODULE', 'Reload MODULE and all its dependencies.';
 }
 
 sub repl_help
@@ -1097,11 +1101,11 @@ sub repl_quit
     last repl;
 }
 
-sub repl_reload
+sub repl_restart
 {
     do $INC{'Sepia.pm'};
     if ($@) {
-        print "Reload failed:\n$@\n";
+        print "Restart failed:\n$@\n";
     } else {
         $REPL_LEVEL = 0;        # ok?
         goto &Sepia::repl;
@@ -1176,6 +1180,68 @@ sub repl_save
     $re ||= '.';
     $file ||= "$ENV{HOME}/.sepia-save";
     store save($re), $file;
+}
+
+sub full_reload
+{
+    (my $name = shift) =~ s!::!/!g;
+    $name .= '.pm';
+    print STDERR "full reload $name\n";
+    my %save_inc = %INC;
+    local %INC;
+    require $name;
+    my @ret = keys %INC;
+    while (my ($k, $v) = each %save_inc) {
+        $INC{$k} ||= $v;
+    }
+    @ret;
+}
+
+sub repl_full_reload
+{
+    chomp (my $pat = shift);
+    my @x = full_reload $pat;
+    print "Reloaded: @x\n";
+}
+
+sub repl_reload
+{
+    chomp (my $pat = shift);
+    if ($pat =~ /^\/(.*)\/?$/) {
+        $pat = $1;
+        $pat =~ s#::#/#g;
+        $pat = qr/$pat/;
+        my @rel;
+        for (keys %INC) {
+            next unless /$pat/;
+            if (!do $_) {
+                print "$_: $@\n";
+            }
+            s#/#::#g;
+            s/\.pm$//;
+            push @rel, $_;
+        }
+    } else {
+        my $mod = $pat;
+        $pat =~ s#::#/#g;
+        $pat .= '.pm';
+        if (exists $INC{$pat}) {
+            delete $INC{$pat};
+            eval 'require $mod';
+            import $mod if $@;
+            print "Reloaded $mod.\n"
+        } else {
+            print "$mod not loaded.\n"
+        }
+    }
+}
+
+sub repl_full_reload
+{
+    my $res = full_reload shift;
+    for (keys %$res) {
+        print "$_\t$res->{$_}\n";
+    }
 }
 
 ## Collects warnings for REPL

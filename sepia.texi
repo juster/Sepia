@@ -510,7 +510,14 @@ Show the process's current working directory.
 @item quit
 Exit the inferior Perl process.
 
-@item reload
+@item reload [@var{module} | @var{/pattern/}]
+Reload @var{module} (but not its dependencies), or all modules matching
+@var{pattern}.
+
+@item freload @var{module}
+Reload @var{module} and all of its dependencies.
+
+@item restart
 Reload @file{Sepia.pm} and recursively invoke the REPL.  This command is
 mostly of interest when working on Sepia itself, and will fail
 catastrophically if @file{Sepia.pm} fails to compile.
