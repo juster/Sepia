@@ -1236,14 +1236,6 @@ sub repl_reload
     }
 }
 
-sub repl_full_reload
-{
-    my $res = full_reload shift;
-    for (keys %$res) {
-        print "$_\t$res->{$_}\n";
-    }
-}
-
 ## Collects warnings for REPL
 my @warn;
 
