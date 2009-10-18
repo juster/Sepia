@@ -71,18 +71,7 @@
   (let ((sepia-cpan-button (this-command-keys)))
     (push-button)))
 
-(defvar sepia-cpan-mode-map
-  (let ((km (make-sparse-keymap)))
-    (set-keymap-parent km button-map)
-    ;; (define-key km "q" 'bury-buffer)
-    (define-key km "/" 'sepia-cpan-desc)
-    (define-key km "S" 'sepia-cpan-desc)
-    (define-key km "s" 'sepia-cpan-search)
-    (define-key km "l" 'sepia-cpan-list)
-    (define-key km "R" 'sepia-cpan-recommend)
-    (dolist (k (mapcar #'car sepia-cpan-actions))
-      (define-key km k 'sepia-cpan-button-press))
-    km))
+(defvar sepia-cpan-mode-map)
 
 (define-button-type 'sepia-cpan
   'follow-link nil
@@ -91,7 +80,23 @@
   'keymap sepia-cpan-mode-map)
 
 (define-derived-mode sepia-cpan-mode fundamental-mode "CPAN"
-  "Major mode for CPAN browsing.")
+  "Major mode for CPAN browsing."
+  (setq buffer-read-only t
+        truncate-lines t)
+  (setq sepia-cpan-mode-map
+        (let ((km (make-sparse-keymap)))
+          (set-keymap-parent km button-map)
+          ;; (define-key km "q" 'bury-buffer)
+          (define-key km "/" 'sepia-cpan-desc)
+          (define-key km "S" 'sepia-cpan-desc)
+          (define-key km "s" 'sepia-cpan-search)
+          (define-key km "l" 'sepia-cpan-list)
+          (define-key km "R" 'sepia-cpan-recommend)
+          (define-key km " " 'scroll-up)
+          (define-key km (kbd "DEL") 'scroll-down)
+          (dolist (k (mapcar #'car sepia-cpan-actions))
+            (define-key km k 'sepia-cpan-button-press))
+          km)))
 
 (defun string-repeat (s n)
   "Repeat S N times."
@@ -144,8 +149,7 @@
                   (mapcar (lambda (x) (or (cdr (assoc x mod)) "-")) fields)))
           (make-button beg (+ beg (length (cdr (assoc "id" mod))))
                        :type 'sepia-cpan)))))
-  (setq buffer-read-only t
-        truncate-lines t))
+  (goto-char (point-min)))
 
 ;;;###autoload
 (defun sepia-cpan-list (name)

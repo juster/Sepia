@@ -18,18 +18,27 @@ sub interesting_parts
     } qw(id cpan_version inst_version fullname cpan_file)};
 }
 
-# only list the "root" module of each package.
+# Only list the "root" module of each package, meaning either (1) the
+# module matching the dist name or (2) the module with the shortest
+# name, whichever comes first.
+
+# XXX: this is hacky.
 sub group_by_dist
 {
     my %h;
     for (@_) {
         my $cf = $_->{cpan_file};
-        if (exists $h{$cf}) {
-            if (length $h{$cf}{id} > length $_->{id}) {
-                $h{$cf} = $_;
-            }
-        } else {
+        if (!exists $h{$cf}) {
             $h{$_->{cpan_file}} = $_;
+        } else {
+            (my $tmp = $cf) =~ s/-/::/g;
+            if ($tmp =~ /^\Q$h{$cf}{id}\E/) {
+                next;           # already perfect
+            } elsif ($tmp =~ /^\Q$_->{id}\E/) {
+                $h{$cf} = $_;   # perfect
+            } # elsif (length $h{$cf}{id} > length $_->{id}) {
+            #     $h{$cf} = $_;   # short, at least...
+            # }
         }
     }
     sort { $a->{id} cmp $b->{id} } values %h;
