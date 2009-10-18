@@ -58,11 +58,36 @@ sub repl_return
 use vars qw($DIE_TO @DIE_RETURN $DIE_LEVEL);
 $DIE_LEVEL = 0;
 
+sub xreturn
+{
+    eval q{ use Scope::Upper ':all' };
+    if ($@) {
+        print "xreturn requires Sub::Uplevel.\n";
+        return;
+    } else {
+        *xreturn = eval <<'EOS';
+        sub {
+            my $exp = shift;
+            $exp = '""' unless defined $exp;
+            my $ctx = CALLER($level+4); # XXX: ok?
+            local $Sepia::WANTARRAY = want_at $ctx;
+            my @res = eval_in_env($exp, peek_my($level + 4));
+            print STDERR "unwind(@res)\n";
+            unwind @res, SUB UP $ctx;
+        };
+EOS
+        goto &xreturn;
+    }
+}
+
 sub repl_xreturn
 {
-    ($DB::DIE_TO, $DB::DIE_RETURN[0]) = split ' ', $_[0], 2;
-    $DB::DIE_RETURN[0] = $Sepia::REPL{eval}->($DB::DIE_RETURN[0]);
-    last SEPIA_DB_SUB;
+    print STDERR "XRETURN(@_)\n";
+    xreturn(shift);             # XXX: doesn't return.  Problem?
+    print STDERR "XRETURN: XXX\n";
+    # ($DB::DIE_TO, $DB::DIE_RETURN[0]) = split ' ', $_[0], 2;
+    # $DB::DIE_RETURN[0] = $Sepia::REPL{eval}->($DB::DIE_RETURN[0]);
+    # last SEPIA_DB_SUB;
 }
 
 # { package DB;
@@ -118,7 +143,9 @@ sub eval_in_env
         next unless /^([\$\@%])(.+)/;
         $str .= "local *$2 = \$Sepia::ENV->{'$_'}; ";
     }
-    eval "do { no strict; package $Sepia::PACKAGE; $str $expr }";
+    $str = "do { no strict; package $Sepia::PACKAGE; $str $expr }";
+    return $Sepia::WANTARRAY ? eval $str : scalar eval $str;
+
 }
 
 sub tie_class
@@ -148,9 +175,15 @@ sub eval_in_env2
 }
 
 # evaluate EXP LEV levels up the stack
+#
+# NOTE: We need to act like &repl_eval here and consider e.g. $WANTARRAY
 sub repl_upeval
 {
-    eval_in_env(shift, peek_my(4+$level));
+    # if ($Sepia::WANTARRAY) {
+    return eval_in_env(shift, peek_my(4+$level));
+    # } else {
+    #     return scalar eval_in_env(shift, peek_my(4+$level));
+    # }
 }
 
 # inspect lexicals at level N, or current level
@@ -329,8 +362,8 @@ sub add_debug_repl_commands
     define_shortcut inspect => \&repl_inspect,
         'inspect [N]', 'inspect lexicals in frame N (or current)';
     define_shortcut return => \&repl_return, 'return EXPR', 'return EXPR';
-    # define_shortcut xreturn => \&repl_xreturn, 'xreturn NAME EXPR',
-    #     'xreturn NAME EXPR';
+    # define_shortcut xreturn => \&repl_xreturn, 'xreturn EXPR',
+    #     'return EXPR from the current sub.';
     define_shortcut eval => \&repl_upeval,
         'eval EXPR', 'evaluate EXPR in current frame';      # DANGER!
 }

@@ -16,3 +16,25 @@ sub fib2 {
         return fib2($n-1) + fib2($n-2)
     }
 }
+
+sub rec
+{
+    my $n = shift;
+    print "rec($n)\n";
+    my $ret;
+    if ($n == 0) {
+        $ret = 0;
+    } else {
+        $ret = rec($n - 1);
+    }
+    print $ret+1, " = rec($n)\n";
+    return $ret + 1;
+}
+
+sub crec
+{
+    print STDERR "crec(@_)\n";
+    my $ret = rec(@_);
+    print STDERR "$ret = crec(@_)\n";
+    return $ret;
+}
