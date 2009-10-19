@@ -1,3 +1,9 @@
+2009-10-19  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia-cpan.el (sepia-cpan-mode-map): initialize in definition;
+	oops!
+	* VERSION: 0.991
+
 2009-10-18  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia/CPAN.pm (group_by_dist): better heuristic.
