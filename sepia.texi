@@ -542,6 +542,10 @@ Set evaluation strictness to @var{val}, or toggle it if @var{val} is not
 given.  Note that turning strictness off and on clears the REPL's
 lexical environment.
 
+@item test [@var{file}]
+Run tests in the current directory.  If @var{file} is given, only run
+test @var{file} or @file{t/@var{file}}
+
 @item undef @var{name}
 Undefine shortcut @var{name}.  @strong{Warning}: this can equally be
 used to remove built-in shortcuts.

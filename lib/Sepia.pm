@@ -93,13 +93,11 @@ sub repl_size
             } elsif (!$re && !%{$pkg.'::'}) {
                 $re = $pkg;
                 $pkg = $PACKAGE;
-            } else {
-                $re = '';
-                $pkg = $PACKAGE;
             }
             my @who = who($pkg, $re);
             my $len = max(3, map { length } @who) + 4;
             my $fmt = '%-'.$len."s%10d\n";
+            # print "$pkg\::/$re/\n";
             print 'Var', ' ' x ($len + 2), "Bytes\n";
             print '-' x ($len-4), ' ' x 9, '-' x 5, "\n";
             my %res;
@@ -1156,14 +1154,19 @@ sub repl_test
             push @files, $buf;
         } elsif (-f "t/$buf") {
             push @files, $buf;
-        } else {
-            return;
         }
     } else {
         find({ no_chdir => 1,
                wanted => sub {
                    push @files, $_ if /\.t$/;
             }}, Cwd::getcwd() =~ /t\/?$/ ? '.' : './t');
+    }
+    if (@files) {
+        # XXX: this is cribbed from an EU::MM-generated Makefile.
+        system $^X, qw(-MExtUtils::Command::MM -e),
+            "test_harness(0, 'blib/lib', 'blib/arch')", @files;
+     } else {
+        print "No test files for '$buf' in ", Cwd::getcwd, "\n";
     }
 }
 
