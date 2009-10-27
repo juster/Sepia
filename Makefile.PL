@@ -30,11 +30,12 @@ sub test_for
     }
 }
 
-test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
+test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
 test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
 test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
-test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
 test_for 'Module::Info', 'Required for some Emacs functions';
+test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
+# test_for 'Pod::Webserver', 'Pod::Webserver creates nice documentation.';
 # test_for 'Scope::Upper', 'Required for return-from-context';
 
 WriteMakefile(
