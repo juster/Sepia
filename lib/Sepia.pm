@@ -694,6 +694,21 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         } else {
             Data::Dump::dump(\@res);
         }
+    },
+    peek => sub {
+        eval {
+            require Devel::Peek;
+            require IO::Scalar;
+        };
+        if ($@) {
+            $PRINTER{dumper}->();
+        } else {
+            my $ret = new IO::Scalar;
+            my $out = select $ret;
+            Devel::Peek::Dump(@res == 1 ? $res[0] : \@res);
+            select $out;
+            $ret;
+        }
     }
 );
 

@@ -30,7 +30,9 @@ sub test_for
     }
 }
 
+test_for 'Devel::Peek', 'Printing internals requires Devel::Peek';
 test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
+test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks.';
 test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
 test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
 test_for 'Module::Info', 'Required for some Emacs functions';
