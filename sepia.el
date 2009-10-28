@@ -1118,8 +1118,12 @@ This function is intended to be bound to TAB."
                (not (bolp))
                (or (eq last-command 'sepia-indent-or-complete)
                    (looking-at "\\_>")))
-      (unless (and sepia-indent-expand-abbrev
-                   (expand-abbrev))
+      (when (or (not sepia-indent-expand-abbrev)
+                (and (not (expand-abbrev))
+                     ;; XXX this shouldn't be necessary, but
+                     ;; expand-abbrev returns NIL for e.g. the "else"
+                     ;; snippet.
+                     (= pos (point))))
         (sepia-complete-symbol)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

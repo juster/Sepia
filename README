@@ -53,8 +53,6 @@ run on other versions of Emacs, but may require additional packages.
 
    This can be done with a clever DB::sub, but that dramatically slows
    down execution.
-** (Easy) Fix sepia-indent-or-complete abbrev expansion
-   Currently "else<TAB>" both expands and completes.
 ** (Medium) fix `sepia-beginning-of-defun' and `sepia-end-of-defun'.
    While they work for "normal" sub definitions, they fail on
    definitions that are all on one line, e.g.
