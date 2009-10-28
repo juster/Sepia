@@ -2,6 +2,7 @@
 
 	* sepia.el (sepia-indent-or-complete): work around bug where
 	expand-abbrev returns nil even though it expanded.
+	(sepia-looks-like-module): use xref-apropos-module.
 
 2009-10-19  Sean O'Rourke  <seano@cs.ucla.edu>
 

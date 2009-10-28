@@ -1516,10 +1516,12 @@ used for eldoc feedback."
 
 (defun sepia-looks-like-module (obj)
   (let (case-fold-search)
-    (or (string-match "^\\([A-Z][A-Za-z0-9]*::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
-        (string-match
+    (or (string-match
          (eval-when-compile (regexp-opt '("strict" "vars" "warnings" "lib")))
-         obj))))
+         obj)
+        (and
+         (string-match "^\\([A-Z][A-Za-z0-9]*::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
+         (xref-apropos-module obj)))))
 
 (defun sepia-symbol-info (&optional obj type)
   "Eldoc function for Sepia-mode.
