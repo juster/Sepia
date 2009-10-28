@@ -1064,6 +1064,17 @@ The function is intended to be bound to \\M-TAB, like
                              (cadr meth)
                              "Sepia::repl_eval")
                 type (format "%s->" (car meth)))))
+      ;; 1.x - look for a module
+      (unless completions
+        (setq completions
+              (and (looking-back " *\\(?:use\\|require\\|package\\|no\\)\\s +[^ ]*" (sepia-bol-from (point)))
+                   (xref-apropos-module
+                    (multiple-value-bind (typ name)
+                        (sepia-ident-before-point)
+                      (setq len (length name))
+                      name))
+              )))
+
       (multiple-value-bind (typ name) (sepia-ident-before-point)
         (unless completions
           ;; 2 - look for a regular function/variable/whatever

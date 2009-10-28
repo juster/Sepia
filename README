@@ -40,7 +40,6 @@ run on other versions of Emacs, but may require additional packages.
     ja-nkf-2.05
 
 * TODO
-** (Medium) implement mod_apropos
 ** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.
 ** (Hard) Use module, file, line to filter results (Emacs side)
