@@ -1335,6 +1335,7 @@ With prefix arg, replace the region with the result."
 
 ;;;###autoload
 (defun sepia-apropos-module (name)
+  "List installed modules matching a regexp."
   (interactive "MList modules matching regexp: ")
   (let ((res (xref-apropos-module name)))
     (if res

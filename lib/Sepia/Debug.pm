@@ -11,7 +11,8 @@ sub define_shortcut;
 
 BEGIN {
     ## Just leave it on -- with $DB::trace = 0, there doesn't seem
-    ## to be a perforamnce penalty!
+    ## to be a performance penalty!
+    ## enter/exit | per-line | sub locations | eval filenames | anon subnames
     $^P = 0x313;                # 01 | 02 | 10 | 100 | 200
     $STOPDIE = 1;
     $STOPWARN = 0;
