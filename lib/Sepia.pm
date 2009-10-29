@@ -1335,7 +1335,7 @@ If zero, then initialization takes place.
 
 =cut
 
-sub repl
+sub repl_setup
 {
     $| = 1;
     if ($REPL_LEVEL == 0) {
@@ -1343,6 +1343,14 @@ sub repl
         -f "$ENV{HOME}/.sepiarc" and do "$ENV{HOME}/.sepiarc";
         warn ".sepiarc: $@\n" if $@;
     }
+    Sepia::Debug::add_repl_commands;
+    repl_banner if $REPL_LEVEL == 1;
+    print prompt;
+}
+
+sub repl
+{
+    repl_setup;
     local $REPL_LEVEL = $REPL_LEVEL + 1;
 
     my $in;
@@ -1355,9 +1363,6 @@ sub repl
     local *CORE::GLOBAL::die = \&Sepia::Debug::die;
     local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
     local @REPL_RESULT;
-    Sepia::Debug::add_repl_commands;
-    repl_banner if $REPL_LEVEL == 1;
-    print prompt;
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
     $SIG{$_} = $nextrepl for @sigs;
