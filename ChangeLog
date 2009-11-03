@@ -1,3 +1,11 @@
+2009-11-02  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/Sepia.pm (location): change to work on only one location,
+	since that's how it's used.
+	(define_shortcuts): tweak.
+	(repl_setup): fix $REPL_LEVEL bug.
+	(repl,repl_quit): make quitting from restarted REPLs.
+
 2009-10-28  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* sepia.el (sepia-indent-or-complete): work around bug where

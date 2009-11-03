@@ -31,9 +31,9 @@ use File::Find;
 use Storable qw(store retrieve);
 
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
-            @REPL_RESULT @res
-            $REPL_LEVEL $PACKAGE $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY
-            $ISEVAL $LAST_INPUT);
+            @REPL_RESULT @res $REPL_LEVEL $REPL_QUIT $PACKAGE
+            $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY $ISEVAL
+            $LAST_INPUT);
 
 sub repl_strict
 {
@@ -335,50 +335,40 @@ sub method_completions
     }
 }
 
-=head2 C<@locs = location(@names)>
+=head2 C<[$file, $line, $name] = location($name)>
 
-Return a list of [file, line, name] triples, one for each function
-name in C<@names>.
+Return a [file, line, name] triple for C<$name>.
 
 =cut
 
 sub location
 {
     no strict;
-    my @x= map {
-        my $str = $_;
-        if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
-            if ($pfx) {
-                warn "Sorry -- can't lookup variables.";
-                [];
-            } else {
-                # XXX: svref_2object only seems to work with a package
-                # tacked on, but that should probably be done
-                # elsewhere...
-                $name = 'main::'.$name unless $name =~ /::/;
-                my $cv = B::svref_2object(\&{$name});
-                if ($cv && defined($cv = $cv->START) && !$cv->isa('B::NULL')) {
-                    my ($file, $line) = ($cv->file, $cv->line);
-                    if ($file !~ /^\//) {
-                        for (@INC) {
-                            if (-f "$_/$file") {
-                                $file = "$_/$file";
-                                last;
-                            }
+    my $str = shift;
+    if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
+        if ($pfx) {
+            warn "Sorry -- can't lookup variables.";
+        } else {
+            # XXX: svref_2object only seems to work with a package
+            # tacked on, but that should probably be done elsewhere...
+            $name = 'main::'.$name unless $name =~ /::/;
+            my $cv = B::svref_2object(\&{$name});
+            if ($cv && defined($cv = $cv->START) && !$cv->isa('B::NULL')) {
+                my ($file, $line) = ($cv->file, $cv->line);
+                if ($file !~ /^\//) {
+                    for (@INC) {
+                        if (-f "$_/$file") {
+                            $file = "$_/$file";
+                            last;
                         }
                     }
-                    my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
-                    [Cwd::abs_path($file), $line, $shortname || $name]
-                } else {
-#                    warn "Bad CV for $name: $cv";
-                    [];
                 }
+                my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
+                return [Cwd::abs_path($file), $line, $shortname || $name]
             }
-        } else {
-            []
         }
-    } @_;
-    return @x;
+    }
+    [];
 }
 
 =head2 C<@matches = apropos($name [, $is_regex])>
@@ -876,7 +866,7 @@ sub define_shortcuts
         'size PKG [RE]',
             'List total sizes of objects in PKG matching optional pattern RE.';
     define_shortcut define => \&Sepia::repl_define,
-        'define NAME [\'doc\'] BODY',
+        'define NAME [\'DOC\'] BODY',
             'Define NAME as a shortcut executing BODY';
     define_shortcut undef => \&Sepia::repl_undef,
         'undef NAME', 'Undefine shortcut NAME';
@@ -1111,6 +1101,7 @@ sub repl_package
 
 sub repl_quit
 {
+    $REPL_QUIT = 1;
     last repl;
 }
 
@@ -1344,7 +1335,7 @@ sub repl_setup
         warn ".sepiarc: $@\n" if $@;
     }
     Sepia::Debug::add_repl_commands;
-    repl_banner if $REPL_LEVEL == 1;
+    repl_banner if $REPL_LEVEL == 0;
     print prompt;
 }
 
@@ -1463,6 +1454,7 @@ sub repl
             print_warnings;
             print prompt;
         }
+    last repl if $REPL_QUIT && $REPL_LEVEL > 0;
     wantarray ? @REPL_RESULT : $REPL_RESULT[0]
 }
 
