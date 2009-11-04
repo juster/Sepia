@@ -344,31 +344,32 @@ Return a [file, line, name] triple for C<$name>.
 sub location
 {
     no strict;
-    my $str = shift;
-    if (my ($pfx, $name) = $str =~ /^([\%\$\@]?)(.+)/) {
-        if ($pfx) {
-            warn "Sorry -- can't lookup variables.";
-        } else {
-            # XXX: svref_2object only seems to work with a package
-            # tacked on, but that should probably be done elsewhere...
-            $name = 'main::'.$name unless $name =~ /::/;
-            my $cv = B::svref_2object(\&{$name});
-            if ($cv && defined($cv = $cv->START) && !$cv->isa('B::NULL')) {
-                my ($file, $line) = ($cv->file, $cv->line);
-                if ($file !~ /^\//) {
-                    for (@INC) {
-                        if (-f "$_/$file") {
-                            $file = "$_/$file";
-                            last;
+    map {
+        if (my ($pfx, $name) = /^([\%\$\@]?)(.+)/) {
+            if ($pfx) {
+                warn "Sorry -- can't lookup variables.";
+            } else {
+                # XXX: svref_2object only seems to work with a package
+                # tacked on, but that should probably be done elsewhere...
+                $name = 'main::'.$name unless $name =~ /::/;
+                my $cv = B::svref_2object(\&{$name});
+                if ($cv && defined($cv = $cv->START) && !$cv->isa('B::NULL')) {
+                    my ($file, $line) = ($cv->file, $cv->line);
+                    if ($file !~ /^\//) {
+                        for (@INC) {
+                            if (-f "$_/$file") {
+                                $file = "$_/$file";
+                                last;
+                            }
                         }
                     }
+                    my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
+                    return [Cwd::abs_path($file), $line, $shortname || $name]
                 }
-                my ($shortname) = $name =~ /^(?:.*::)([^:]+)$/;
-                return [Cwd::abs_path($file), $line, $shortname || $name]
             }
         }
-    }
-    [];
+        []
+    } @_;
 }
 
 =head2 C<@matches = apropos($name [, $is_regex])>
@@ -1454,7 +1455,7 @@ sub repl
             print_warnings;
             print prompt;
         }
-    last repl if $REPL_QUIT && $REPL_LEVEL > 0;
+    last repl if $REPL_QUIT && $REPL_LEVEL > 1;
     wantarray ? @REPL_RESULT : $REPL_RESULT[0]
 }
 
