@@ -90,6 +90,9 @@ sub repl_size
             if ($pkg =~ /^\/(.*)\/?$/) {
                 $pkg = $PACKAGE;
                 $re = $1;
+            } elsif (!$pkg) {
+                $pkg = 'main';
+                $re = '.';
             } elsif (!$re && !%{$pkg.'::'}) {
                 $re = $pkg;
                 $pkg = $PACKAGE;
@@ -1455,7 +1458,7 @@ sub repl
             print_warnings;
             print prompt;
         }
-    last repl if $REPL_QUIT && $REPL_LEVEL > 1;
+    exit if $REPL_QUIT;
     wantarray ? @REPL_RESULT : $REPL_RESULT[0]
 }
 
