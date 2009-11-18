@@ -207,7 +207,8 @@ each inferior Perl prompt."
                   ("m" . sepia-module-find)
                   ("n" . sepia-next)
                   ("t" . find-tag)
-                  ("d" . sepia-perldoc-this)))
+                  ("d" . sepia-perldoc-this)
+                  ("u" . sepia-describe-object)))
       (define-key map (car kv) (cdr kv)))
     map)
   "Keymap for Sepia functions.  This is just an example of how you
@@ -359,6 +360,7 @@ Interactive users should call `sepia-view-pod'."
     (set (make-local-variable 'gud-target-name) "sepia")
     (set (make-local-variable 'gud-marker-filter) 'sepia-gud-marker-filter)
     (set (make-local-variable 'gud-minor-mode) 'sepia)
+    (sepia-install-eldoc)
 
     (setq gud-comint-buffer (current-buffer))
     (setq gud-last-last-frame nil)
@@ -376,7 +378,8 @@ Interactive users should call `sepia-view-pod'."
          '(sepia-complete-symbol comint-dynamic-complete-filename))
     (set (make-local-variable 'comint-preoutput-filter-functions)
          '(sepia-watch-for-eval))
-    (run-hooks 'sepia-repl-mode-hook))
+    (run-hooks 'sepia-repl-mode-hook)
+    )
 
 (defvar gud-sepia-acc nil
   "Accumulator for `sepia-gud-marker-filter'.")
@@ -1523,8 +1526,23 @@ used for eldoc feedback."
          (string-match "^\\([A-Z][A-Za-z0-9]*::\\)*[A-Z]+[A-Za-z0-9]+\\sw*$" obj)
          (xref-apropos-module obj)))))
 
+(defun sepia-describe-object (thing)
+  "Display documentation for `thing', like ``describe-function'' for elisp."
+  (interactive
+   (or (cdr (sepia-ident-before-point))
+       (sepia-ident-at-point)))
+  (cond
+   ((gethash thing sepia-perl-builtins)
+    (with-current-buffer (get-buffer-create "*sepia-help*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (shell-command (concat "perldoc -f " thing) (current-buffer))
+        (view-mode 1)
+        (goto-char (point-min))))
+    (pop-to-buffer "*sepia-help*" t))))
+  
 (defun sepia-symbol-info (&optional obj type)
-  "Eldoc function for Sepia-mode.
+  "Eldoc function for `sepia-mode'.
 
 Looks in `sepia-doc-map' and `sepia-var-doc-map', then tries
 calling `cperl-describe-perl-symbol'."
@@ -1636,7 +1654,7 @@ calling `cperl-describe-perl-symbol'."
      (concat "{" (mapconcat #'sepia-lisp-to-perl thing ", ") "}"))))
 
 (defun sepia-init-perl-builtins ()
-  (setq sepia-perl-builtins (make-hash-table))
+  (setq sepia-perl-builtins (make-hash-table :test #'equal))
   (dolist (s '("abs"
 "accept"
 "alarm"

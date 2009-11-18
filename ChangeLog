@@ -1,3 +1,10 @@
+2009-11-18  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.el (sepia-describe-object): new function like
+	describe-function and friends.  Currently only "perldoc -f."
+	(sepia-init-perl-builtins): bugfix.
+	(sepia-repl-mode): turn on eldoc.
+
 2009-11-02  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia.pm (location): change to work on only one location,
