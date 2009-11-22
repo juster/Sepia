@@ -1529,8 +1529,8 @@ used for eldoc feedback."
 (defun sepia-describe-object (thing)
   "Display documentation for `thing', like ``describe-function'' for elisp."
   (interactive
-   (or (cdr (sepia-ident-before-point))
-       (sepia-ident-at-point)))
+   (or (cdr (sepia-ident-at-point))
+       (cdr (sepia-ident-before-point))))
   (cond
    ((gethash thing sepia-perl-builtins)
     (with-current-buffer (get-buffer-create "*sepia-help*")

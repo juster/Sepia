@@ -360,7 +360,7 @@ sub location
                     my ($file, $line) = ($cv->file, $cv->line);
                     if ($file !~ /^\//) {
                         for (@INC) {
-                            if (-f "$_/$file") {
+                            if (!ref $_ && -f "$_/$file") {
                                 $file = "$_/$file";
                                 last;
                             }
