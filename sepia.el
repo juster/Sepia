@@ -924,15 +924,9 @@ also rebuild the xref database."
 (defun sepia-ident-before-point ()
   "Find the Perl identifier at or preceding point."
   (save-excursion
-    (let* ((end (point))
-           (beg (progn
-                  (skip-chars-backward "a-zA-Z0-9_:")
-                  (point)))
-           (sigil (if (= beg (point-min))
-                      nil
-                      (char-before (point)))))
-      (list (when (member sigil '(?$ ?@ ?% ?* ?&)) sigil)
-            (buffer-substring-no-properties beg end)))))
+    (skip-syntax-backward " ")
+    (backward-char 1)
+    (sepia-ident-at-point)))
 
 (defun sepia-simple-method-before-point ()
   "Find the \"simple\" method call before point.
@@ -970,21 +964,30 @@ expressions would lead to disaster."
 (defun sepia-ident-at-point ()
   "Find the Perl identifier at point."
   (save-excursion
-    (when (looking-at "[%$@*&]")
-      (forward-char 1))
-    (let* ((beg (progn
-                 (when (re-search-backward "[^A-Za-z_0-9:]" nil 'mu)
-                   (forward-char 1))
-                 (point)))
-          (sigil (if (= beg (point-min))
-                     nil
-                     (char-before (point))))
-          (end (progn
-                 (when (re-search-forward "[^A-Za-z_0-9:]" nil 'mu)
-                   (forward-char -1))
-                 (point))))
-      (list (when (member sigil '(?$ ?@ ?% ?* ?&)) sigil)
-            (buffer-substring-no-properties beg end)))))
+    (let ((orig (point)))
+      (when (looking-at "[%$@*&]")
+        (forward-char 1))
+      (let* ((beg (progn
+                    (when (re-search-backward "[^A-Za-z_0-9:]" nil 'mu)
+                      (forward-char 1))
+                    (point)))
+             (sigil (if (= beg (point-min))
+                        nil
+                      (char-before (point))))
+             (end (progn
+                    (when (re-search-forward "[^A-Za-z_0-9:]" nil 'mu)
+                      (forward-char -1))
+                    (point))))
+        (if (= beg end)
+            ;; try special variables
+            (if (and (member (char-before orig) '(?$ ?@ ?%))
+                     (member (car (syntax-after orig)) '(1 4 5 7 9)))
+                (list (char-before orig)
+                      (buffer-substring-no-properties orig (1+ orig)))
+              '(nil ""))
+          ;; actual thing
+          (list (when (member sigil '(?$ ?@ ?% ?* ?&)) sigil)
+                (buffer-substring-no-properties beg end)))))))
 
 (defun sepia-function-at-point ()
   "Find the Perl function called at point."
@@ -1529,9 +1532,24 @@ used for eldoc feedback."
 (defun sepia-describe-object (thing)
   "Display documentation for `thing', like ``describe-function'' for elisp."
   (interactive
-   (or (cdr (sepia-ident-at-point))
-       (cdr (sepia-ident-before-point))))
+   (let ((id (sepia-ident-at-point)))
+     (when (string= (cadr id) "")
+       (setq id (sepia-ident-before-point)))
+     (if (car id)
+         (list id)
+       (cdr id))))
   (cond
+   ((listp thing)
+    (setq thing (format "%c%s" (car thing) (cadr thing)))
+    (with-current-buffer (get-buffer-create "*sepia-help*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (shell-command (concat "perldoc -v " (shell-quote-argument thing))
+                       (current-buffer))
+        (view-mode 1)
+        (goto-char (point-min)))
+      (unless (looking-at "No documentation for")
+        (pop-to-buffer "*sepia-help*" t))))
    ((gethash thing sepia-perl-builtins)
     (with-current-buffer (get-buffer-create "*sepia-help*")
       (let ((inhibit-read-only t))

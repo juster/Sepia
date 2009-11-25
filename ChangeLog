@@ -1,3 +1,9 @@
+2009-11-25  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* sepia.el (sepia-ident-before-point): use s-i-at-point.
+	(sepia-ident-at-point): Handle punctuation variables.
+	(sepia-describe-object): add "perldoc -v" support.
+
 2009-11-22  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia.pm (location): handle special @INC entries.
