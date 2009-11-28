@@ -79,6 +79,9 @@ run on other versions of Emacs, but may require additional packages.
    codebases (Sepia's and complete.el's), I know there are always a
    lot of subtle cases to get right, and what acts "naturally" by
    human standards is extremely complicated to specify in code.
+** (Hard) Add appropriate hooks
+   Possibly update existing functions to make use of hooks for better
+   modularity.
 * KNOWN BUGS
 The following is a list of bugs that are difficult to automatically
 reproduce, with the dates they were first observed.

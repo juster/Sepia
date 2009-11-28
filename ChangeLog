@@ -1,3 +1,11 @@
+2009-11-26  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/Sepia.pm: reorganize, add docs.
+	* sepia.texi (Shortcuts): document ,time
+	* Makefile.PL: optional BSD::Resource and Time::HiRes.
+	* lib/Sepia.pm (run_hook,add_hook,remove_hook): new functions.
+	(repl_time,time_pre_prompt*): print CPU times.
+
 2009-11-25  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* sepia.el (sepia-ident-before-point): use s-i-at-point.

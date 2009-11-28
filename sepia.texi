@@ -546,6 +546,12 @@ lexical environment.
 Run tests in the current directory.  If @var{file} is given, only run
 test @var{file} or @file{t/@var{file}}
 
+@item time [@var{val}]
+Set time display to @var{val}, or toggle it if @var{val} is not given.
+With time display enabled, Sepia will use @code{BSD::Resource} and/or
+@code{Time::HiRes} to display wall clock time and CPU usage for the
+previous command as part of the prompt.
+
 @item undef @var{name}
 Undefine shortcut @var{name}.  @strong{Warning}: this can equally be
 used to remove built-in shortcuts.
