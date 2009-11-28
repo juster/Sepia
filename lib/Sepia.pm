@@ -119,7 +119,13 @@ sub remove_hook(\@@)
 
 =head2 Completion
 
+Sepia tries hard to come up with a list of completions.
+
 =over
+
+=item C<$re = _apropos_re($pat)>
+
+Create a completion expression from user input.
 
 =cut
 
@@ -146,6 +152,19 @@ BEGIN {
     %sigil = qw(ARRAY @ SCALAR $ HASH %);
 }
 
+=item C<$val = filter_untyped>
+
+Return true if C<$_> is the name of a sub, file handle, or package.
+
+=item C<$val = filter_typed $type>
+
+Return true if C<$_> is the name of something of C<$type>, which
+should be either a glob slot name (e.g. SCALAR) or the special value
+"VARIABLE", meaning an array, hash, or scalar.
+
+=cut
+
+
 sub filter_untyped
 {
     no strict;
@@ -171,12 +190,24 @@ sub filter_typed
     }
 }
 
+=item C<$re_out = maybe_icase $re_in>
+
+Make C<$re_in> case-insensitive if it looks like it should be.
+
+=cut
+
 sub maybe_icase
 {
     my $ch = shift;
     return '' if $ch eq '';
     $ch =~ /[A-Z]/ ? $ch : '['.uc($ch).$ch.']';
 }
+
+=item C<@res = all_abbrev_completions $pattern>
+
+Find all "abbreviated completions" for $pattern.
+
+=cut
 
 sub all_abbrev_completions
 {
@@ -227,8 +258,13 @@ sub all_completions
     map { s/^:://; $_ } _completions('::', @parts);
 }
 
-# Filter exact matches so that e.g. "A::x" completes to "A::xx" when
-# both "Ay::xx" and "A::xx" exist.
+=item C<@res = filter_exact_prefix @names>
+
+Filter exact matches so that e.g. "A::x" completes to "A::xx" when
+both "Ay::xx" and "A::xx" exist.
+
+=cut
+
 sub filter_exact_prefix
 {
     my @parts = split /:+/, shift, -1;
@@ -241,6 +277,13 @@ sub filter_exact_prefix
     }
     @res;
 }
+
+=item C<@res = lexical_completions $type, $str, $sub>
+
+Find lexicals of C<$sub> (or a parent lexical environment) of type
+C<$type> matching C<$str>.
+
+=cut
 
 sub lexical_completions
 {
@@ -395,7 +438,11 @@ sub apropos
 
 =back
 
-=head2 C<@names = mod_subs($pack)>
+=head2 Module information
+
+=over
+
+=item C<@names = mod_subs($pack)>
 
 Find subs in package C<$pack>.
 
@@ -411,7 +458,7 @@ sub mod_subs
     }
 }
 
-=head2 C<@decls = mod_decls($pack)>
+=item C<@decls = mod_decls($pack)>
 
 Generate a list of declarations for all subroutines in package
 C<$pack>.
@@ -431,7 +478,7 @@ sub mod_decls
     return wantarray ? @ret : join '', @ret;
 }
 
-=head2 C<$info = module_info($module, $type)>
+=item C<$info = module_info($module, $type)>
 
 Emacs-called function to get module information.
 
@@ -465,7 +512,7 @@ sub module_info
     }
 }
 
-=head2 C<$file = mod_file($mod)>
+=item C<$file = mod_file($mod)>
 
 Find the likely file owner for module C<$mod>.
 
@@ -481,7 +528,7 @@ sub mod_file
     $m ? $INC{"$m.pm"} : undef;
 }
 
-=head2 C<@mods = package_list>
+=item C<@mods = package_list>
 
 Gather a list of all distributions on the system.
 
@@ -502,7 +549,7 @@ sub package_list
     sort { $a cmp $b } inst()->modules;
 }
 
-=head2 C<@mods = module_list>
+=item C<@mods = module_list>
 
 Gather a list of all packages (.pm files, really) installed on the
 system, grouped by distribution. XXX UNUSED
@@ -522,10 +569,12 @@ sub module_list
     } @_;
 }
 
-=head2 C<@mods = doc_list>
+=item C<@mods = doc_list>
 
 Gather a list of all documented packages (.?pm files, really)
 installed on the system, grouped by distribution. XXX UNUSED
+
+=back
 
 =cut
 
