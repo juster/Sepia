@@ -52,7 +52,7 @@
 			  w3m-perldoc-pod2html-command
 			  t '(t nil) nil
 			  (append w3m-perldoc-pod2html-arguments
-				  '("--htmlroot=about://perldoc-buffer"))))
+				  '("--index" "--htmlroot=about://perldoc-buffer"))))
 	(let ((case-fold-search t))
 	  (goto-char (point-min))
 	  (while (re-search-forward
