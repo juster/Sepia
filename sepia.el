@@ -1583,11 +1583,15 @@ calling `cperl-describe-perl-symbol'."
           (flet ((message (&rest blah) (apply #'format blah)))
             (let* (case-fold-search
                    (cperl-message-on-help-error nil)
-                   (hlp (car (save-excursion (cperl-describe-perl-symbol obj)))))
+                   (hlp (car (save-excursion
+                               (cperl-describe-perl-symbol
+                                (if (member type '(?$ ?@ ?%))
+                                    (format "%c%s" type obj)
+                                  obj))))))
               (if hlp
                   (progn
                     ;; cperl's docstrings are too long.
-                    (setq hlp (replace-regexp-in-string "\\s \\{2,\\}" "  " hlp))
+                    (setq hlp (replace-regexp-in-string "\\s \\{2,\\}\\|\t" "  " hlp))
                     (if (> (length hlp) 75)
                         (concat (substring hlp 0 72) "...")
                         hlp))
