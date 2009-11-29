@@ -1016,9 +1016,13 @@ REPL shortcuts."
   (error "TODO"))
 
 (defvar sepia-shortcuts
-  '("break" "cd" "debug" "define" "delete" "eval" "format" "help" "lsbreak"
-    "methods" "package" "pwd" "quit" "reload" "shell" "size" "strict" "undef"
-    "wantarray")
+  '(
+"break"     "eval"      "lsbreak"   "quit"      "size"      "wantarray"
+"cd"        "format"    "methods"   "reload"    "strict"    "who"
+"debug"     "freload"   "package"   "restart"   "test"
+"define"    "help"      "pdl"       "save"      "time"      
+"delete"    "load"      "pwd"       "shell"     "undef"     
+)
   "List of currently-defined REPL shortcuts.
 
 XXX: this needs to be updated whenever you add one on the Perl side.")
@@ -1107,18 +1111,18 @@ The function is intended to be bound to \\M-TAB, like
           (0 (message "No completions.") nil)
           (1 ;; XXX - skip sigil to match s-i-before-point
            (delete-region (- (point) len) (point))
-           (insert (or type "") (car completions))
+           (insert (car completions))
            ;; Hide stale completions buffer (stolen from lisp.el).
            (if win (with-selected-window win (bury-buffer))) t)
           (t (let ((old name)
                    (new (try-completion "" completions)))
-               (if (<= (length new) (length old))
+               (if (<= (length new) (+ (length old) (if type 1 0)))
                    (with-output-to-temp-buffer "*Completions*"
                      (display-completion-list completions))
                  (let ((win (get-buffer-window "*Completions*" 0)))
                    (if win (with-selected-window win (bury-buffer))))
                  (delete-region (- (point) len) (point))
-                 (insert (or type "") new))))))
+                 (insert new))))))
       t)))
 
 (defun sepia-indent-or-complete ()
