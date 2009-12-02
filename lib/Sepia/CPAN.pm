@@ -1,6 +1,5 @@
 package Sepia::CPAN;
 use CPAN ();
-use LWP::Simple;
 
 sub init
 {
@@ -115,7 +114,14 @@ sub readme
 
 sub perldoc
 {
-    get($CPAN::Defaultdocs . shift);
+    eval { use LWP::Simple; };
+    if ($@) {
+        print STDERR "Can't get perldocs: LWP::Simple not installed.\n";
+        "Can't get perldocs: LWP::Simple not installed.\n";
+    } else {
+        *perldoc = sub { get($CPAN::Defaultdocs . shift) };
+        goto &perldoc;
+    }
 }
 
 sub install

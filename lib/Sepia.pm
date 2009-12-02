@@ -352,7 +352,7 @@ sub completions
 #     ## XXX: Control characters, $", and $1, etc. confuse Emacs, so
 #     ## remove them.
     grep {
-        length $_ > 0 && !looks_like_number($_) && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
+        length $_ > 0 && !/^\d+$/ && !/^[^\w\d_]$/ && !/^_</ && !/^[[:cntrl:]]/
     } @ret;
 }
 

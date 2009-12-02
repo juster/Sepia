@@ -16,7 +16,6 @@ EOS
 my %prereq = (
     'Data::Dumper'    => 0,
     'Scalar::Util'    => 0,
-    'LWP::Simple'     => 0,
 );
 
 ## Poor man's optional deps.
@@ -34,6 +33,7 @@ test_for 'Devel::Peek', 'Printing internals requires Devel::Peek';
 test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
 test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks.';
 test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
+test_for 'LWP::Simple', 'CPAN documentation browsing requires LWP::Simple';
 test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
 test_for 'Module::Info', 'Required for some Emacs functions';
 test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
