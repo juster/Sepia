@@ -1,3 +1,8 @@
+2009-12-02  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/Sepia/Xref.pm (load_pad): work around pad weirdness with
+	threads.
+
 2009-11-29  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* Makefile.PL: make LWP::Simple optional.  It didn't do much.

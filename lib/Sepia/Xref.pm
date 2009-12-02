@@ -259,6 +259,10 @@ sub load_pad {
 	    next unless class($valsv) eq "GV";
 	    # these pad GVs don't have corresponding names, so same @pad
 	    # array can be used without collisions
+
+            # XXX: for some reason, on 5.10 $valsv->STASH can be a
+            # B::SPECIAL, which doesn't have a name.
+            next if ref $valsv->STASH eq 'B::SPECIAL';
 	    $pad[$ix] = [$valsv->STASH->NAME, "*", $valsv->NAME];
 	}
     }
