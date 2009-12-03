@@ -758,7 +758,10 @@ to call this outside a function."
          (eod (sepia-end-of-defun)))
      (if prompt
        (query-replace-regexp old new nil bod eod)
-       (replace-regexp old new nil bod eod))))
+       ;; (replace-regexp old new nil bod eod)
+       (goto-char bod)
+       (while (re-search-forward old eod t)
+         (replace-match new)))))
 
 (defun sepia-defun-around-point (&optional where)
   "Return the text of function around point."
@@ -1648,7 +1651,7 @@ calling `cperl-describe-perl-symbol'."
                   msgs)))
     (erase-buffer)
     (goto-char (point-min))
-    (mapcar #'insert (nreverse msgs))
+    (mapc #'insert (nreverse msgs))
     (goto-char (point-min))
     (grep-mode)))
 
