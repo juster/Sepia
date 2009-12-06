@@ -769,13 +769,22 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
     }
 );
 
+sub ::_()
+{
+    if ($WANTARRAY) {
+        @_;
+    } else {
+        $_;
+    }
+}
+
 sub printer
 {
     local *res = shift;
     my ($wantarray) = @_;
     my $res;
-    @::__ = @res;
-    $::__ = @res == 1 ? $res[0] : [@res];
+    @_ = @res;
+    $_ = @res == 1 ? $res[0] : [@res];
     my $str;
     if ($ISEVAL) {
         $res = "@res";
@@ -1622,7 +1631,7 @@ sub repl
 
     my $nextrepl = sub { $sigged = 1; };
 
-    local *__;
+    local *_;
     local *CORE::GLOBAL::die = \&Sepia::Debug::die;
     local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
     local @REPL_RESULT;
