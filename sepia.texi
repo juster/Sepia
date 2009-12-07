@@ -445,6 +445,11 @@ extensions.  To start or switch to the repl, type @kbd{M-x sepia-repl}.
 As in Sepia mode, @key{TAB} in the REPL performs partial-word completion
 with @code{sepia-complete-symbol}.
 
+@c == REPL behavior ==
+@c - $_/@_
+@c - RET & eval/newline
+@c - eval context
+
 Sepia also provides a number of other ways to evaluate pieces of code in
 Perl, and commands to process buffer text using the inferior process.
 

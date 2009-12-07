@@ -49,7 +49,7 @@ use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
             $LAST_INPUT @PRE_EVAL @POST_EVAL @PRE_PROMPT);
 
 BEGIN {
-    eval { use List::Util 'max' };
+    eval q{ use List::Util 'max' };
     if ($@) {
         *Sepia::max = sub {
             my $ret = shift;
@@ -287,7 +287,7 @@ C<$type> matching C<$str>.
 
 sub lexical_completions
 {
-    eval { require PadWalker; import PadWalker 'peek_sub' };
+    eval q{ require PadWalker; import PadWalker 'peek_sub' };
     # "internal" function, so don't warn on failure
     return if $@;
     *lexical_completions = sub {
@@ -486,7 +486,7 @@ Emacs-called function to get module information.
 
 sub module_info
 {
-    eval { require Module::Info; import Module::Info };
+    eval q{ require Module::Info; import Module::Info };
     if ($@) {
         undef;
     } else {
@@ -599,7 +599,7 @@ sub doc_list
 
 sub core_version
 {
-    eval { require Module::CoreList };
+    eval q{ require Module::CoreList };
     if ($@) {
         '???';
     } else {
@@ -711,7 +711,7 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
 
 %PRINTER = (
     dumper => sub {
-        eval { require Data::Dumper };
+        eval q{ require Data::Dumper };
         local $Data::Dumper::Deparse = 1;
         local $Data::Dumper::Indent = 0;
         local $_;
@@ -737,7 +737,7 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         "@res";
     },
     yaml => sub {
-        eval { require YAML };
+        eval q{ require YAML };
         if ($@) {
             $PRINTER{dumper}->();
         } else {
@@ -745,7 +745,7 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         }
     },
     dump => sub {
-        eval { require Data::Dump };
+        eval q{ require Data::Dump };
         if ($@) {
             $PRINTER{dumper}->();
         } else {
@@ -753,7 +753,7 @@ which can use either L<Data::Dumper>, L<YAML>, or L<Data::Dump>.
         }
     },
     peek => sub {
-        eval {
+        eval q{
             require Devel::Peek;
             require IO::Scalar;
         };
@@ -1007,7 +1007,7 @@ Toggle strict mode.  Requires L<Lexical::Persistence>.
 
 sub repl_strict
 {
-    eval { require Lexical::Persistence; import Lexical::Persistence };
+    eval q{ require Lexical::Persistence; import Lexical::Persistence };
     if ($@) {
         print "Strict mode requires Lexical::Persistence.\n";
     } else {
@@ -1025,7 +1025,7 @@ sub repl_strict
 
 sub repl_size
 {
-    eval { require Devel::Size };
+    eval q{ require Devel::Size };
     if ($@) {
         print "Size requires Devel::Size.\n";
     } else {
@@ -1094,19 +1094,19 @@ sub repl_time
     add_hook @PRE_PROMPT, 'Sepia::time_pre_prompt';
     add_hook @PRE_EVAL, 'Sepia::time_pre_eval';
     add_hook @POST_EVAL, 'Sepia::time_post_eval';
-    my $has_bsd = eval { use BSD::Resource 'getrusage';1 };
-    my $has_hires = eval { use Time::HiRes qw(gettimeofday tv_interval);1 };
+    my $has_bsd = eval q{ use BSD::Resource 'getrusage';1 };
+    my $has_hires = eval q{ use Time::HiRes qw(gettimeofday tv_interval);1 };
     my ($t0);
     if ($has_bsd) {                    # sweet!  getrusage!
         my ($user, $sys, $real);
         *time_pre_eval = sub {
             undef $time_res;
-            ($user, $sys) = getrusage;
-            $real = $has_hires ? [gettimeofday] : $user+$sys;
+            ($user, $sys) = getrusage();
+            $real = $has_hires ? [gettimeofday()] : $user+$sys;
         };
         *time_post_eval = sub {
-            my ($u2, $s2) = getrusage;
-            $time_res = [$has_hires ? (tv_interval $real, [gettimeofday])
+            my ($u2, $s2) = getrusage();
+            $time_res = [$has_hires ? tv_interval($real, [gettimeofday()])
                              : $s2 + $u2 - $real,
                          ($u2 - $user), ($s2 - $sys)];
         };
@@ -1114,10 +1114,10 @@ sub repl_time
     } elsif ($has_hires) {      # at least we have msec...
         *time_pre_eval = sub {
             undef $time_res;
-            $t0 = [gettimeofday];
+            $t0 = [gettimeofday()];
         };
         *time_post_eval = sub {
-            $time_res = tv_interval($t0, [gettimeofday]);
+            $time_res = tv_interval($t0, [gettimeofday()]);
         };
         *time_pre_prompt = *time_pre_prompt_plain;
     } else {

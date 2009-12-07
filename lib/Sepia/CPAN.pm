@@ -114,7 +114,7 @@ sub readme
 
 sub perldoc
 {
-    eval { use LWP::Simple; };
+    eval q{ use LWP::Simple; };
     if ($@) {
         print STDERR "Can't get perldocs: LWP::Simple not installed.\n";
         "Can't get perldocs: LWP::Simple not installed.\n";

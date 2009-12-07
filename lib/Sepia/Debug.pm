@@ -20,7 +20,7 @@ BEGIN {
 
 sub peek_my
 {
-    eval { require PadWalker };
+    eval q{ require PadWalker };
     if ($@) {
         +{ }
     } else {
