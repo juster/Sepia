@@ -306,7 +306,8 @@ Interactive users should call `sepia-view-pod'."
       (sepia-repl-mode)
       (set (make-local-variable 'sepia-passive-output) ""))
     (if remote-host
-        (comint-exec "*sepia-repl*" "attachtty" "attachtty" nil
+        (comint-exec (get-buffer-create "*sepia-repl*")
+                     "attachtty" "attachtty" nil
                      (list remote-host))
         (let ((stuff (split-string sepia-program-name nil t)))
           (comint-exec (get-buffer-create "*sepia-repl*")
@@ -1093,7 +1094,13 @@ The function is intended to be bound to \\M-TAB, like
           ;; 2 - look for a regular function/variable/whatever
           (setq type typ
                 len (+ (if type 1 0) (length name))
-                completions (xref-completions
+                completions
+                (mapcar (lambda (x)
+                          (if (or (not type)
+                                  (eq type ?&))
+                              x
+                            (format "%c%s" type x)))
+                        (xref-completions
                              (case type
                                (?$ "VARIABLE")
                                (?@ "ARRAY")
@@ -1103,7 +1110,7 @@ The function is intended to be bound to \\M-TAB, like
                                (t ""))
                              name
                              (and (eq major-mode 'sepia-mode)
-                                  (sepia-function-at-point)))))
+                                  (sepia-function-at-point))))))
         ;; 3 - try a Perl built-in
         (when (and (not completions)
                    (or (not type) (eq type ?&)))
