@@ -44,22 +44,26 @@ for (split ' ', $lp) {
         last;
     }
 }
-$site_lisp = quotemeta prompt("Elisp install directory?", $site_lisp);
+$site_lisp = prompt("Elisp install directory?", $site_lisp);
 if (-d $site_lisp) {
     $install_el = 1;
 } else {
     warn "$site_lisp is not a directory.\n";
 }
 
+$site_lisp = quotemeta $site_lisp;
+
 # Also try to install texinfo documentation.
 $install_info = quotemeta prompt("install-info program?", 'install-info');
 $info_dir = `$emacs --batch --eval '(progn (require (quote info)) (message "\%s" (car Info-default-directory-list)))' 2>&1`;
 chomp $info_dir;
-$info_dir = quotemeta prompt("Info directory?", $info_dir);
+$info_dir = prompt("Info directory?", $info_dir);
 if (!-d $info_dir) {
     warn "Not installing info files.\n";
     undef $install_info;
 }
+
+$info_dir = quotemeta $info_dir;
 
 sub MY::postamble
 {
