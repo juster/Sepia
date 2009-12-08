@@ -33,7 +33,7 @@ interface.
 
 =cut
 
-$VERSION = '0.991_01';
+$VERSION = '0.991_02';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
