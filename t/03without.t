@@ -22,5 +22,5 @@ Time::HiRes
 eval $str;
 my $res = eval q{use Time::HiRes;1};
 ok(!$res, "Test::Without::Module works.");
-my $res = eval "use Sepia;1";
+$res = eval "use Sepia;1";
 ok($res && !$@, "loads without optional prereqs? ($res, $@)");
