@@ -1,3 +1,9 @@
+2009-12-08  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* lib/Sepia.pm (methods): uniquify.
+	* lib/Sepia.pm, lib/Sepia/Debug.pm: avoid deprecated
+	"defined %hash" in 5.11.x.
+
 2009-12-02  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia/Xref.pm (load_pad): work around pad weirdness with

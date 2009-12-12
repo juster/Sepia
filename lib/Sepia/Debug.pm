@@ -123,7 +123,7 @@ sub repl_dbsub
 sub repl_lsbreak
 {
     no strict 'refs';
-    for my $file (sort grep /^_</ && defined %{"::$_"}, keys %::) {
+    for my $file (sort grep /^_</ && *{"::$_"}{HASH}, keys %::) {
         my ($name) = $file =~ /^_<(.*)/;
         my @pts = keys %{"::$file"};
         next unless @pts;

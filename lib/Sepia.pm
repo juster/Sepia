@@ -1324,10 +1324,14 @@ sub methods
         defined *{$_}{CODE}
     } map { "$pack\::$_" } keys %{$pack.'::'}
         : grep {
-            defined *{"$pack\::$_"}{CODE}
+            defined &{"$pack\::$_"}
         } keys %{$pack.'::'};
-    (@own, defined *{$pack.'::ISA'}{ARRAY}
-         ? (map methods($_, $qualified), @{$pack.'::ISA'}) : ());
+    if (exists ${$pack.'::'}{ISA} && *{$pack.'::ISA'}{ARRAY}) {
+        my %m;
+        undef @m{@own, map methods($_, $qualified), @{$pack.'::ISA'}};
+        @own = keys %m;
+    }
+    @own;
 }
 
 sub repl_methods
