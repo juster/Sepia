@@ -35,10 +35,9 @@ test_for 'Time::HiRes', 'Basic command timing.';
 # try to compile and install Elisp files, but don't die if we can't.
 $install_el = 0;
 $emacs = quotemeta prompt("What is your emacs? ", $ENV{EMACS} || 'emacs');
-$lp = `$emacs --batch --eval '(message "\%s" load-path)' 2>&1`;
-$lp =~ s/^.*\(//s;
-$lp =~ s/\).*$//s;
-for (split ' ', $lp) {
+@lp = `$emacs --batch --eval '(dolist (x load-path) (princ x) (terpri))' 2>/dev/null`;
+chomp @lp;
+for (@lp) {
     if (/site-lisp$/ && -d $_) {
         $site_lisp = $_;
         last;
@@ -55,7 +54,7 @@ $site_lisp = quotemeta $site_lisp;
 
 # Also try to install texinfo documentation.
 $install_info = quotemeta prompt("install-info program?", 'install-info');
-$info_dir = `$emacs --batch --eval '(progn (require (quote info)) (message "\%s" (car Info-default-directory-list)))' 2>&1`;
+$info_dir = `$emacs --batch --eval '(progn (require (quote info)) (princ (car Info-default-directory-list)))' 2>/dev/null`;
 chomp $info_dir;
 $info_dir = prompt("Info directory?", $info_dir);
 if (!-d $info_dir) {
