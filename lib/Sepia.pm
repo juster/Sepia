@@ -46,7 +46,7 @@ use Storable qw(store retrieve);
 use vars qw($PS1 %REPL %RK %REPL_DOC %REPL_SHORT %PRINTER
             @REPL_RESULT @res $REPL_LEVEL $REPL_QUIT $PACKAGE
             $WANTARRAY $PRINTER $STRICT $PRINT_PRETTY $ISEVAL
-            $LAST_INPUT @PRE_EVAL @POST_EVAL @PRE_PROMPT);
+            $LAST_INPUT $READLINE @PRE_EVAL @POST_EVAL @PRE_PROMPT);
 
 BEGIN {
     eval q{ use List::Util 'max' };
@@ -1621,8 +1621,9 @@ sub repl_setup
     }
     Sepia::Debug::add_repl_commands;
     repl_banner if $REPL_LEVEL == 0;
-    print prompt;
 }
+
+$READLINE = sub { print prompt(); <STDIN> };
 
 sub repl
 {
@@ -1635,19 +1636,18 @@ sub repl
 
     my $nextrepl = sub { $sigged = 1; };
 
-    local @_;
-    local $_;
+    local (@_, $_);
     local *CORE::GLOBAL::die = \&Sepia::Debug::die;
     local *CORE::GLOBAL::warn = \&Sepia::Debug::warn;
     local @REPL_RESULT;
     my @sigs = qw(INT TERM PIPE ALRM);
     local @SIG{@sigs};
     $SIG{$_} = $nextrepl for @sigs;
- repl: while (defined(my $in = <STDIN>)) {
+ repl: while (defined(my $in = $READLINE->())) {
             if ($sigged) {
                 $buf = '';
                 $sigged = 0;
-                print "\n", prompt;
+                print "\n";
                 next repl;
             }
             $buf .= $in;
@@ -1694,7 +1694,6 @@ sub repl
                         print "Unrecognized shortcut '$short'\n";
                     }
                     $buf = '';
-                    print prompt;
                     next repl;
                 }
             } else {
@@ -1709,11 +1708,10 @@ sub repl
                         Sepia::printer [$@], wantarray;
                         # print_warnings $ISEVAL;
                         $buf = '';
-                        print prompt;
                     } elsif ($@ =~ /(?:at|before) EOF(?:$| at)/m) {
                         ## Possibly-incomplete line
                         if ($in eq "\n") {
-                            print "Error:\n$@\n*** cancel ***\n", prompt;
+                            print "Error:\n$@\n*** cancel ***\n";
                             $buf = '';
                         } else {
                             print ">> ";
@@ -1727,7 +1725,6 @@ sub repl
                             print "error: $@";
                             print "\n" unless $@ =~ /\n\z/;
                         }
-                        print prompt;
                         $buf = '';
                     }
                     next repl;
@@ -1740,7 +1737,6 @@ sub repl
             }
             $buf = '';
             print_warnings;
-            print prompt;
         }
     exit if $REPL_QUIT;
     wantarray ? @REPL_RESULT : $REPL_RESULT[0]
