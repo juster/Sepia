@@ -33,7 +33,7 @@ interface.
 
 =cut
 
-$VERSION = '0.991_02';
+$VERSION = '0.991_03';
 use strict;
 use B;
 use Sepia::Debug;               # THIS TURNS ON DEBUGGING INFORMATION!
@@ -1363,14 +1363,7 @@ sub repl_wantarray
 sub repl_package
 {
     chomp(my $p = shift);
-    no strict;
-    if (%{$p.'::'}) {
-        $PACKAGE = $p;
-#         my $ecmd = '(setq sepia-eval-package "'.$p.'")';
-#         print ";;;###".length($ecmd)."\n$ecmd\n";
-    } else {
-        warn "Can't go to package $p -- doesn't exist!\n";
-    }
+    $PACKAGE = $p;
 }
 
 sub repl_quit
