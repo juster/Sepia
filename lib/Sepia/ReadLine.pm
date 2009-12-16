@@ -1,6 +1,9 @@
 use Term::ReadLine;
 use Sepia;
 package Sepia::ReadLine;
+require Exporter;
+@ISA='Exporter';
+@EXPORT='repl';
 
 sub rl_attempted_complete
 {

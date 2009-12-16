@@ -7,6 +7,7 @@ Sepia.jpg
 lib/Sepia.pm
 lib/Sepia/CPAN.pm
 lib/Sepia/Debug.pm
+lib/Sepia/ReadLine.pm
 lib/Sepia/Xref.pm
 sepia-cpan.el
 sepia-ido.el
