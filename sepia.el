@@ -1691,7 +1691,8 @@ calling `cperl-describe-perl-symbol'."
 
 (defun sepia-init-perl-builtins ()
   (setq sepia-perl-builtins (make-hash-table :test #'equal))
-  (dolist (s '("abs"
+  (dolist (s '(
+"abs"
 "accept"
 "alarm"
 "atan2"

@@ -10,7 +10,7 @@ sub rl_attempted_complete
         my $x = qr/^\Q$1\E/;
         @xs = map ",$_", grep /$x/, keys %Sepia::REPL;
     } else {
-        my ($type, $str) = (substr $line, $start-1, $end) =~ /^([\$\@\%\&]?)(.*)/;
+        my ($type, $str) = (substr $line, $start && ($start-1), $end) =~ /^([\$\@\%\&]?)(.*)/;
         my %h = qw(@ ARRAY % HASH & CODE * IO $ SCALAR);
         @xs = Sepia::completions $h{$type||'&'}, $str;
         # if (@xs == 1) {
@@ -24,6 +24,7 @@ sub rl_attempted_complete
 
 sub repl
 {
+    { package main; do $_ for @ARGV }
     $TERM = new Term::ReadLine;
     my $attr = $TERM->Attribs;
     # $attr->{completion_entry_function} = \&rl_complete;
