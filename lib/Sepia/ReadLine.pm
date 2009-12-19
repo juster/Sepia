@@ -1,6 +1,6 @@
+package Sepia::ReadLine;
 use Term::ReadLine;
 use Sepia;
-package Sepia::ReadLine;
 require Exporter;
 @ISA='Exporter';
 @EXPORT='repl';
@@ -14,12 +14,8 @@ sub rl_attempted_complete
         @xs = map ",$_", grep /$x/, keys %Sepia::REPL;
     } else {
         my ($type, $str) = (substr $line, $start && ($start-1), $end) =~ /^([\$\@\%\&]?)(.*)/;
-        my %h = qw(@ ARRAY % HASH & CODE * IO $ SCALAR);
+        my %h = qw(@ ARRAY % HASH & CODE * IO $ VARIABLE);
         @xs = Sepia::completions $h{$type||'&'}, $str;
-        # if (@xs == 1) {
-        #     return $xs[0], @xs;
-        # }
-        @xs = map { s/^[\$\@\%\&]?//; $_ } @xs;
     }
     $TERM->completion_matches($text,
                               sub { $_[1] < @xs ? $xs[$_[1]] : () });
