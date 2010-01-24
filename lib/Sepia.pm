@@ -1851,17 +1851,20 @@ sub html_package_list
 
 sub apropos_module
 {
-    my $re = qr/$_[0]/;
+    my $re = _apropos_re $_[0];
     my $inst = inst();
     my %ret;
+    # User-installed modules
     for (package_list) {
         undef $ret{$_} if /$re/;
     }
+    # Core modules
+    # XXX: avoid having e.g. IO::Socket::UNIX match /^UN/
     undef $ret{$_} for map {
         s/.*man.\///; s|/|::|g; s/\.\d(?:pm)?$//; $_
     } grep {
         /\.\d(?:pm)?$/ && !/man1/ && !/usr\/bin/ && /$re/
-    } $inst->files('Perl');
+    } $inst->files('Perl', 'prog');
     sort keys %ret;
 }
 

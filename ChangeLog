@@ -1,3 +1,8 @@
+2010-01-23  Sean O'Rourke  <seano@cs.ucla.edu>
+
+	* README: add development information.
+	* lib/Sepia.pm (apropos_module): use "_apropos_re"
+
 2009-12-15  Sean O'Rourke  <seano@cs.ucla.edu>
 
 	* lib/Sepia.pm (repl_package): always change packages, even if

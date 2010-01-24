@@ -39,6 +39,17 @@ run on other versions of Emacs, but may require additional packages.
     apel-emacs21-10.7
     ja-nkf-2.05
 
+* DEVELOPMENT
+The "official" source code repository mirror is at
+
+    http://repo.or.cz/w/sepia.git
+
+To get a copy, install Git, then
+
+    git clone git://repo.or.cz/sepia.git
+
+To submit a patch, please send a diff to the author, including an
+Emacs-style ChangeLog entry.
 * TODO
 ** (Easy) Use module, file, line to refine queries (Perl side)
 ** (Medium) Get the variable def/use analysis working again.

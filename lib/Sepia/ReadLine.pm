@@ -26,7 +26,6 @@ sub repl
     { package main; do $_ for @ARGV }
     $TERM = new Term::ReadLine;
     my $attr = $TERM->Attribs;
-    # $attr->{completion_entry_function} = \&rl_complete;
     $attr->{attempted_completion_function} = \&rl_attempted_complete;
     $Sepia::READLINE = sub { $TERM->readline(Sepia::prompt()) };
     goto &Sepia::repl;
