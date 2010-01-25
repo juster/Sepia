@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use Sepia::ReadLine;
+
+repl();
+print "\n";
+
+__END__
+
+=head1 NAME
+
+sepl -- a Term::ReadLine-based Sepia interactive shell.
+
+=head1 SYNOPSIS
+
+    $ sepl
+    Type ",h" for help, or ",q" to quit.
+    main @> substr "hello, japh", 7
+    'japh'
+    main @>
+
+=head1 DESCRIPTION
+
+=cut

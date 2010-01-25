@@ -94,9 +94,10 @@ EOS
 }
 
 WriteMakefile(
-    'NAME'		=> 'Sepia',
-    'VERSION_FROM'	=> 'lib/Sepia.pm', # finds $VERSION
-    'PREREQ_PM'         => \%prereq,
-    AUTHOR     => "Sean O'Rourke <seano\@cpan.org>",
-    ABSTRACT => 'Simple Emacs-Perl InterAction',
+    NAME		=> 'Sepia',
+    VERSION_FROM	=> 'lib/Sepia.pm', # finds $VERSION
+    PREREQ_PM		=> \%prereq,
+    EXE_FILES		=> ['sepl'],
+    AUTHOR		=> "Sean O'Rourke <seano\@cpan.org>",
+    ABSTRACT		=> 'Simple Emacs-Perl InterAction',
 );

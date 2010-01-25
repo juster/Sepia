@@ -938,6 +938,7 @@ sub define_shortcut
     $REPL{$name} = $fn;
     $REPL_DOC{$name} = $doc;
     $REPL_SHORT{$name} = $short;
+    abbrev \%RK, keys %REPL;
 }
 
 =item C<define_shortcuts()>
@@ -1178,7 +1179,7 @@ sub repl_define
         return;
     }
     define_shortcut $name, $sub, $doc;
-    %RK = abbrev keys %REPL;
+    # %RK = abbrev keys %REPL;
 }
 
 sub repl_undef
@@ -1191,7 +1192,7 @@ sub repl_undef
         delete $REPL{$full};
         delete $REPL_SHORT{$full};
         delete $REPL_DOC{$full};
-        %RK = abbrev keys %REPL;
+        abbrev \%RK, keys %REPL;
     } else {
         print "$name: no such shortcut.\n";
     }
@@ -1609,7 +1610,7 @@ sub repl_setup
     $| = 1;
     if ($REPL_LEVEL == 0) {
         define_shortcuts;
-        -f "$ENV{HOME}/.sepiarc" and do "$ENV{HOME}/.sepiarc";
+        -f "$ENV{HOME}/.sepiarc" and eval qq#package $Sepia::PACKAGE; do "$ENV{HOME}/.sepiarc"#;
         warn ".sepiarc: $@\n" if $@;
     }
     Sepia::Debug::add_repl_commands;
