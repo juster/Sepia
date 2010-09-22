@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
-use Test::Simple tests => 2;
+use Test::More;
 
-if (!eval q{ require Test::Without::Module;1 }) {
-    ok(1, 'Test::Without::Module not installed.');
-    ok(2, 'Test::Without::Module not installed.');
-}
+plan 'skip_all' => 'Test::Without::Module not installed.'
+    unless eval { require Test::Without::Module; 1 };
+
+plan 'tests' => 2;
 
 my $str;
 $str .= "use Test::Without::Module '$_';" for qw{
