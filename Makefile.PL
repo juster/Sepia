@@ -34,7 +34,8 @@ test_for 'Time::HiRes', 'Basic command timing.';
 
 # try to compile and install Elisp files, but don't die if we can't.
 $install_el = 0;
-$emacs = quotemeta prompt("What is your emacs? ", $ENV{EMACS} || 'emacs');
+my ($sysemacs) = grep { -x $_ } $ENV{EMACS}, glob '/usr/bin{/local,}/emacs';
+$emacs = quotemeta prompt("What is your emacs? ", $sysemacs);
 @lp = `$emacs --batch --eval '(dolist (x load-path) (princ x) (terpri))' 2>/dev/null`;
 chomp @lp;
 for (@lp) {
