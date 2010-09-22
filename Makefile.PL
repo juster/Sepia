@@ -164,14 +164,14 @@ exit pod2usage( '-verbose' => 1 ) if $HELP;
 
 test_for 'Devel::Peek', 'Printing internals requires Devel::Peek';
 test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
-test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks.';
+test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks';
 test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
 test_for 'LWP::Simple', 'CPAN documentation browsing requires LWP::Simple';
 test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
 test_for 'Module::Info', 'Required for some Emacs functions';
 test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
-test_for 'BSD::Resource', 'Detailed command timing.';
-test_for 'Time::HiRes', 'Basic command timing.';
+test_for 'BSD::Resource', 'Detailed command timing';
+test_for 'Time::HiRes', 'Basic command timing';
 # test_for 'Pod::Webserver', 'Pod::Webserver creates nice documentation.';
 # test_for 'Scope::Upper', 'Required for return-from-context';
 
