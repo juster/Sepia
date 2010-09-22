@@ -35,33 +35,83 @@ test_for 'Time::HiRes', 'Basic command timing.';
 # test_for 'Pod::Webserver', 'Pod::Webserver creates nice documentation.';
 # test_for 'Scope::Upper', 'Required for return-from-context';
 
-# try to compile and install Elisp files, but don't die if we can't.
-my $install_el = 0;
-my ($sysemacs) = grep { -x $_ } $ENV{EMACS}, glob '/usr/bin{/local,}/emacs';
-my $emacs = quotemeta prompt("What is your emacs? ", $sysemacs);
-my @lp = `$emacs --batch --eval '(dolist (x load-path) (princ x) (terpri))' 2>/dev/null`;
-chomp @lp;
-my ($site_lisp) = grep { /site-lisp$/ && -d $_ } @lp;
-$site_lisp = prompt("Elisp install directory?", $site_lisp);
-if (-d $site_lisp) {
-    $install_el = 1;
-} else {
-    warn "$site_lisp is not a directory.\n";
+my $ELISP_FIND_SITELISP = <<'END_ELISP';
+(dolist (x load-path) (princ x) (terpri))
+END_ELISP
+
+my $ELISP_FIND_INFODIR = <<'END_ELISP';
+(progn
+ (require (quote info))
+ (princ (car Info-default-directory-list)))
+END_ELISP
+
+my ($EMACS, $SITE_LISP, $INSTALL_INFO, $INFO_DIR);
+
+sub escape_path
+{
+    my ($path) = @_;
+    $path =~ s/([$?* ])/\\$1/g; # escape special characters
+    $path =~ s{/+$}{};          # remove trailing forward-slashes
+    return $path;
 }
 
-$site_lisp = quotemeta $site_lisp;
+sub prompt_for_emacs
+{
+    # try to compile and install Elisp files, but don't die if we can't.
+    my ($sysemacs) = grep { defined && -x }
+        $ENV{EMACS}, glob '/usr/bin{/local,}/emacs';
+    $sysemacs ||= q{emacs};
 
-# Also try to install texinfo documentation.
-my $install_info = quotemeta prompt("install-info program?", 'install-info');
-my $info_dir = `$emacs --batch --eval '(progn (require (quote info)) (princ (car Info-default-directory-list)))' 2>/dev/null`;
-chomp $info_dir;
-$info_dir = prompt("Info directory?", $info_dir);
-if (!-d $info_dir) {
-    warn "Not installing info files.\n";
-    undef $install_info;
+    my $emacs = prompt("Where is your emacs? ", $sysemacs);
+
+    # Make sure emacs is a valid string/program path...
+    return undef unless $emacs;
+
+    # Make sure -x is passed an absolute path...
+    unless ( $emacs =~ m{^/} && -x $emacs ) { 
+        warn "$emacs is not executable! Undefined.\n";
+        return undef;
+    }
+
+    return escape_path( $emacs );
 }
 
-$info_dir = quotemeta $info_dir;
+# Runs some elisp code with emacs via the command line.
+# We must set $EMACS before running this... if it is an untrue value
+# then we return an empty list or string, depending on what caller wants.
+sub run_elisp
+{
+    my ($elisp) = @_;
+
+    return wantarray ? qw// : q{} unless $EMACS;
+    return `$EMACS --batch --eval '$elisp' 2>/dev/null`;
+}
+
+sub prompt_for_sitelisp
+{
+    my @lp = run_elisp( $ELISP_FIND_SITELISP );
+    chomp @lp;
+
+    my $site_lisp;
+    if ( scalar @lp ) {
+        ($site_lisp) = grep { /site-lisp$/ && -d $_ } @lp;
+    }
+
+    $site_lisp = prompt("Elisp install directory?", $site_lisp);
+
+    # We don't check if the directory exists, because we can create it...
+    return escape_path( $site_lisp );
+}
+
+sub prompt_for_infodir
+{
+    my $info_dir = run_elisp( $ELISP_FIND_INFODIR );
+    chomp $info_dir;
+
+    # pass prompt undef so it will not display brackets if $info_dir is ""
+    $info_dir = prompt("Info directory?", $info_dir || undef);
+    return escape_path( $info_dir );
+}
 
 # Append info page and elisp installation to the end of the install
 # section in the Makefile...
@@ -72,17 +122,17 @@ sub MY::postamble
 install ::
 END_MAKETXT
 
-    if ( $install_info ) { $maketxt .= <<"END_MAKETXT" }
-	install -d -m755 \$(DESTDIR)$info_dir
-	install -m644 sepia.info \$(DESTDIR)$info_dir
-	$install_info "$info_dir/sepia.info" "$info_dir/dir"
+    if ( $INFO_DIR ) { $maketxt .= <<"END_MAKETXT" }
+	install -d -m755 \$(DESTDIR)$INFO_DIR
+	install -m644 sepia.info \$(DESTDIR)$INFO_DIR
+	$INSTALL_INFO \$(DESTDIR)$INFO_DIR/sepia.info \$(DESTDIR)$INFO_DIR/dir
 	
 END_MAKETXT
 
-    if ( $install_el ) {
+    if ( $SITE_LISP ) {
         $maketxt .= <<"END_MAKETXT"
-	install -d -m755 \$(DESTDIR)$site_lisp
-	install -m644 *.el *.elc \$(DESTDIR)$site_lisp
+	install -d -m755 \$(DESTDIR)$SITE_LISP
+	install -m644 *.el *.elc \$(DESTDIR)$SITE_LISP
 END_MAKETXT
     } else {
         print <<'END_MSG'
@@ -100,17 +150,26 @@ END_MSG
 
     # Create a new target for compiled elisp (.elc) files...
     # Allow the compilation to fail (it is prefixed with "-")...
-    $maketxt .= <<"EOS";
+    if ( $EMACS ) {
+        $maketxt .= <<"EOS";
 
 \%.elc : \%.el
-	- $emacs -L '$ENV{PWD}' --batch -f batch-byte-compile \$? 2>/dev/null
+	- $EMACS -L '$ENV{PWD}' --batch -f batch-byte-compile \$? 2>/dev/null
 
 all :: sepia-snippet.elc sepia.elc sepia-cpan.elc sepia-tree.elc \\
 	   sepia-w3m.elc sepia-ido.elc
 EOS
+    }
 
     return $maketxt;
 }
+
+$EMACS        ||= prompt_for_emacs()
+    or warn "Disabling elisp compilation and dir detection.\n";
+$SITE_LISP    ||= prompt_for_sitelisp();
+$INFO_DIR     ||= prompt_for_infodir();
+$INSTALL_INFO ||= prompt("install-info program?", 'install-info')
+    if $INFO_DIR;
 
 WriteMakefile(
     NAME		=> 'Sepia',
