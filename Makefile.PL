@@ -63,33 +63,53 @@ if (!-d $info_dir) {
 
 $info_dir = quotemeta $info_dir;
 
+# Append info page and elisp installation to the end of the install
+# section in the Makefile...
+
 sub MY::postamble
 {
-    my $ret;
-    if ($install_info) {
-        $ret = <<EOS;
-	\$(CP) sepia.info $info_dir
-	$install_info $info_dir/sepia.info $info_dir/dir
-EOS
-    }
-    if ($install_el) {
-        $ret .= <<EOS;
+    my $maketxt = <<"END_MAKETXT";
 install ::
-	\@echo Compiling Elisp files.
-	$emacs -L '$ENV{PWD}' --batch -f batch-byte-compile *.el 2>/dev/null
-	\$(CP) *.el *.elc $site_lisp
-EOS
-    } else {
-        print <<EOS;
-NOTE:
-    To actually use this package, you need to move the Emacs Lisp files
-    somewhere Emacs will find them.
+END_MAKETXT
 
-    You may also want to install the HTML documentation somewhere
-    appropriate to your system.
-EOS
+    if ( $install_info ) { $maketxt .= <<"END_MAKETXT" }
+	install -d -m755 \$(DESTDIR)$info_dir
+	install -m644 sepia.info \$(DESTDIR)$info_dir
+	$install_info "$info_dir/sepia.info" "$info_dir/dir"
+	
+END_MAKETXT
+
+    if ( $install_el ) {
+        $maketxt .= <<"END_MAKETXT"
+	install -d -m755 \$(DESTDIR)$site_lisp
+	install -m644 *.el *.elc \$(DESTDIR)$site_lisp
+END_MAKETXT
+    } else {
+        print <<'END_MSG'
+
+======================================================================
+To actually use this package, you need to move the Emacs Lisp files
+somewhere Emacs will find them.
+
+You may also want to install the HTML documentation somewhere
+appropriate to your system.
+======================================================================
+
+END_MSG
     }
-    $ret;
+
+    # Create a new target for compiled elisp (.elc) files...
+    # Allow the compilation to fail (it is prefixed with "-")...
+    $maketxt .= <<"EOS";
+
+\%.elc : \%.el
+	- $emacs -L '$ENV{PWD}' --batch -f batch-byte-compile \$? 2>/dev/null
+
+all :: sepia-snippet.elc sepia.elc sepia-cpan.elc sepia-tree.elc \\
+	   sepia-w3m.elc sepia-ido.elc
+EOS
+
+    return $maketxt;
 }
 
 WriteMakefile(
@@ -99,4 +119,5 @@ WriteMakefile(
     EXE_FILES		=> ['sepl'],
     AUTHOR		=> "Sean O'Rourke <seano\@cpan.org>",
     ABSTRACT		=> 'Simple Emacs-Perl InterAction',
+    clean           => { FILES => '*.elc' },
 );
