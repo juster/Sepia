@@ -108,7 +108,16 @@ sub prompt_for_infodir
 
 sub MY::postamble
 {
-    my $maketxt = <<"END_MAKETXT";
+    # Make an entry for Sepia.html as a target to make things easier...
+    my $maketxt = <<'END_MAKETXT';
+all :: Sepia.html
+
+Sepia.html : sepia.texi
+	makeinfo --no-split --no-headers --html sepia.texi -o Sepia.html
+
+END_MAKETXT
+
+    $maketxt .= <<"END_MAKETXT";
 install ::
 END_MAKETXT
 
