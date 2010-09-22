@@ -1,6 +1,9 @@
 use warnings;
 use strict;
 
+use Pod::Usage;
+use Getopt::Long;
+
 use ExtUtils::MakeMaker qw(WriteMakefile prompt);
 use 5.006;                      # for "no warnings" -- sorry!
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
@@ -22,19 +25,6 @@ sub test_for
     }
 }
 
-test_for 'Devel::Peek', 'Printing internals requires Devel::Peek';
-test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
-test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks.';
-test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
-test_for 'LWP::Simple', 'CPAN documentation browsing requires LWP::Simple';
-test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
-test_for 'Module::Info', 'Required for some Emacs functions';
-test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
-test_for 'BSD::Resource', 'Detailed command timing.';
-test_for 'Time::HiRes', 'Basic command timing.';
-# test_for 'Pod::Webserver', 'Pod::Webserver creates nice documentation.';
-# test_for 'Scope::Upper', 'Required for return-from-context';
-
 my $ELISP_FIND_SITELISP = <<'END_ELISP';
 (dolist (x load-path) (princ x) (terpri))
 END_ELISP
@@ -45,7 +35,7 @@ my $ELISP_FIND_INFODIR = <<'END_ELISP';
  (princ (car Info-default-directory-list)))
 END_ELISP
 
-my ($EMACS, $SITE_LISP, $INSTALL_INFO, $INFO_DIR);
+my ($EMACS, $SITE_LISP, $INSTALL_INFO, $INFO_DIR, $HELP);
 
 sub escape_path
 {
@@ -164,6 +154,29 @@ EOS
     return $maketxt;
 }
 
+GetOptions( 'emacs=s' => \$EMACS,
+            'lisp=s'  => \$SITE_LISP,
+            'info=s'  => \$INFO_DIR,
+            'help'    => \$HELP,
+           );
+
+exit pod2usage( '-verbose' => 1 ) if $HELP;
+
+test_for 'Devel::Peek', 'Printing internals requires Devel::Peek';
+test_for 'Devel::Size', 'Printing variable sizes requires Devel::Size';
+test_for 'IO::Scalar', 'Printing internals requires IO::Scalar because Devel::Peek sucks.';
+test_for 'Lexical::Persistence', 'Strict mode requires Lexical::Persistence';
+test_for 'LWP::Simple', 'CPAN documentation browsing requires LWP::Simple';
+test_for 'Module::CoreList', 'sepia-core-version requires Module::CoreList';
+test_for 'Module::Info', 'Required for some Emacs functions';
+test_for 'PadWalker', 'Stack/lexical inspection requires PadWalker >= 1.0';
+test_for 'BSD::Resource', 'Detailed command timing.';
+test_for 'Time::HiRes', 'Basic command timing.';
+# test_for 'Pod::Webserver', 'Pod::Webserver creates nice documentation.';
+# test_for 'Scope::Upper', 'Required for return-from-context';
+
+$INSTALL_INFO = 'install-info';
+
 $EMACS        ||= prompt_for_emacs()
     or warn "Disabling elisp compilation and dir detection.\n";
 $SITE_LISP    ||= prompt_for_sitelisp();
@@ -180,3 +193,37 @@ WriteMakefile(
     ABSTRACT		=> 'Simple Emacs-Perl InterAction',
     clean           => { FILES => '*.elc' },
 );
+
+__END__
+
+=head1 SYNOPSIS
+
+  # prompts for paths
+  perl Makefile.PL 
+  
+  # doesn't prompt for paths
+  perl Makefile.PL --emacs /usr/bin/emacs \
+      --lisp /usr/share/emacs/site-lisp/sepia \
+      --info /usr/share/info
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--emacs>
+
+Specifies the path to emacs.
+
+=item B<--lisp>
+
+Specifies the directory to install the elisp files to.
+
+=item B<--info>
+
+Specifies the directory to install the texinfo files to.
+
+=item B<--help>
+
+Display this help information.
+
+=back
