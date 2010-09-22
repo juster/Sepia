@@ -1,3 +1,6 @@
+use warnings;
+use strict;
+
 use ExtUtils::MakeMaker qw(WriteMakefile prompt);
 use 5.006;                      # for "no warnings" -- sorry!
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
@@ -33,17 +36,12 @@ test_for 'Time::HiRes', 'Basic command timing.';
 # test_for 'Scope::Upper', 'Required for return-from-context';
 
 # try to compile and install Elisp files, but don't die if we can't.
-$install_el = 0;
+my $install_el = 0;
 my ($sysemacs) = grep { -x $_ } $ENV{EMACS}, glob '/usr/bin{/local,}/emacs';
-$emacs = quotemeta prompt("What is your emacs? ", $sysemacs);
-@lp = `$emacs --batch --eval '(dolist (x load-path) (princ x) (terpri))' 2>/dev/null`;
+my $emacs = quotemeta prompt("What is your emacs? ", $sysemacs);
+my @lp = `$emacs --batch --eval '(dolist (x load-path) (princ x) (terpri))' 2>/dev/null`;
 chomp @lp;
-for (@lp) {
-    if (/site-lisp$/ && -d $_) {
-        $site_lisp = $_;
-        last;
-    }
-}
+my ($site_lisp) = grep { /site-lisp$/ && -d $_ } @lp;
 $site_lisp = prompt("Elisp install directory?", $site_lisp);
 if (-d $site_lisp) {
     $install_el = 1;
@@ -54,8 +52,8 @@ if (-d $site_lisp) {
 $site_lisp = quotemeta $site_lisp;
 
 # Also try to install texinfo documentation.
-$install_info = quotemeta prompt("install-info program?", 'install-info');
-$info_dir = `$emacs --batch --eval '(progn (require (quote info)) (princ (car Info-default-directory-list)))' 2>/dev/null`;
+my $install_info = quotemeta prompt("install-info program?", 'install-info');
+my $info_dir = `$emacs --batch --eval '(progn (require (quote info)) (princ (car Info-default-directory-list)))' 2>/dev/null`;
 chomp $info_dir;
 $info_dir = prompt("Info directory?", $info_dir);
 if (!-d $info_dir) {
